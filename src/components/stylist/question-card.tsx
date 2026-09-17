@@ -40,9 +40,9 @@ export function QuestionCard({ pending, onRespond, disabled }: QuestionCardProps
   }
 
   return (
-    <section className="bg-muted/40 space-y-3 rounded-xl border p-3" aria-label="Question from the stylist">
+    <section className="space-y-4 border-l border-foreground/30 py-2 pl-5" aria-label="Question from the stylist">
       <div className="flex items-start gap-2">
-        <MessageCircleQuestionMark className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+        <MessageCircleQuestionMark className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
         <p className="text-sm text-pretty">{pending.request.prompt}</p>
       </div>
 
@@ -53,6 +53,7 @@ export function QuestionCard({ pending, onRespond, disabled }: QuestionCardProps
               key={option.id}
               size="sm"
               variant="outline"
+              className="h-9 rounded-none"
               disabled={disabled || busy !== null}
               onClick={() => void answer(option.id, { optionId: option.id })}
               title={option.description}
@@ -65,7 +66,7 @@ export function QuestionCard({ pending, onRespond, disabled }: QuestionCardProps
       ) : null}
 
       {pending.request.allowFreeform === true || options.length === 0 ? (
-        <form onSubmit={submitFreeform} className="flex items-center gap-2">
+        <form noValidate onSubmit={submitFreeform} className="flex items-center gap-2">
           <Input
             value={text}
             onChange={(event) => setText(event.target.value)}

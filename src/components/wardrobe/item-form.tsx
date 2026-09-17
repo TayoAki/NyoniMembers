@@ -1,11 +1,13 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { Save } from "lucide-react";
+import type { FunctionArgs } from "convex/server";
+import { ChevronDown, Save } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -61,6 +63,27 @@ function draftOf(item: Item): Draft {
   };
 }
 
+function changedAttributes(draft: Draft, saved: Draft, item: Item): FunctionArgs<typeof api.items.update>["patch"] {
+  const changes: FunctionArgs<typeof api.items.update>["patch"] = {};
+  for (const key of ["name", "subcategory", "pattern", "material", "brand", "notes"] as const) {
+    if (draft[key].trim() !== saved[key].trim()) changes[key] = draft[key].trim();
+  }
+  if (draft.category !== saved.category) changes.category = draft.category;
+  if (draft.formality !== saved.formality) changes.formality = draft.formality;
+  if (draft.fit !== saved.fit && draft.fit !== undefined) changes.fit = draft.fit;
+  if (JSON.stringify(draft.season) !== JSON.stringify(saved.season)) changes.season = draft.season;
+  const primaryChanged = draft.primary.trim() !== saved.primary.trim();
+  const secondaryChanged = JSON.stringify(draft.secondary) !== JSON.stringify(saved.secondary);
+  if (primaryChanged || secondaryChanged) {
+    changes.colours = {
+      ...item.colours,
+      ...(primaryChanged ? { primary: draft.primary.trim() } : {}),
+      ...(secondaryChanged ? { secondary: draft.secondary } : {}),
+    };
+  }
+  return changes;
+}
+
 /** Everything about a garment the user can correct. Mount with `key={item._id}` so drafts survive live updates. */
 export function ItemForm({ item }: { item: Item }) {
   const update = useMutation(api.items.update);
@@ -75,43 +98,52 @@ export function ItemForm({ item }: { item: Item }) {
     notes: useId(),
   };
 
-  const [saved, setSaved] = useState<Draft>(() => draftOf(item));
-  const [draft, setDraft] = useState<Draft>(() => draftOf(item));
+  const [editor, setEditor] = useState(() => {
+    const source = draftOf(item);
+    return { source, saved: source, draft: source };
+  });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { draft, saved } = editor;
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const live = draftOf(item);
+
+  if (JSON.stringify(live) !== JSON.stringify(editor.source)) {
+    setEditor({ ...editor, source: live, ...(!dirty && !pending ? { saved: live, draft: live } : {}) });
+  }
 
   function patch(next: Partial<Draft>) {
-    setDraft((current) => ({ ...current, ...next }));
+    setEditor((current) => ({ ...current, draft: { ...current.draft, ...next } }));
   }
 
   async function handleSave() {
-    if (!dirty) return;
+    if (!dirty || pending) return;
     if (draft.name.trim().length === 0) {
       setError("Give the item a name.");
       return;
     }
-    setPending(true);
     setError(null);
+    const changes = changedAttributes(draft, saved, item);
+    if (Object.keys(changes).length === 0) {
+      setEditor({ source: live, saved: live, draft: live });
+      return;
+    }
+    setPending(true);
     try {
       await update({
         itemId: item._id,
-        patch: {
-          name: draft.name.trim(),
-          category: draft.category,
-          subcategory: draft.subcategory.trim(),
-          colours: { primary: draft.primary.trim(), secondary: draft.secondary, hex: item.colours.hex },
-          pattern: draft.pattern.trim(),
-          material: draft.material.trim(),
-          season: draft.season,
-          formality: draft.formality,
-          ...(draft.fit ? { fit: draft.fit } : {}),
-          brand: draft.brand.trim(),
-          notes: draft.notes.trim(),
-        },
+        patch: changes,
       });
-      setSaved(draft);
+      setEditor((current) => {
+        const { colours, ...attributes } = changes;
+        const accepted = {
+          ...current.source,
+          ...attributes,
+          ...(colours ? { primary: colours.primary, secondary: [...colours.secondary] } : {}),
+        };
+        return { ...current, saved: accepted, draft: accepted };
+      });
       toast.success("Saved.");
     } catch (caught) {
       setError(reportError(caught).message);
@@ -122,13 +154,13 @@ export function ItemForm({ item }: { item: Item }) {
 
   return (
     <form
-      className="space-y-6"
+      className="space-y-6 [&_[data-slot=input]]:h-10 [&_[data-slot=input]]:bg-card [&_[data-slot=input]]:shadow-none [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:bg-card [&_[data-slot=select-trigger]]:shadow-none"
       onSubmit={(event) => {
         event.preventDefault();
         void handleSave();
       }}
     >
-      <FieldGroup>
+      <FieldGroup className="gap-5">
         <Field>
           <FieldLabel htmlFor={ids.name}>Name</FieldLabel>
           <Input
@@ -202,96 +234,106 @@ export function ItemForm({ item }: { item: Item }) {
           </Field>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor={ids.pattern}>Pattern</FieldLabel>
-            <Input
-              id={ids.pattern}
-              value={draft.pattern}
-              onChange={(event) => patch({ pattern: event.target.value })}
-              placeholder="e.g. solid, striped"
-              disabled={pending}
-            />
-          </Field>
+        <Collapsible className="border-y border-border">
+          <CollapsibleTrigger
+            render={<Button variant="ghost" className="h-14 w-full justify-between rounded-none px-0" />}
+          >
+            Fabric, fit & styling
+            <ChevronDown className="size-4" aria-hidden />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-5 pb-6">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={ids.pattern}>Pattern</FieldLabel>
+                <Input
+                  id={ids.pattern}
+                  value={draft.pattern}
+                  onChange={(event) => patch({ pattern: event.target.value })}
+                  placeholder="e.g. solid, striped"
+                  disabled={pending}
+                />
+              </Field>
 
-          <Field>
-            <FieldLabel htmlFor={ids.material}>Material</FieldLabel>
-            <Input
-              id={ids.material}
-              value={draft.material}
-              onChange={(event) => patch({ material: event.target.value })}
-              placeholder="e.g. cotton"
-              disabled={pending}
-            />
-          </Field>
-        </div>
+              <Field>
+                <FieldLabel htmlFor={ids.material}>Material</FieldLabel>
+                <Input
+                  id={ids.material}
+                  value={draft.material}
+                  onChange={(event) => patch({ material: event.target.value })}
+                  placeholder="e.g. cotton"
+                  disabled={pending}
+                />
+              </Field>
+            </div>
 
-        <FieldSet disabled={pending}>
-          <FieldLegend variant="label">Season</FieldLegend>
-          <FieldDescription>Leave empty if it works all year.</FieldDescription>
-          <MultiToggleGroup
-            options={SEASONS}
-            value={draft.season}
-            onValueChange={(season) => patch({ season })}
-            disabled={pending}
-            aria-label="Season"
-          />
-        </FieldSet>
+            <FieldSet disabled={pending}>
+              <FieldLegend variant="label">Season</FieldLegend>
+              <FieldDescription>Leave empty if it works all year.</FieldDescription>
+              <MultiToggleGroup
+                options={SEASONS}
+                value={draft.season}
+                onValueChange={(season) => patch({ season })}
+                disabled={pending}
+                aria-label="Season"
+              />
+            </FieldSet>
 
-        <FieldSet disabled={pending}>
-          <FieldLegend variant="label">Formality</FieldLegend>
-          <SingleToggleGroup
-            options={FORMALITY}
-            value={draft.formality}
-            onValueChange={(formality) => patch({ formality })}
-            label={(option) => FORMALITY_LABELS[option]}
-            disabled={pending}
-            aria-label="Formality"
-          />
-        </FieldSet>
+            <FieldSet disabled={pending}>
+              <FieldLegend variant="label">Formality</FieldLegend>
+              <SingleToggleGroup
+                options={FORMALITY}
+                value={draft.formality}
+                onValueChange={(formality) => patch({ formality })}
+                label={(option) => FORMALITY_LABELS[option]}
+                disabled={pending}
+                aria-label="Formality"
+              />
+            </FieldSet>
 
-        <FieldSet disabled={pending}>
-          <FieldLegend variant="label">Fit</FieldLegend>
-          <SingleToggleGroup
-            options={FITS}
-            value={draft.fit}
-            onValueChange={(fit) => patch({ fit })}
-            disabled={pending}
-            aria-label="Fit"
-          />
-        </FieldSet>
+            <FieldSet disabled={pending}>
+              <FieldLegend variant="label">Fit</FieldLegend>
+              <SingleToggleGroup
+                options={FITS}
+                value={draft.fit}
+                onValueChange={(fit) => patch({ fit })}
+                disabled={pending}
+                aria-label="Fit"
+              />
+            </FieldSet>
 
-        <Field>
-          <FieldLabel htmlFor={ids.brand}>Brand</FieldLabel>
-          <Input
-            id={ids.brand}
-            value={draft.brand}
-            onChange={(event) => patch({ brand: event.target.value })}
-            disabled={pending}
-          />
-        </Field>
+            <Field>
+              <FieldLabel htmlFor={ids.brand}>Brand</FieldLabel>
+              <Input
+                id={ids.brand}
+                value={draft.brand}
+                onChange={(event) => patch({ brand: event.target.value })}
+                disabled={pending}
+              />
+            </Field>
 
-        <Field>
-          <FieldLabel htmlFor={ids.notes}>Notes</FieldLabel>
-          <Textarea
-            id={ids.notes}
-            value={draft.notes}
-            onChange={(event) => patch({ notes: event.target.value })}
-            rows={3}
-            placeholder="Anything the stylist should know — runs small, needs dry cleaning…"
-            disabled={pending}
-          />
-        </Field>
+            <Field>
+              <FieldLabel htmlFor={ids.notes}>Notes</FieldLabel>
+              <Textarea
+                id={ids.notes}
+                value={draft.notes}
+                onChange={(event) => patch({ notes: event.target.value })}
+                rows={3}
+                placeholder="Anything the stylist should know — runs small, needs dry cleaning…"
+                disabled={pending}
+              />
+            </Field>
+          </CollapsibleContent>
+        </Collapsible>
       </FieldGroup>
 
       {error ? <ErrorAlert title="Could not save" message={error} /> : null}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={!dirty || pending}>
+        <Button type="submit" className="h-11 rounded-full px-6" disabled={!dirty || pending}>
           {pending ? <Spinner data-icon="inline-start" /> : <Save data-icon="inline-start" />}
           Save changes
         </Button>
-        {dirty && !pending ? <span className="text-muted-foreground text-sm">Unsaved changes</span> : null}
+        {dirty && !pending ? <span className="text-sm text-muted-foreground">Unsaved changes</span> : null}
       </div>
     </form>
   );

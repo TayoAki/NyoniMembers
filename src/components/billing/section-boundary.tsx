@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { toast } from "sonner";
 import { ErrorAlert } from "@/components/common/error-alert";
 
 type SectionBoundaryProps = {
@@ -26,6 +27,8 @@ export class SectionBoundary extends Component<SectionBoundaryProps, SectionBoun
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("SectionBoundary caught an error", error, info.componentStack);
+    // Once per failure: the inline alert is easy to miss halfway down a long page.
+    toast.error(this.props.message ?? this.props.title);
   }
 
   render() {

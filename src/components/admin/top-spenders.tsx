@@ -12,7 +12,10 @@ import { api } from "@convex/_generated/api";
 import type { AdminWindow } from "./window-toggle";
 
 export function TopSpenders({ days }: { days: AdminWindow }) {
-  const spenders = useQuery(api.admin.topSpenders, { days, limit: 10 });
+  const result = useQuery(api.admin.topSpenders, { days, limit: 10 });
+  const spenders = result?.rows;
+  // The ranking comes from a bounded ledger window; the server says when it stopped short of it.
+  const truncated = result?.truncated ?? false;
 
   return (
     <Card>
@@ -20,6 +23,7 @@ export function TopSpenders({ days }: { days: AdminWindow }) {
         <CardTitle>Top spenders</CardTitle>
         <CardDescription>
           Credits spent over the last {pluralize(days, "day")}, with the image cost they actually cost us.
+          {truncated ? " Ranked from the most recent ledger lines only, so the tail may be missing." : null}
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
@@ -49,7 +53,7 @@ export function TopSpenders({ days }: { days: AdminWindow }) {
                   <TableCell className="max-w-[24ch] truncate font-medium" title={spender.email ?? spender.name}>
                     {spender.name ?? spender.email ?? "Unknown"}
                     {spender.name && spender.email ? (
-                      <span className="text-muted-foreground ml-2 font-normal">{spender.email}</span>
+                      <span className="ml-2 font-normal text-muted-foreground">{spender.email}</span>
                     ) : null}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
@@ -60,7 +64,7 @@ export function TopSpenders({ days }: { days: AdminWindow }) {
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatNumber(spender.creditsSpent)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-right tabular-nums">
+                  <TableCell className="text-right text-muted-foreground tabular-nums">
                     {formatUsd(spender.cogsUsd)}
                   </TableCell>
                 </TableRow>

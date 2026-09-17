@@ -39,7 +39,7 @@ export function SelectionBar({
       role="region"
       aria-label="Selected items"
     >
-      <div className="bg-popover/95 flex flex-wrap items-center gap-2 rounded-xl border p-2 shadow-lg backdrop-blur">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-popover/95 p-2 shadow-lg backdrop-blur">
         <Button variant="ghost" size="icon-sm" onClick={onClear} aria-label="Clear selection">
           <X />
         </Button>

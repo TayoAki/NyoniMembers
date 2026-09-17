@@ -1,108 +1,111 @@
 "use client";
 
-import { CalendarClock, Coins, Package, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { useClerk } from "@clerk/nextjs";
+import { useAction } from "convex/react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { reportError } from "@/lib/errors";
+import { api } from "@convex/_generated/api";
 import { useBalance } from "@/hooks/use-credits";
 import { formatCredits, formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { LIMITS, PLANS } from "@convex/shared/credits";
+import { LIMITS } from "@convex/shared/credits";
+import { useClerkPlan } from "@/hooks/use-clerk-plan";
 import { SummaryCardsSkeleton } from "./billing-skeleton";
 
 export function BillingOverview() {
   const { balance, isLow } = useBalance();
+  const { plan } = useClerkPlan();
+  const { session } = useClerk();
+  const refreshSubscription = useAction(api.subscriptions.refresh);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refreshPlan() {
+    setRefreshing(true);
+    try {
+      await session?.reload();
+      await refreshSubscription({});
+    } catch (error) {
+      reportError(error, "Could not refresh your plan. Try again.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (!balance) {
     return (
       <section className="space-y-4">
-        <div className="bg-muted h-12 w-52 animate-pulse rounded-lg" />
+        <div className="h-12 w-52 animate-pulse rounded-lg bg-muted" />
         <SummaryCardsSkeleton />
       </section>
     );
   }
 
-  const plan = PLANS[balance.plan];
-
   return (
-    <section className="space-y-4" aria-label="Balance">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <section className="grid border-y border-foreground/20 md:grid-cols-[1.1fr_1fr]" aria-label="Balance">
+      <div className="flex flex-col justify-between gap-8 py-7 md:pr-10">
         <div>
-          <p className="text-muted-foreground text-sm">Available now</p>
-          <p className={cn("flex items-baseline gap-2", isLow && "text-destructive")}>
-            <span className="text-4xl font-semibold tracking-tight tabular-nums">{formatNumber(balance.total)}</span>
-            <span className="text-muted-foreground text-base">{balance.total === 1 ? "credit" : "credits"}</span>
+          <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">Available to create</p>
+          <p className={cn("mt-4 flex items-baseline gap-3", isLow && "text-destructive")}>
+            <span className="text-[5.5rem] leading-none font-medium tracking-[-0.075em] tabular-nums sm:text-[7rem]">
+              {formatNumber(balance.total)}
+            </span>
+            <span className="text-sm text-muted-foreground">{balance.total === 1 ? "credit" : "credits"}</span>
           </p>
-        </div>
-        <div className="flex items-center gap-2">
           {isLow ? (
-            <Badge variant="destructive" className="h-6 px-2.5">
-              Running low — top up below
-            </Badge>
+            <p className="mt-3 text-xs text-destructive">
+              {plan.monthlyCredits > 0
+                ? "Running low. Plan credits refresh each billing cycle."
+                : "Running low. Choose a plan for a monthly credit allowance."}
+            </p>
           ) : null}
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {formatCredits(balance.dailyRemaining)} left in today&rsquo;s cap of {formatNumber(LIMITS.dailyCreditCap)}
-          </span>
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <p className="max-w-52 text-xs leading-relaxed text-muted-foreground">
+            {formatCredits(balance.dailyRemaining)} left in today’s cap of {formatNumber(LIMITS.dailyCreditCap)}.
+          </p>
+          <Button variant="link" className="h-auto px-0" nativeButton={false} render={<a href="#plans" />}>
+            View plans <ArrowUpRight data-icon="inline-end" />
+          </Button>
         </div>
       </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
-              <CalendarClock className="size-3.5" aria-hidden />
-              Current plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold tracking-tight">{plan.name}</p>
-            <p className="text-muted-foreground text-sm text-pretty">{plan.blurb}</p>
-          </CardContent>
-          <CardFooter className="text-muted-foreground text-xs">
-            {balance.planPeriodEnd
-              ? `Renews on ${formatDate(balance.planPeriodEnd)}`
-              : "No renewal — nothing to cancel"}
-          </CardFooter>
-        </Card>
-
-        <Card className={cn(isLow && "ring-destructive/30")}>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
-              <RefreshCw className="size-3.5" aria-hidden />
-              Plan credits
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p className="text-2xl font-semibold tracking-tight tabular-nums">{formatNumber(balance.planCredits)}</p>
-            <p className="text-muted-foreground text-sm">Spent first, before your packs.</p>
-          </CardContent>
-          <CardFooter className="text-muted-foreground text-xs tabular-nums">
-            {plan.monthlyCredits > 0
-              ? `Resets to ${formatNumber(plan.monthlyCredits)} each cycle`
-              : "Free plan has no cycle refill"}
-          </CardFooter>
-        </Card>
-
-        <Card className={cn(isLow && "ring-destructive/30")}>
-          <CardHeader>
-            <CardTitle className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
-              <Package className="size-3.5" aria-hidden />
-              Pack credits
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <p
-              className={cn(
-                "flex items-center gap-2 text-2xl font-semibold tracking-tight tabular-nums",
-                isLow && "text-destructive",
-              )}
-            >
-              <Coins className={cn("size-5", isLow ? "text-destructive" : "text-credit")} aria-hidden />
-              {formatNumber(balance.packCredits)}
-            </p>
-            <p className="text-muted-foreground text-sm">Bought once, kept forever.</p>
-          </CardContent>
-          <CardFooter className="text-muted-foreground text-xs">Never expire</CardFooter>
-        </Card>
+      <div className="space-y-6 border-t py-7 md:border-t-0 md:border-l md:pl-10">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">Your membership</p>
+            <p className="text-3xl font-medium tracking-tight">{plan.name}</p>
+            <p className="max-w-64 text-xs leading-relaxed text-muted-foreground">{plan.blurb}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 rounded-none"
+            disabled={refreshing}
+            onClick={() => void refreshPlan()}
+          >
+            {refreshing ? <Spinner /> : <RefreshCw aria-hidden />} Refresh plan
+          </Button>
+        </div>
+        <dl className="divide-y border-y text-sm">
+          <div className="flex items-baseline justify-between gap-4 py-3">
+            <dt className="text-muted-foreground">
+              Plan credits <span className="text-[10px]">/ used first</span>
+            </dt>
+            <dd className="font-medium tabular-nums">{formatNumber(balance.planCredits)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4 py-3">
+            <dt className="text-muted-foreground">Non-expiring credits</dt>
+            <dd className="font-medium tabular-nums">{formatNumber(balance.packCredits)}</dd>
+          </div>
+        </dl>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {plan.monthlyCredits > 0
+            ? `${formatNumber(plan.monthlyCredits)} plan credits each cycle.`
+            : "No monthly charge or cycle refill."}
+          {balance.planPeriodEnd ? ` Current cycle ends ${formatDate(balance.planPeriodEnd)}.` : ""}
+        </p>
       </div>
     </section>
   );

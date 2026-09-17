@@ -1,24 +1,24 @@
 "use client";
 
-import { CalendarCheck, Shapes, Trash2 } from "lucide-react";
+import { ArrowUpRight, CalendarCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { EmptyState } from "@/components/common/empty-state";
 import { PageHeader } from "@/components/common/page-header";
 import { draftFromOutfit, EMPTY_DRAFT, OutfitForm } from "@/components/outfits/outfit-form";
-import { OutfitBuilderSkeleton } from "@/components/outfits/outfits-skeleton";
 import { RenderPanel } from "@/components/renders/render-panel";
+import { RenderSheet } from "@/components/renders/render-sheet";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useOutfitActions, useOutfits, useOutfit, type Outfit } from "@/hooks/use-outfits";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useOutfit, useOutfitActions, type Outfit } from "@/hooks/use-outfits";
 import { formatRelative, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import type { Id } from "@convex/_generated/dataModel";
 
-type OutfitBuilderProps = { mode: "create" } | { mode: "edit"; outfitId: Id<"outfits"> };
+type OutfitBuilderProps = { mode: "create" } | { mode: "edit"; outfitId: string };
 
 /** The /outfits/new and /outfits/[outfitId] screen. One board, two modes. */
 export function OutfitBuilder(props: OutfitBuilderProps) {
@@ -27,64 +27,129 @@ export function OutfitBuilder(props: OutfitBuilderProps) {
 }
 
 function CreateBuilder() {
-  const outfits = useOutfits();
+  const router = useRouter();
+  const [dirty, setDirty] = useState(false);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
-        eyebrow="Outfit"
+        eyebrow="The outfit studio"
         title="New outfit"
-        description="Tap a slot to pick from your wardrobe. Save it, then see it on yourself."
+        description="Choose your pieces, save the look, then try it on."
         actions={
-          <Button variant="outline" render={<Link href={routes.outfits} />}>
-            Cancel
-          </Button>
+          dirty ? (
+            <ConfirmDialog
+              trigger={
+                <Button variant="ghost" className="rounded-none">
+                  Cancel
+                </Button>
+              }
+              title="Leave without saving?"
+              description="This outfit has not been saved yet, so the pieces you picked are lost."
+              confirmLabel="Discard outfit"
+              cancelLabel="Keep editing"
+              destructive
+              onConfirm={() => router.push(routes.outfits)}
+            />
+          ) : (
+            <Button
+              variant="ghost"
+              className="rounded-none"
+              nativeButton={false}
+              render={<Link href={routes.outfits} />}
+            >
+              Cancel
+            </Button>
+          )
         }
       />
-      <OutfitForm mode="create" initial={EMPTY_DRAFT} outfitCount={outfits?.length ?? 0} />
+      <OutfitForm mode="create" initial={EMPTY_DRAFT} onDirtyChange={setDirty} />
     </div>
   );
 }
 
-function EditBuilder({ outfitId }: { outfitId: Id<"outfits"> }) {
+function EditBuilder({ outfitId }: { outfitId: string }) {
   const outfit = useOutfit(outfitId);
-  const outfits = useOutfits();
 
   if (outfit === undefined) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-8">
         <PageHeader title="Outfit" description="Loading…" />
-        <OutfitBuilderSkeleton />
+        <div className="@container" aria-busy="true" aria-label="Loading outfit try-ons">
+          <div className="grid gap-7 @2xl:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)]">
+            <Skeleton className="mx-auto aspect-[2/3] w-full max-w-[min(340px,36svh)] rounded-none" />
+            <div className="space-y-5">
+              <div className="grid grid-cols-3 gap-3">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <Skeleton key={index} className="h-28 rounded-none" />
+                ))}
+              </div>
+              <Skeleton className="h-12 w-full rounded-none" />
+              <Skeleton className="h-12 w-full rounded-none" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (outfit === null) {
-    return (
-      <EmptyState
-        icon={Shapes}
-        title="This outfit is gone"
-        description="It may have been deleted, or the link is wrong."
-        action={<Button render={<Link href={routes.outfits} />}>Back to outfits</Button>}
-      />
-    );
+  // Deleted, never existed, or someone else's: the route's not-found page says so.
+  if (outfit === null) notFound();
+
+  return <SavedOutfitBuilder key={outfit._id} outfit={outfit} />;
+}
+
+function SavedOutfitBuilder({ outfit }: { outfit: Outfit }) {
+  const [dirty, setDirty] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [startedJobId, setStartedJobId] = useState<Id<"jobs"> | null>(null);
+  const hasPieces = Object.values(outfit.items).some((item) => (Array.isArray(item) ? item.length > 0 : Boolean(item)));
+  const canTryOn = !dirty && hasPieces;
+
+  function openFittingRoom() {
+    if (canTryOn) setSheetOpen(true);
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={outfit.source === "agent" ? "Stylist outfit" : "Outfit"}
+        eyebrow={outfit.source === "agent" ? "The outfit studio / Styled by Fitcheck" : "The outfit studio"}
         title={outfit.name}
         description={describe(outfit)}
-        actions={<OutfitActionsRow outfit={outfit} />}
+        actions={
+          <>
+            <Button
+              className="h-11 rounded-none px-3 sm:hidden"
+              disabled={!canTryOn}
+              aria-label="Try on outfit"
+              aria-describedby="outfit-save-status"
+              onClick={openFittingRoom}
+            >
+              Try on <ArrowUpRight data-icon="inline-end" />
+            </Button>
+            <OutfitActionsRow outfit={outfit} />
+          </>
+        }
       />
-      <OutfitForm
-        key={outfit._id}
-        mode="edit"
+      <div className="@container">
+        <div className="grid items-start gap-7 @2xl:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)] @4xl:gap-10">
+          <RenderPanel outfit={outfit} draftDirty={dirty} startedJobId={startedJobId} />
+          <OutfitForm
+            mode="edit"
+            compact
+            outfitId={outfit._id}
+            initial={draftFromOutfit(outfit)}
+            onDirtyChange={setDirty}
+            onTryOn={openFittingRoom}
+          />
+        </div>
+      </div>
+      <RenderSheet
         outfitId={outfit._id}
-        initial={draftFromOutfit(outfit)}
-        outfitCount={outfits?.length ?? 0}
+        open={sheetOpen && canTryOn}
+        onOpenChange={setSheetOpen}
+        onStarted={setStartedJobId}
       />
-      <RenderPanel outfit={outfit} />
     </div>
   );
 }
@@ -103,15 +168,24 @@ function OutfitActionsRow({ outfit }: { outfit: Outfit }) {
 
   return (
     <>
-      <Button variant="outline" onClick={() => void handleWorn()} disabled={wearPending}>
+      <Button
+        variant="outline"
+        className="h-11 rounded-none sm:h-10"
+        onClick={() => void handleWorn()}
+        disabled={wearPending}
+      >
         {wearPending ? <Spinner data-icon="inline-start" /> : <CalendarCheck data-icon="inline-start" />}
         Worn today
       </Button>
       <ConfirmDialog
         trigger={
-          <Button variant="destructive" aria-label="Delete this outfit">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-11 rounded-none text-muted-foreground sm:size-8"
+            aria-label="Delete this outfit"
+          >
             <Trash2 data-icon="inline-start" />
-            Delete
           </Button>
         }
         title="Delete this outfit?"

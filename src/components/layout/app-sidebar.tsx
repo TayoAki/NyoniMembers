@@ -25,6 +25,8 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
+  // Nothing in the app works before onboarding finishes, so the links stay away until it does.
+  const onboarded = Boolean(user?.onboardedAt);
 
   const renderItem = (item: NavItem) => (
     <SidebarMenuItem key={item.href}>
@@ -32,6 +34,7 @@ export function AppSidebar() {
         render={<Link href={item.href} />}
         isActive={isActivePath(pathname, item.href)}
         tooltip={item.label}
+        className="h-11 rounded-full px-4 text-sm group-data-[collapsible=icon]:px-2! data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground"
       >
         <item.icon />
         <span>{item.label}</span>
@@ -41,37 +44,41 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="px-4 py-5 group-data-[collapsible=icon]:px-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton render={<Link href={routes.wardrobe} />} size="lg" tooltip="Fitcheck">
-              <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
+              <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Shirt className="size-4" />
               </span>
-              <span className="font-semibold tracking-tight">Fitcheck</span>
+              <span className="text-xl font-semibold tracking-tight">Fitcheck</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>{PRIMARY_NAV.map(renderItem)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>Account</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>{SECONDARY_NAV.filter((item) => !item.adminOnly || isAdmin).map(renderItem)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {onboarded ? (
+          <>
+            <SidebarGroup className="px-3 group-data-[collapsible=icon]:px-2">
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1.5">{PRIMARY_NAV.map(renderItem)}</SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup className="mt-5 px-3 group-data-[collapsible=icon]:px-2">
+              <SidebarGroupLabel>Account</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>{SECONDARY_NAV.filter((item) => !item.adminOnly || isAdmin).map(renderItem)}</SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        ) : null}
       </SidebarContent>
-      <SidebarFooter>
-        <div className="flex items-center gap-2 px-1 py-1 group-data-[collapsible=icon]:justify-center">
+      <SidebarFooter className="border-t p-4 group-data-[collapsible=icon]:px-2">
+        <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
           <UserButton appearance={{ elements: { avatarBox: "size-7" } }} />
           <div className="min-w-0 text-xs group-data-[collapsible=icon]:hidden">
             <div className="truncate font-medium">{user?.name ?? "Your account"}</div>
-            <div className="text-muted-foreground truncate">{user?.email}</div>
+            <div className="truncate text-muted-foreground">Personal wardrobe</div>
           </div>
         </div>
       </SidebarFooter>

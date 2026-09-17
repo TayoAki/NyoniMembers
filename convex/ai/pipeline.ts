@@ -3,11 +3,19 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { reserve } from "../model/credits";
-import { insertDetectedItem, markItemFailed, markItemReady, setItemEmbedding } from "../model/items";
+import {
+  countReady,
+  insertDetectedItem,
+  markItemFailed,
+  markItemReady,
+  readyItemsForEmbeddings,
+  setItemEmbedding,
+} from "../model/items";
 import { addSteps, appendResult, getJob, setStep } from "../model/jobs";
 import { layeredItems } from "../model/outfits";
-import { markRenderDone, markRenderFailed } from "../model/renders";
-import { usageToUsd, LIMITS } from "../shared/credits";
+import { markRenderDone, markRenderFailed, setRenderPrompt } from "../model/renders";
+import { bumpDailyStats } from "../model/stats";
+import { detectUsageToUsd, usageToUsd, LIMITS } from "../shared/credits";
 import { INGEST_STEPS, RENDER_STEPS } from "../shared/jobs";
 import {
   literals,
@@ -94,6 +102,17 @@ export const recordDetection = internalMutation({
 
     const detected = args.items.slice(0, LIMITS.maxItemsPerPhoto);
     const found = detected.length;
+
+    const readyCount = await countReady(ctx, job.userId);
+    if (readyCount + found > LIMITS.maxItemsPerUser) {
+      throw appError(
+        "WARDROBE_FULL",
+        `Your wardrobe is full (${LIMITS.maxItemsPerUser} items). Delete a few before adding more.`,
+        { limit: LIMITS.maxItemsPerUser, current: readyCount },
+      );
+    }
+
+    const detectCostUsd = detectCostOf(job);
     const reservation = await reserve(ctx, user, found, args.jobId);
     const granted = reservation.granted;
 
@@ -116,7 +135,8 @@ export const recordDetection = internalMutation({
       args.jobId,
       toExtract.map((target) => ({ key: target.stepKey, meta: { itemId: target.itemId } })),
     );
-    await setStep(ctx, args.jobId, INGEST_STEPS.detect, { status: "done", meta: { found } });
+    await setStep(ctx, args.jobId, INGEST_STEPS.detect, { status: "done", meta: { found, costUsd: detectCostUsd } });
+    if (detectCostUsd > 0) await bumpDailyStats(ctx, { cogsUsd: detectCostUsd });
     await setStep(ctx, args.jobId, INGEST_STEPS.reserve, {
       status: "done",
       meta:
@@ -137,6 +157,15 @@ export const recordDetection = internalMutation({
   },
 });
 
+/** Text-model tokens the detect action recorded on its step, priced as COGS when the step finishes. */
+function detectCostOf(job: Doc<"jobs">): number {
+  const meta = job.steps.find((step) => step.key === INGEST_STEPS.detect)?.meta;
+  const inputTextTokens = typeof meta?.inputTextTokens === "number" ? meta.inputTextTokens : 0;
+  const outputTokens = typeof meta?.outputTokens === "number" ? meta.outputTokens : 0;
+  if (inputTextTokens === 0 && outputTokens === 0) return 0;
+  return detectUsageToUsd({ inputTextTokens, inputImageTokens: 0, outputTokens });
+}
+
 /**
  * Opens the extract steps for a re-run (uploads.resume / items.reextract), which reserved the
  * credits before starting the workflow. Items that vanished or belong to someone else are dropped.
@@ -150,7 +179,8 @@ export const beginExtractItems = internalMutation({
     for (const itemId of args.itemIds) {
       const item = await ctx.db.get(itemId);
       if (!item || item.userId !== job.userId) continue;
-      await ctx.db.patch(itemId, { status: "extracting", updatedAt: Date.now() });
+      // A re-extract (item still `ready`, carrying `pendingJobId`) must stay visible in the wardrobe.
+      if (item.status !== "ready") await ctx.db.patch(itemId, { status: "extracting", updatedAt: Date.now() });
       targets.push({ itemId, stepKey: extractStepKey(targets.length) });
     }
     await addSteps(
@@ -201,14 +231,11 @@ export const extractContext = internalQuery({
   },
 });
 
-/** Narrows vector-search hits to items that are actually usable as a duplicate target. */
-export const readyItemIds = internalQuery({
-  args: { itemIds: v.array(v.id("items")) },
+/** Maps vector-search hits on `itemEmbeddings` back to items usable as a duplicate target. */
+export const duplicateCandidates = internalQuery({
+  args: { embeddingIds: v.array(v.id("itemEmbeddings")), itemId: v.id("items") },
   returns: v.array(v.id("items")),
-  handler: async (ctx, { itemIds }): Promise<Id<"items">[]> => {
-    const docs = await Promise.all(itemIds.map((itemId) => ctx.db.get(itemId)));
-    return docs.filter((doc): doc is Doc<"items"> => doc !== null && doc.status === "ready").map((doc) => doc._id);
-  },
+  handler: async (ctx, args): Promise<Id<"items">[]> => readyItemsForEmbeddings(ctx, args.embeddingIds, args.itemId),
 });
 
 /** One transaction for a finished cutout: file, swatches, usage, embedding, duplicate flag, step. */
@@ -328,8 +355,7 @@ export const renderDone = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    // model/renders.markRenderDone doesn't carry the prompt; keep the exact text we sent for admin COGS.
-    await ctx.db.patch(args.renderId, { prompt: args.prompt });
+    await setRenderPrompt(ctx, args.renderId, args.prompt);
     await markRenderDone(ctx, args.renderId, { storageId: args.storageId, usage: args.usage });
     await appendResult(ctx, args.jobId, args.renderId);
     await setStep(ctx, args.jobId, args.stepKey, {

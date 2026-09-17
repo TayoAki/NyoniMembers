@@ -1,7 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUser } from "./lib/auth";
-import { createAvatar, listForUser, removeAvatar, setDefaultAvatar, toAvatarView } from "./model/avatars";
+import {
+  createAvatar,
+  listForUser,
+  removeAvatar,
+  replaceAvatar,
+  setDefaultAvatar,
+  toAvatarView,
+} from "./model/avatars";
 import { vAvatarView } from "./views";
 
 /** All of the user's avatar photos, default first. */
@@ -40,6 +47,16 @@ export const setDefault = mutation({
   handler: async (ctx, { avatarId }) => {
     const user = await requireUser(ctx);
     await setDefaultAvatar(ctx, user, avatarId);
+    return null;
+  },
+});
+
+export const replace = mutation({
+  args: { avatarId: v.id("avatars"), storageId: v.id("_storage"), label: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    await replaceAvatar(ctx, user, args);
     return null;
   },
 });

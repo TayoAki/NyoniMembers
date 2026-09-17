@@ -1,12 +1,13 @@
 export const SERVER_ENV_KEYS = [
   "CLERK_JWT_ISSUER_DOMAIN",
-  "CLERK_WEBHOOK_SIGNING_SECRET",
+  "CLERK_SECRET_KEY",
+  "AI_GATEWAY_API_KEY",
   "OPENAI_API_KEY",
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
   "AGENT_SERVICE_KEY",
   "SITE_URL",
   "MAX_DAILY_SPEND_USD",
+  /** "1" enables the internal smoke-test functions in `convex/dev/smoke.ts`; unset everywhere but a scratch deployment. */
+  "ALLOW_DEV_SMOKE",
 ] as const;
 
 export type ServerEnvKey = (typeof SERVER_ENV_KEYS)[number];

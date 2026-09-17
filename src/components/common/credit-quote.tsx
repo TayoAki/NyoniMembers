@@ -1,5 +1,3 @@
-"use client";
-
 import { Coins } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,25 +19,31 @@ export function CreditQuote({ quote, label, className }: CreditQuoteProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm",
+        "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border px-3 py-2 text-sm",
         quote.canAfford ? "border-border bg-muted/40" : "border-destructive/40 bg-destructive/5",
         className,
       )}
       role="status"
     >
-      <div className="flex items-center gap-2">
-        <Coins className={cn("size-4", quote.canAfford ? "text-credit" : "text-destructive")} aria-hidden />
-        <span className="font-medium tabular-nums">{formatCredits(quote.credits)}</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Coins className={cn("size-4 shrink-0", quote.canAfford ? "text-credit" : "text-destructive")} aria-hidden />
+        <span className="font-medium whitespace-nowrap tabular-nums">{formatCredits(quote.credits)}</span>
         {label ? <span className="text-muted-foreground">for {label}</span> : null}
       </div>
-      <div className="text-muted-foreground text-right text-xs tabular-nums">
+      <div className="text-right text-xs text-muted-foreground tabular-nums">
         {quote.canAfford ? (
-          <span>{formatCredits(quote.available)} available</span>
+          <span>{formatCredits(quote.available)} available today</span>
+        ) : quote.reason === "daily_cap" ? (
+          <span className="text-destructive">Daily allowance reached. Try fewer pieces or come back tomorrow.</span>
+        ) : quote.reason === "feature_locked" ? (
+          <Link href={routes.billing} className="underline underline-offset-2">
+            Upgrade for this quality
+          </Link>
         ) : (
           <span className="text-destructive">
             Short by {formatCredits(quote.shortfall)} ·{" "}
-            <Link href={routes.billing} className="underline underline-offset-2">
-              top up
+            <Link href={`${routes.billing}#plans`} className="underline underline-offset-2">
+              View plans
             </Link>
           </span>
         )}

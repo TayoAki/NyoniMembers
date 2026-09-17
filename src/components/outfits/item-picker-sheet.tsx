@@ -66,36 +66,37 @@ export function ItemPickerSheet({
     >
       <SheetContent
         side={isMobile ? "bottom" : "right"}
-        className="flex flex-col gap-0 p-0 data-[side=bottom]:h-[85dvh] data-[side=bottom]:rounded-t-2xl data-[side=right]:sm:max-w-md"
+        className="flex flex-col gap-0 p-0 data-[side=bottom]:h-[85dvh] data-[side=bottom]:rounded-t-none data-[side=right]:sm:max-w-xl"
       >
-        <SheetHeader className="border-b">
-          <SheetTitle>Choose {label.toLowerCase()}</SheetTitle>
+        <SheetHeader className="border-b border-foreground/15 p-6">
+          <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">From your wardrobe</p>
+          <SheetTitle className="text-3xl font-medium tracking-[-0.05em]">Choose {label.toLowerCase()}</SheetTitle>
           <SheetDescription>
             {candidates === undefined ? "Loading your wardrobe…" : pluralize(candidates.length, "piece")} to pick from.
           </SheetDescription>
           <div className="relative mt-3">
-            <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" aria-hidden />
+            <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={`Search ${label.toLowerCase()}…`}
               aria-label={`Search ${label.toLowerCase()}`}
-              className="h-9 pl-8"
+              className="h-11 rounded-none border-0 border-b bg-transparent pl-8 shadow-none"
             />
           </div>
         </SheetHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">
           {results === undefined ? (
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3">
               {Array.from({ length: 9 }, (_, index) => (
-                <Skeleton key={index} className="aspect-square rounded-lg" />
+                <Skeleton key={index} className="aspect-[3/4] rounded-none" />
               ))}
             </div>
           ) : results.length === 0 ? (
             <EmptyState
               icon={Shirt}
-              className="min-h-[180px]"
+              className="min-h-0 rounded-none border-0 py-8"
               title={query ? "Nothing matches that" : `No ${label.toLowerCase()} in your wardrobe`}
               description={
                 query ? "Try a different word, or clear the search." : "Photograph a few pieces and they show up here."
@@ -106,12 +107,14 @@ export function ItemPickerSheet({
                     Clear search
                   </Button>
                 ) : (
-                  <Button render={<Link href={routes.add} />}>Add clothes</Button>
+                  <Button nativeButton={false} render={<Link href={routes.add} />}>
+                    Add clothes
+                  </Button>
                 )
               }
             />
           ) : (
-            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3">
               {results.map((item) => {
                 const isSelected = selected.includes(item._id);
                 return (
@@ -121,19 +124,22 @@ export function ItemPickerSheet({
                       onClick={() => onToggle(item._id)}
                       aria-pressed={isSelected}
                       className={cn(
-                        "group focus-visible:ring-ring relative block w-full rounded-lg p-0.5 text-left transition-all focus-visible:ring-2 focus-visible:outline-none",
-                        isSelected ? "ring-primary ring-2" : "hover:ring-border ring-1 ring-transparent",
+                        "group relative block w-full p-0.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        isSelected ? "ring-2 ring-primary" : "ring-1 ring-transparent hover:ring-border",
                       )}
                     >
-                      <ItemImage src={item.url} alt={item.name} aspect="aspect-square" className="rounded-md p-1.5" />
+                      <ItemImage
+                        src={item.url}
+                        alt={item.name}
+                        aspect="aspect-[3/4]"
+                        className="rounded-none bg-muted/30 p-3"
+                      />
                       {isSelected ? (
-                        <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full">
+                        <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
                           <Check className="size-3" aria-hidden />
                         </span>
                       ) : null}
-                      <span className="text-muted-foreground mt-1 line-clamp-1 block px-0.5 text-[11px]">
-                        {item.name}
-                      </span>
+                      <span className="mt-3 line-clamp-1 block text-xs">{item.name}</span>
                     </button>
                   </li>
                 );
@@ -142,11 +148,15 @@ export function ItemPickerSheet({
           )}
         </div>
 
-        <SheetFooter className="flex-row items-center justify-between border-t">
-          <Button variant="ghost" onClick={onClear} disabled={selected.length === 0}>
+        <SheetFooter className="flex-row items-center justify-between border-t border-foreground/15 p-6">
+          <Button variant="ghost" className="rounded-none" onClick={onClear} disabled={selected.length === 0}>
             Clear {multiple ? "all" : label.toLowerCase()}
           </Button>
-          <Button variant={multiple ? "default" : "outline"} onClick={() => onOpenChange(false)}>
+          <Button
+            className="h-11 rounded-none px-8"
+            variant={multiple ? "default" : "outline"}
+            onClick={() => onOpenChange(false)}
+          >
             Done
           </Button>
         </SheetFooter>

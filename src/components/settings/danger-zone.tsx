@@ -8,7 +8,6 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 
@@ -25,23 +24,25 @@ export function DangerZone() {
   }
 
   return (
-    <Card className="ring-destructive/30">
-      <CardHeader className="border-destructive/20 border-b">
-        <CardTitle className="text-destructive flex items-center gap-2">
+    <section id="data" className="grid scroll-mt-24 gap-6 border-t py-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+      <header className="space-y-2">
+        <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">04 / Your data</p>
+        <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
           <TriangleAlert className="size-4" aria-hidden />
-          Danger zone
-        </CardTitle>
-        <CardDescription>
-          Deleting removes your wardrobe, outfits, renders, avatars, threads and credit history, and the files behind
-          them. It cannot be undone and nothing is refunded.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+          Wardrobe data
+        </h2>
+        <p className="text-sm text-muted-foreground">Manage the content stored in your account.</p>
+      </header>
+      <div className="space-y-4">
+        <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+          Deleting removes your wardrobe, outfits, renders, photos and conversations permanently. Your account,
+          subscription, credit balance and credit history are kept.
+        </p>
         <ConfirmDialog
-          trigger={<Button variant="destructive">Delete everything</Button>}
-          title="Delete everything?"
-          description="Every item, outfit, render, avatar and ledger line is erased, then you are signed out. There is no way back."
-          confirmLabel="Delete everything"
+          trigger={<Button variant="destructive">Delete wardrobe data</Button>}
+          title="Delete your wardrobe data?"
+          description="Every item, outfit, render, avatar and conversation is erased, then you are signed out. Your subscription and credits stay available."
+          confirmLabel="Delete wardrobe data"
           destructive
           confirmDisabled={typed.trim() !== CONFIRM_PHRASE}
           onOpenChange={(open) => !open && setTyped("")}
@@ -62,7 +63,7 @@ export function DangerZone() {
             </FieldDescription>
           </Field>
         </ConfirmDialog>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

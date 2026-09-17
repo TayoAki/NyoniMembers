@@ -1,13 +1,23 @@
+import type { WorkflowId } from "@convex-dev/workflow";
 import type { UserIdentity } from "convex/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { dayKey, PLANS } from "../shared/credits";
 import { ITEM_STATUSES } from "../shared/wardrobe";
+import { workflow } from "../workflows/manager";
 import { grantSignupBonus } from "./credits";
+import { completeJob } from "./jobs";
+import { bumpDailyStats, bumpSystemCounter } from "./stats";
 
 type Ctx = QueryCtx | MutationCtx;
 type UsageCounter = Doc<"usageCounters">["counter"];
+
+/**
+ * "content" is the self-serve wipe: everything the user made goes, the account (row, ledger,
+ * credits, plan, role) stays. The internal "account" mode also removes accounting data.
+ */
+export type PurgeMode = "content" | "account";
 
 export type UserProfileInput = {
   clerkId: string;
@@ -28,7 +38,7 @@ export async function getById(ctx: Ctx, userId: Id<"users">): Promise<Doc<"users
   return ctx.db.get(userId);
 }
 
-/** Create or refresh a user from Clerk data. Used by the client on first load and by Clerk webhooks. */
+/** Create or refresh a user from their verified identity or an authoritative Clerk SDK read. */
 export async function upsertFromProfile(ctx: MutationCtx, profile: UserProfileInput): Promise<Doc<"users">> {
   const existing = await getByClerkId(ctx, profile.clerkId);
   if (existing) {
@@ -56,9 +66,19 @@ export async function upsertFromProfile(ctx: MutationCtx, profile: UserProfileIn
   });
   const created = await ctx.db.get(userId);
   if (!created) throw new Error("User insert failed");
+  await bumpDailyStats(ctx, { newUsers: 1 });
+  await bumpSystemCounter(ctx, "users_total", 1);
   await grantSignupBonus(ctx, created);
   const withBonus = await ctx.db.get(userId);
   return withBonus ?? created;
+}
+
+/** The only place the `users` row is removed, so the all-time user counter stays in step with it. */
+export async function deleteUserRow(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
+  const user = await ctx.db.get(userId);
+  if (!user) return;
+  await ctx.db.delete("users", userId);
+  await bumpSystemCounter(ctx, "users_total", -1);
 }
 
 export function profileFromIdentity(identity: UserIdentity): UserProfileInput {
@@ -67,6 +87,7 @@ export function profileFromIdentity(identity: UserIdentity): UserProfileInput {
     email: identity.email ?? undefined,
     name: identity.name ?? identity.nickname ?? undefined,
     imageUrl: identity.pictureUrl ?? undefined,
+    role: roleFromClerkMetadata(identity.public_metadata ?? identity.metadata),
   };
 }
 
@@ -112,11 +133,48 @@ export async function bumpUsageCounter(
 /** Documents deleted per purge transaction; the caller reschedules itself until `purgeUserBatch` returns true. */
 const PURGE_BATCH = 200;
 
+const ACTIVE_JOB_STATUSES = ["queued", "running"] as const;
+
+/**
+ * Stops anything still running for this user before their rows disappear underneath it: an
+ * in-flight workflow would otherwise keep writing items and orphan storage files, and its
+ * `onComplete` refund would throw on a deleted user. Cancelling runs that refund now, while the
+ * ledger and (in "content" mode) the balance are still there.
+ */
+export async function cancelActiveJobs(ctx: MutationCtx, userId: Id<"users">): Promise<number> {
+  const lists = await Promise.all(
+    ACTIVE_JOB_STATUSES.map((status) =>
+      ctx.db
+        .query("jobs")
+        .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", status))
+        .take(PURGE_BATCH),
+    ),
+  );
+  const active = lists.flat();
+  for (const job of active) {
+    if (job.workflowId) {
+      try {
+        await workflow.cancel(ctx, job.workflowId as WorkflowId);
+      } catch (error) {
+        // Already finished or cleaned up: the component throws rather than no-op'ing. The nested
+        // call rolls back on its own, so the rest of the purge is unaffected.
+        console.warn(`Could not cancel workflow ${job.workflowId} for job ${job._id}`, error);
+      }
+    }
+    const current = await ctx.db.get(job._id);
+    if (current && (current.status === "queued" || current.status === "running")) {
+      await completeJob(ctx, job._id, { status: "cancelled", error: "Cancelled: the account's data was deleted." });
+    }
+  }
+  return active.length;
+}
+
 /**
  * Deletes one transaction-sized slice of everything a user owns, files included.
- * Returns true once nothing is left, at which point the caller deletes the user row.
+ * Returns true once nothing is left. In "content" mode the ledger (and with it the credit balance,
+ * plan and the welcome-bonus ref) is kept, so a wipe cannot re-mint the signup bonus.
  */
-export async function purgeUserBatch(ctx: MutationCtx, userId: Id<"users">): Promise<boolean> {
+export async function purgeUserBatch(ctx: MutationCtx, userId: Id<"users">, mode: PurgeMode): Promise<boolean> {
   let budget = PURGE_BATCH;
 
   const renders = await ctx.db
@@ -138,6 +196,11 @@ export async function purgeUserBatch(ctx: MutationCtx, userId: Id<"users">): Pro
     for (const item of items) {
       await deleteFile(ctx, item.storageId);
       await deleteFile(ctx, item.thumbStorageId);
+      const embedding = await ctx.db
+        .query("itemEmbeddings")
+        .withIndex("by_item", (q) => q.eq("itemId", item._id))
+        .unique();
+      if (embedding) await ctx.db.delete("itemEmbeddings", embedding._id);
       await ctx.db.delete("items", item._id);
     }
     budget -= items.length;
@@ -152,21 +215,21 @@ export async function purgeUserBatch(ctx: MutationCtx, userId: Id<"users">): Pro
   budget -= outfits.length;
   if (budget <= 0) return false;
 
+  const proposals = await ctx.db
+    .query("proposals")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(budget);
+  for (const proposal of proposals) await ctx.db.delete("proposals", proposal._id);
+  budget -= proposals.length;
+  if (budget <= 0) return false;
+
   const threads = await ctx.db
     .query("threads")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .take(budget);
-  for (const thread of threads) {
-    const proposals = await ctx.db
-      .query("proposals")
-      .withIndex("by_thread", (q) => q.eq("threadId", thread._id))
-      .take(budget);
-    for (const proposal of proposals) await ctx.db.delete("proposals", proposal._id);
-    budget -= proposals.length;
-    await ctx.db.delete("threads", thread._id);
-    budget -= 1;
-    if (budget <= 0) return false;
-  }
+  for (const thread of threads) await ctx.db.delete("threads", thread._id);
+  budget -= threads.length;
+  if (budget <= 0) return false;
 
   const uploads = await ctx.db
     .query("uploads")
@@ -198,13 +261,17 @@ export async function purgeUserBatch(ctx: MutationCtx, userId: Id<"users">): Pro
   budget -= jobs.length;
   if (budget <= 0) return false;
 
-  const ledger = await ctx.db
-    .query("creditLedger")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
-    .take(budget);
-  for (const line of ledger) await ctx.db.delete("creditLedger", line._id);
-  budget -= ledger.length;
-  if (budget <= 0) return false;
+  // Kept in "content" mode: the ledger is the audit trail and carries the `signup:<clerkId>` ref
+  // that stops the welcome credits being minted again by wiping and starting over.
+  if (mode === "account") {
+    const ledger = await ctx.db
+      .query("creditLedger")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .take(budget);
+    for (const line of ledger) await ctx.db.delete("creditLedger", line._id);
+    budget -= ledger.length;
+    if (budget <= 0) return false;
+  }
 
   const counters = await ctx.db
     .query("usageCounters")

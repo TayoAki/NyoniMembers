@@ -26,7 +26,7 @@ function Block({ block }: { block: string }) {
 
   if (lines.every((line) => BULLET.test(line))) {
     return (
-      <ul className="marker:text-muted-foreground list-disc space-y-1 pl-5">
+      <ul className="list-disc space-y-1 pl-5 marker:text-muted-foreground">
         {lines.map((line, index) => (
           <li key={index}>{inline(line.replace(BULLET, ""))}</li>
         ))}
@@ -36,7 +36,7 @@ function Block({ block }: { block: string }) {
 
   if (lines.every((line) => ORDERED.test(line))) {
     return (
-      <ol className="marker:text-muted-foreground list-decimal space-y-1 pl-5">
+      <ol className="list-decimal space-y-1 pl-5 marker:text-muted-foreground">
         {lines.map((line, index) => (
           <li key={index}>{inline(line.replace(ORDERED, ""))}</li>
         ))}
@@ -63,7 +63,7 @@ function inline(text: string): ReactNode[] {
     if (token.startsWith("__") && token.endsWith("__")) return <strong key={index}>{token.slice(2, -2)}</strong>;
     if (token.startsWith("`") && token.endsWith("`")) {
       return (
-        <code key={index} className="bg-muted rounded px-1 py-0.5 font-mono text-[0.85em]">
+        <code key={index} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">
           {token.slice(1, -1)}
         </code>
       );

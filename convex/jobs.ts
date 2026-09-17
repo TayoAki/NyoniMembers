@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { assertOwner, requireUser } from "./lib/auth";
-import { listActive as listActiveJobs } from "./model/jobs";
+import { listActive as listActiveJobs, readStepEstimates } from "./model/jobs";
 import { vJobStatus, vJobStep, vJobType, vReservation } from "./shared/validators";
 
 export const vJob = v.object({
@@ -59,6 +59,19 @@ export const listActive = query({
     const user = await requireUser(ctx);
     const jobs = await listActiveJobs(ctx, user._id);
     return jobs.map(toJobView);
+  },
+});
+
+/**
+ * Running average duration (ms) per step prefix — "detect", "extract", "render". The job stepper
+ * turns it into "about N s left"; an unknown prefix simply has no estimate.
+ */
+export const stepEstimates = query({
+  args: {},
+  returns: v.record(v.string(), v.number()),
+  handler: async (ctx) => {
+    await requireUser(ctx);
+    return readStepEstimates(ctx);
   },
 });
 

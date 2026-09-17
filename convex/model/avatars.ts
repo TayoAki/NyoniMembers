@@ -2,8 +2,11 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { assertOwner } from "../lib/auth";
 import { appError } from "../lib/errors";
-import { PLANS } from "../shared/credits";
+import { LIMITS, PLANS } from "../shared/credits";
 import type { AvatarView } from "../views";
+import { assertStoredImage } from "./uploads";
+import { listActive } from "./jobs";
+import { assertFreshBilling, hasCurrentPlan } from "./credits";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -42,8 +45,10 @@ export async function createAvatar(
   user: Doc<"users">,
   input: { storageId: Id<"_storage">; label?: string },
 ): Promise<Id<"avatars">> {
+  await assertStoredImage(ctx, input.storageId, input.label?.trim() || "That photo");
   const existing = await listForUser(ctx, user._id);
-  const max = PLANS[user.plan].maxAvatars;
+  assertFreshBilling(user);
+  const max = PLANS[hasCurrentPlan(user) ? user.plan : "free"].maxAvatars;
   if (existing.length >= max) {
     throw appError(
       "FEATURE_LOCKED",
@@ -79,6 +84,7 @@ export async function removeAvatar(ctx: MutationCtx, user: Doc<"users">, avatarI
   if (user.onboardedAt && all.length <= 1) {
     throw appError("INVALID_INPUT", "You need at least one photo of yourself. Add another before removing this one.");
   }
+  await assertAvatarAvailable(ctx, user, avatarId);
   await ctx.storage.delete(avatar.storageId);
   await ctx.db.delete("avatars", avatar._id);
 
@@ -90,6 +96,36 @@ export async function removeAvatar(ctx: MutationCtx, user: Doc<"users">, avatarI
       await ctx.db.patch(user._id, { defaultAvatarId: next._id });
     } else {
       await ctx.db.patch(user._id, { defaultAvatarId: undefined });
+    }
+  }
+}
+
+/** Replaces in place, so a user at their plan limit can update their photo without losing the default. */
+export async function replaceAvatar(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  input: { avatarId: Id<"avatars">; storageId: Id<"_storage">; label?: string },
+): Promise<void> {
+  const avatar = assertOwner(await ctx.db.get(input.avatarId), user, "avatar");
+  await assertStoredImage(ctx, input.storageId, input.label?.trim() || avatar.label);
+  await assertAvatarAvailable(ctx, user, avatar._id);
+  await ctx.db.patch(avatar._id, {
+    storageId: input.storageId,
+    ...(input.label?.trim() ? { label: input.label.trim() } : {}),
+  });
+  if (avatar.storageId !== input.storageId) await ctx.storage.delete(avatar.storageId);
+}
+
+async function assertAvatarAvailable(ctx: MutationCtx, user: Doc<"users">, avatarId: Id<"avatars">): Promise<void> {
+  const jobs = await listActive(ctx, user._id);
+  for (const job of jobs) {
+    if (job.type !== "render") continue;
+    const renders = await ctx.db
+      .query("renders")
+      .withIndex("by_job", (q) => q.eq("jobId", job._id))
+      .take(LIMITS.maxOutfitsPerRenderRequest * LIMITS.maxRendersPerRequest);
+    if (renders.some((render) => render.avatarId === avatarId && render.status === "pending")) {
+      throw appError("CONFLICT", "Wait for the renders using this photo to finish before changing it.");
     }
   }
 }

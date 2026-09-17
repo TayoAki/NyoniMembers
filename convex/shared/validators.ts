@@ -1,5 +1,5 @@
 import { v, type VLiteral, type VUnion } from "convex/values";
-import { FEATURES, PACK_IDS, PLAN_IDS, RENDER_QUALITIES } from "./credits";
+import { FEATURES, PLAN_IDS, RENDER_QUALITIES } from "./credits";
 import { JOB_STATUSES, JOB_TYPES, STEP_STATUSES } from "./jobs";
 import { CATEGORIES, FITS, FORMALITY, ITEM_STATUSES, PRESENTATIONS, SEASONS } from "./wardrobe";
 
@@ -20,7 +20,6 @@ export const vItemStatus = literals(ITEM_STATUSES);
 
 export const vPlanId = literals(PLAN_IDS);
 export const vFeature = literals(FEATURES);
-export const vPackId = literals(PACK_IDS);
 export const vRenderQuality = literals(RENDER_QUALITIES);
 
 export const vJobType = literals(JOB_TYPES);

@@ -2,11 +2,12 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { envNumber } from "../lib/env";
 import { appError } from "../lib/errors";
-import { dayKey, LIMITS, PLANS, UNIT_ECONOMICS, type PlanId } from "../shared/credits";
+import { dayKey, LIMITS, PLANS, UNIT_ECONOMICS, type Feature, type PlanId } from "../shared/credits";
+import { bumpDailyStats } from "./stats";
 
 /**
  * The only module allowed to touch `users.planCredits`, `users.packCredits` and `creditLedger`.
- * Two buckets: plan credits reset every billing cycle, pack credits never expire.
+ * Plan credits reset every billing cycle. The legacy pack bucket holds non-expiring welcome and existing credits.
  * Spend plan first, refund pack first. Every ledger line has a unique `ref` for idempotency.
  */
 
@@ -14,6 +15,27 @@ type Bucket = Doc<"creditLedger">["bucket"];
 type Kind = Doc<"creditLedger">["kind"];
 export type Reservation = { plan: number; pack: number };
 export type ShortfallReason = "balance" | "daily_cap" | "kill_switch";
+
+const BILLING_FRESHNESS_MS = 60_000;
+
+export function hasCurrentPlan(user: Doc<"users">, now = Date.now()): boolean {
+  return user.plan !== "free" && user.planPeriodEnd !== undefined && user.planPeriodEnd > now;
+}
+
+export function hasCurrentFeature(user: Doc<"users">, feature: Feature, now = Date.now()): boolean {
+  return hasCurrentPlan(user, now) && user.features.includes(feature);
+}
+
+export function assertFreshBilling(user: Doc<"users">, now = Date.now()): void {
+  if (
+    user.plan !== "free" &&
+    (!hasCurrentPlan(user, now) ||
+      user.billingCheckedAt === undefined ||
+      now - user.billingCheckedAt > BILLING_FRESHNESS_MS)
+  ) {
+    throw appError("SUBSCRIPTION_REFRESH_REQUIRED", "Refresh your subscription before continuing.");
+  }
+}
 
 export type Balance = {
   plan: PlanId;
@@ -27,15 +49,17 @@ export type Balance = {
 };
 
 export function getBalance(user: Doc<"users">, now = Date.now()): Balance {
-  const total = user.planCredits + user.packCredits;
+  const currentPlan = hasCurrentPlan(user, now);
+  const planCredits = currentPlan ? user.planCredits : 0;
+  const total = planCredits + user.packCredits;
   const spentToday = user.dailySpend.dayKey === dayKey(now) ? user.dailySpend.credits : 0;
   return {
-    plan: user.plan,
-    planCredits: user.planCredits,
+    plan: currentPlan ? user.plan : "free",
+    planCredits,
     packCredits: user.packCredits,
     total,
     planPeriodEnd: user.planPeriodEnd,
-    features: user.features,
+    features: currentPlan ? user.features : [],
     dailyRemaining: Math.max(0, LIMITS.dailyCreditCap - spentToday),
     lowBalance: total <= LIMITS.lowBalanceThreshold,
   };
@@ -59,9 +83,16 @@ export async function reserve(
   jobId: Id<"jobs">,
 ): Promise<ReserveResult> {
   if (amount <= 0) return { granted: 0, shortfall: 0, reservation: { plan: 0, pack: 0 } };
+  const applied = await existingReservation(ctx, jobId);
+  if (applied) {
+    const granted = applied.plan + applied.pack;
+    return { granted, shortfall: Math.max(0, amount - granted), reservation: applied };
+  }
+  assertFreshBilling(user);
   const now = Date.now();
   const today = dayKey(now);
-  const balance = user.planCredits + user.packCredits;
+  const availablePlanCredits = hasCurrentPlan(user, now) ? user.planCredits : 0;
+  const balance = availablePlanCredits + user.packCredits;
   const spentToday = user.dailySpend.dayKey === today ? user.dailySpend.credits : 0;
   const dailyRemaining = Math.max(0, LIMITS.dailyCreditCap - spentToday);
   const globalRemaining = await globalRemainingCredits(ctx, today);
@@ -76,7 +107,7 @@ export async function reserve(
           : "balance"
       : undefined;
 
-  const reservation: Reservation = { plan: Math.min(granted, user.planCredits), pack: 0 };
+  const reservation: Reservation = { plan: Math.min(granted, availablePlanCredits), pack: 0 };
   reservation.pack = granted - reservation.plan;
 
   let running = user;
@@ -102,6 +133,7 @@ export async function reserve(
     await ctx.db.patch(user._id, { dailySpend: { dayKey: today, credits: spentToday + granted } });
     await bumpGlobalCounter(ctx, today, granted);
     await ctx.db.patch(jobId, { reservation, updatedAt: now });
+    await bumpDailyStats(ctx, { creditsSpent: granted }, now);
   }
   return { granted, shortfall: amount - granted, reservation, ...(reason ? { reason } : {}) };
 }
@@ -109,6 +141,7 @@ export async function reserve(
 /** Return unused credits from a job to the buckets they came from, pack first. */
 export async function refund(ctx: MutationCtx, job: Doc<"jobs">, amount: number, note?: string): Promise<number> {
   if (amount <= 0) return 0;
+  const now = Date.now();
   const user = await ctx.db.get(job.userId);
   if (!user) throw appError("NOT_FOUND", "User not found for refund.");
   const refundablePack = job.reservation.pack - job.refunds.pack;
@@ -118,14 +151,21 @@ export async function refund(ctx: MutationCtx, job: Doc<"jobs">, amount: number,
   const total = packPart + planPart;
   if (total === 0) return 0;
 
+  // One ref per line, sequenced by how much of this job has already been returned. The same guard
+  // grantPlan uses: a redelivered refund never writes a second line under an existing ref.
   const seq = job.refunds.pack + job.refunds.plan;
+  const packRef = `refund:${job._id}:pack:${seq}`;
+  const planRef = `refund:${job._id}:plan:${seq}`;
+  if (packPart > 0 && (await ledgerHasRef(ctx, packRef))) return 0;
+  if (planPart > 0 && (await ledgerHasRef(ctx, planRef))) return 0;
+
   let running = user;
   if (packPart > 0) {
     running = await writeLine(ctx, running, {
       delta: packPart,
       bucket: "pack",
       kind: "refund",
-      ref: `refund:${job._id}:pack:${seq}`,
+      ref: packRef,
       jobId: job._id,
       note,
     });
@@ -135,12 +175,12 @@ export async function refund(ctx: MutationCtx, job: Doc<"jobs">, amount: number,
       delta: planPart,
       bucket: "plan",
       kind: "refund",
-      ref: `refund:${job._id}:plan:${seq}`,
+      ref: planRef,
       jobId: job._id,
       note,
     });
   }
-  const today = dayKey();
+  const today = dayKey(now);
   if (running.dailySpend.dayKey === today) {
     await ctx.db.patch(user._id, {
       dailySpend: { dayKey: today, credits: Math.max(0, running.dailySpend.credits - total) },
@@ -149,14 +189,18 @@ export async function refund(ctx: MutationCtx, job: Doc<"jobs">, amount: number,
   await bumpGlobalCounter(ctx, today, -total);
   await ctx.db.patch(job._id, {
     refunds: { plan: job.refunds.plan + planPart, pack: job.refunds.pack + packPart },
-    updatedAt: Date.now(),
+    updatedAt: now,
   });
+  await bumpDailyStats(ctx, { creditsRefunded: total }, now);
   return total;
 }
 
 /**
  * Apply a plan from Clerk Billing: sets the plan, features and period end, and resets the
- * plan bucket to the allowance. Idempotent by `ref` (the Clerk event id). Returns false when already applied.
+ * plan bucket to the allowance. Idempotent by `ref` (one ref per SDK-verified billing period).
+ * Returns false when already applied or when there is nothing to change.
+ *
+ * Only ever touches the plan bucket: welcome and existing non-expiring credits stay intact.
  */
 export async function grantPlan(
   ctx: MutationCtx,
@@ -165,6 +209,8 @@ export async function grantPlan(
   ref: string,
   planPeriodEnd?: number,
 ): Promise<boolean> {
+  // Free → free carries no allowance, so a repeated `free_user` event must not write a reset line.
+  if (plan === "free" && user.plan === "free") return false;
   if (await ledgerHasRef(ctx, ref)) return false;
   const definition = PLANS[plan];
   let running = user;
@@ -177,7 +223,7 @@ export async function grantPlan(
       note: `Cycle reset (${plan})`,
     });
   }
-  running = await writeLine(ctx, running, {
+  await writeLine(ctx, running, {
     delta: definition.monthlyCredits,
     bucket: "plan",
     kind: "plan_grant",
@@ -185,28 +231,60 @@ export async function grantPlan(
     note: `${definition.name} allowance`,
   });
   await ctx.db.patch(user._id, { plan, features: [...definition.features], planPeriodEnd });
+  await bumpDailyStats(ctx, {
+    creditsGranted: definition.monthlyCredits,
+    revenueUsd: definition.priceUsd,
+  });
   return true;
 }
 
-/** Add pack credits. Idempotent by `ref` (Stripe checkout session id). */
-export async function topup(
+export type SubscriptionSnapshot = {
+  readStartedAt: number;
+  plan: PlanId;
+  features: Feature[];
+  periodStart?: number;
+  periodEnd?: number;
+};
+
+/** Apply an SDK read atomically; a slower older request cannot overwrite a newer completed read. */
+export async function reconcileSubscription(
   ctx: MutationCtx,
   user: Doc<"users">,
-  credits: number,
-  ref: string,
-  note?: string,
+  snapshot: SubscriptionSnapshot,
 ): Promise<boolean> {
-  if (credits <= 0) return false;
-  if (await ledgerHasRef(ctx, ref)) return false;
-  await writeLine(ctx, user, { delta: credits, bucket: "pack", kind: "topup", ref, note });
-  return true;
+  if (user.billingCheckedAt !== undefined && snapshot.readStartedAt <= user.billingCheckedAt) return false;
+  const now = Date.now();
+  const paid = snapshot.plan !== "free" && snapshot.periodEnd !== undefined && snapshot.periodEnd > now;
+  if (paid && (snapshot.periodStart === undefined || snapshot.periodStart > now)) {
+    throw appError("INVALID_INPUT", "A current billing period is required to grant plan credits.");
+  }
+  const plan = paid ? snapshot.plan : "free";
+  const ref = paid
+    ? `clerk:plan:${user.clerkId}:${plan}:${snapshot.periodStart}`
+    : `clerk:free:${user.clerkId}:${user.plan}:${user.planPeriodEnd ?? 0}`;
+  const applied = await grantPlan(ctx, user, plan, ref, paid ? snapshot.periodEnd : undefined);
+  await ctx.db.patch(user._id, {
+    plan,
+    features: paid ? snapshot.features : [],
+    planPeriodEnd: paid ? snapshot.periodEnd : undefined,
+    billingCheckedAt: snapshot.readStartedAt,
+  });
+  return applied;
 }
 
+/**
+ * The 25 welcome credits, once per Clerk identity. They land in the pack bucket so a plan change
+ * never resets them, and the ref is keyed on the Clerk id rather than the Convex row id so
+ * "delete all my data" (which keeps the row and the ledger) cannot re-mint them.
+ *
+ * A new Clerk identity gets its own bonus; the internal account-purge mode removes the ledger too.
+ */
 export async function grantSignupBonus(ctx: MutationCtx, user: Doc<"users">): Promise<boolean> {
   const credits = PLANS.free.signupCredits;
-  const ref = `signup:${user._id}`;
+  const ref = `signup:${user.clerkId}`;
   if (credits <= 0 || (await ledgerHasRef(ctx, ref))) return false;
-  await writeLine(ctx, user, { delta: credits, bucket: "plan", kind: "signup_bonus", ref, note: "Welcome credits" });
+  await writeLine(ctx, user, { delta: credits, bucket: "pack", kind: "signup_bonus", ref, note: "Welcome credits" });
+  await bumpDailyStats(ctx, { creditsGranted: credits });
   return true;
 }
 
@@ -220,6 +298,7 @@ export async function adminAdjust(
 ): Promise<boolean> {
   if (delta === 0 || (await ledgerHasRef(ctx, ref))) return false;
   await writeLine(ctx, user, { delta, bucket, kind: "admin", ref, note });
+  if (delta > 0) await bumpDailyStats(ctx, { creditsGranted: delta });
   return true;
 }
 
@@ -235,7 +314,7 @@ export function shortfallError(result: ReserveResult, needed: number) {
     case "kill_switch":
       return appError("SPEND_KILL_SWITCH", "Rendering is paused for the moment. Please try again later.", { needed });
     default:
-      return appError("INSUFFICIENT_CREDITS", `${balanceText} Top up or choose fewer images.`, {
+      return appError("INSUFFICIENT_CREDITS", `${balanceText} View your plan in Billing or choose fewer images.`, {
         needed,
         shortfall: result.shortfall,
       });
@@ -265,6 +344,24 @@ async function writeLine(
     createdAt: Date.now(),
   });
   return { ...user, planCredits, packCredits };
+}
+
+/**
+ * The reservation already charged for this job, if any. Guards `reserve` the way `ledgerHasRef`
+ * guards `grantPlan`: a retried reserve returns what was taken instead of charging twice.
+ */
+async function existingReservation(ctx: MutationCtx, jobId: Id<"jobs">): Promise<Reservation | null> {
+  const lines = await Promise.all(
+    (["plan", "pack"] as const).map((bucket) =>
+      ctx.db
+        .query("creditLedger")
+        .withIndex("by_ref", (q) => q.eq("ref", `reserve:${jobId}:${bucket}`))
+        .first(),
+    ),
+  );
+  if (lines.every((line) => line === null)) return null;
+  const job = await ctx.db.get(jobId);
+  return job ? job.reservation : { plan: -(lines[0]?.delta ?? 0), pack: -(lines[1]?.delta ?? 0) };
 }
 
 async function ledgerHasRef(ctx: QueryCtx | MutationCtx, ref: string): Promise<boolean> {

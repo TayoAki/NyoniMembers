@@ -33,7 +33,8 @@ export async function guardMutation<T>(run: () => Promise<T>, onError?: ErrorSin
   try {
     return await run();
   } catch (error) {
-    onError?.(reportError(error));
+    const clientError = reportError(error);
+    onError?.(clientError);
     return undefined;
   }
 }

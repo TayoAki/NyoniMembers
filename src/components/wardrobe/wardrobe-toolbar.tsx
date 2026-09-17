@@ -89,9 +89,9 @@ export function WardrobeToolbar({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="min-w-48 flex-1 sm:max-w-sm">
+        <InputGroup className="h-10 min-w-48 flex-1 rounded-none border-0 border-b border-border bg-transparent px-0 shadow-none ring-0 focus-within:border-foreground sm:max-w-sm">
           <InputGroupAddon>{searching ? <Spinner aria-label="Searching" /> : <Search aria-hidden />}</InputGroupAddon>
           <InputGroupInput
             id={searchId}
@@ -112,12 +112,25 @@ export function WardrobeToolbar({
         </InputGroup>
 
         <Popover>
-          <PopoverTrigger render={<Button variant="outline" disabled={disabled} />}>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="outline"
+                className="h-10 rounded-full border-border bg-transparent px-4 shadow-none sm:ml-auto"
+                disabled={disabled}
+              />
+            }
+          >
             <SlidersHorizontal data-icon="inline-start" />
             Filters
-            {count > 0 ? <Badge className="ml-1 tabular-nums">{count}</Badge> : null}
+            {count > 0 || filters.showHidden ? (
+              <Badge className="ml-1 tabular-nums">{count + Number(filters.showHidden)}</Badge>
+            ) : null}
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 gap-4 p-4">
+          <PopoverContent
+            align="end"
+            className="max-h-[min(32rem,var(--available-height))] w-[min(20rem,calc(100vw-2rem))] gap-4 overflow-y-auto overscroll-contain p-4"
+          >
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Filters</p>
               {count > 0 ? (
@@ -128,9 +141,9 @@ export function WardrobeToolbar({
             </div>
 
             <div className="space-y-2">
-              <p className="text-muted-foreground text-xs font-medium">Colour</p>
+              <p className="text-xs font-medium text-muted-foreground">Colour</p>
               {colours.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No colours yet.</p>
+                <p className="text-sm text-muted-foreground">No colours yet.</p>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {colours.map((colour) => {
@@ -147,7 +160,7 @@ export function WardrobeToolbar({
                         )}
                       >
                         <span
-                          className="ring-foreground/15 size-3 shrink-0 rounded-full ring-1"
+                          className="size-3 shrink-0 rounded-full ring-1 ring-foreground/15"
                           style={{ backgroundColor: colour.hex ?? colour.value }}
                           aria-hidden
                         />
@@ -163,7 +176,7 @@ export function WardrobeToolbar({
             <Separator />
 
             <div className="space-y-2">
-              <p className="text-muted-foreground text-xs font-medium">Season</p>
+              <p className="text-xs font-medium text-muted-foreground">Season</p>
               <MultiToggleGroup
                 options={SEASONS}
                 value={filters.seasons}
@@ -173,13 +186,26 @@ export function WardrobeToolbar({
             </div>
 
             <div className="space-y-2">
-              <p className="text-muted-foreground text-xs font-medium">Formality</p>
+              <p className="text-xs font-medium text-muted-foreground">Formality</p>
               <MultiToggleGroup
                 options={FORMALITY}
                 value={filters.formality}
                 onValueChange={(formality) => onChange({ formality })}
                 label={(option) => FORMALITY_LABELS[option]}
                 aria-label="Formality"
+              />
+            </div>
+
+            <Separator />
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor={hiddenId} className="text-sm text-muted-foreground">
+                Show hidden clothes
+              </Label>
+              <Switch
+                id={hiddenId}
+                checked={filters.showHidden}
+                onCheckedChange={(showHidden) => onChange({ showHidden })}
+                disabled={disabled}
               />
             </div>
           </PopoverContent>
@@ -191,7 +217,11 @@ export function WardrobeToolbar({
             if (value) onChange({ sort: value });
           }}
         >
-          <SelectTrigger className="w-40" aria-label="Sort" disabled={disabled}>
+          <SelectTrigger
+            className="h-10 w-40 rounded-full border-transparent bg-transparent shadow-none"
+            aria-label="Sort"
+            disabled={disabled}
+          >
             <SelectValue>{(value: SortKey | null) => (value ? SORT_OPTIONS[value] : SORT_OPTIONS.newest)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -202,36 +232,25 @@ export function WardrobeToolbar({
             ))}
           </SelectContent>
         </Select>
-
-        <div className="flex items-center gap-2">
-          <Switch
-            id={hiddenId}
-            checked={filters.showHidden}
-            onCheckedChange={(showHidden) => onChange({ showHidden })}
-            disabled={disabled}
-          />
-          <Label htmlFor={hiddenId} className="text-muted-foreground text-sm whitespace-nowrap">
-            Show hidden
-          </Label>
-        </div>
       </div>
 
-      <ToggleGroup
-        value={[filters.category]}
-        onValueChange={(next) => onChange({ category: (next.at(-1) as Category | "all" | undefined) ?? "all" })}
-        size="sm"
-        variant="outline"
-        disabled={disabled}
-        aria-label="Category"
-        className="flex-wrap"
-      >
-        <ToggleGroupItem value="all">All</ToggleGroupItem>
-        {CATEGORIES.map((category) => (
-          <ToggleGroupItem key={category} value={category}>
-            {CATEGORY_LABELS[category]}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <ToggleGroup
+          value={[filters.category]}
+          onValueChange={(next) => onChange({ category: (next.at(-1) as Category | "all" | undefined) ?? "all" })}
+          size="default"
+          disabled={disabled}
+          aria-label="Category"
+          className="gap-1.5 [&_[data-slot=toggle-group-item]]:h-9 [&_[data-slot=toggle-group-item]]:rounded-full [&_[data-slot=toggle-group-item]]:bg-transparent [&_[data-slot=toggle-group-item]]:px-4 [&_[data-slot=toggle-group-item]]:text-xs [&_[data-slot=toggle-group-item]]:font-normal [&_[data-slot=toggle-group-item]]:text-muted-foreground [&_[data-slot=toggle-group-item][data-pressed]]:bg-foreground [&_[data-slot=toggle-group-item][data-pressed]]:text-background"
+        >
+          <ToggleGroupItem value="all">All</ToggleGroupItem>
+          {CATEGORIES.map((category) => (
+            <ToggleGroupItem key={category} value={category}>
+              {CATEGORY_LABELS[category]}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
     </div>
   );
 }

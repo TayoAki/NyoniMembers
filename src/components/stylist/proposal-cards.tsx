@@ -1,39 +1,38 @@
 "use client";
 
-import { ArrowUpRight, Bookmark } from "lucide-react";
+import { useMutation } from "convex/react";
+import { ArrowUpRight, Bookmark, Check } from "lucide-react";
 import Link from "next/link";
-import { OutfitCollage } from "@/components/common/outfit-collage";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { toast } from "sonner";
+import { ItemImage } from "@/components/common/item-image";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useThreadProposals } from "@/hooks/use-stylist";
+import { Spinner } from "@/components/ui/spinner";
+import { useThreadProposals, type ThreadProposal } from "@/hooks/use-stylist";
+import { reportError } from "@/lib/errors";
 import { routes } from "@/lib/routes";
+import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import type { ItemSummary } from "@convex/views";
 
 type ProposalCardsProps = {
   threadId: Id<"threads">;
   /** Outfit ids this particular `compose_outfits` call produced. */
   outfitIds: Id<"outfits">[];
   problems: { name: string; problems: string[] }[];
-  /**
-   * Saving is the agent's job — `agent.saveOutfit` is behind the service key and the public
-   * `outfits.*` surface has no "promote a proposal" mutation. So the button asks the stylist to do
-   * it, which also keeps the conversation honest about what happened.
-   */
-  onSave: (name: string) => void;
-  canSave: boolean;
 };
 
-export function ProposalCards({ threadId, outfitIds, problems, onSave, canSave }: ProposalCardsProps) {
+export function ProposalCards({ threadId, outfitIds, problems }: ProposalCardsProps) {
   const proposals = useThreadProposals(threadId);
 
   if (outfitIds.length === 0 && problems.length === 0) return null;
 
   if (proposals === undefined && outfitIds.length > 0) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-6 @min-[560px]:grid-cols-2">
         {outfitIds.map((id) => (
-          <Skeleton key={id} className="h-44 rounded-xl" />
+          <Skeleton key={id} className="aspect-[4/5] rounded-none" />
         ))}
       </div>
     );
@@ -45,59 +44,118 @@ export function ProposalCards({ threadId, outfitIds, problems, onSave, canSave }
   return (
     <div className="space-y-3">
       {shown.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-x-6 gap-y-8 @min-[560px]:grid-cols-2">
           {shown.map((proposal) => (
-            <article
-              key={proposal._id}
-              className="bg-card ring-foreground/5 flex flex-col gap-3 rounded-xl border p-3 ring-1"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-medium">{proposal.outfit.name}</h3>
-                  {proposal.outfit.occasion ? (
-                    <Badge variant="secondary" className="mt-1">
-                      {proposal.outfit.occasion}
-                    </Badge>
-                  ) : null}
-                </div>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  render={<Link href={routes.outfit(proposal.outfit._id)} />}
-                  aria-label={`Open ${proposal.outfit.name}`}
-                >
-                  <ArrowUpRight />
-                </Button>
-              </div>
-
-              <OutfitCollage items={proposal.outfit.items} tile="size-14" max={6} />
-
-              {proposal.outfit.reasoning ? (
-                <p className="text-muted-foreground text-xs leading-relaxed text-pretty">{proposal.outfit.reasoning}</p>
-              ) : null}
-
-              <div className="mt-auto flex items-center gap-2">
-                <Button size="sm" variant="outline" disabled={!canSave} onClick={() => onSave(proposal.outfit.name)}>
-                  <Bookmark data-icon="inline-start" />
-                  Save to outfits
-                </Button>
-                {proposal.outfit.renderCount > 0 ? (
-                  <span className="text-muted-foreground text-xs tabular-nums">
-                    {proposal.outfit.renderCount} rendered
-                  </span>
-                ) : null}
-              </div>
-            </article>
+            <ProposalCard key={proposal._id} proposal={proposal} />
           ))}
         </div>
       ) : null}
 
       {problems.map((problem, index) => (
-        <p key={`${problem.name}-${index}`} className="text-muted-foreground text-xs">
-          <span className="text-foreground font-medium">{problem.name}</span> could not be saved:{" "}
+        <p key={`${problem.name}-${index}`} className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">{problem.name}</span> could not be saved:{" "}
           {problem.problems.join("; ")}
         </p>
       ))}
     </div>
+  );
+}
+
+/**
+ * Saving is a one-tap mutation (`threads.saveProposal`), not a chat message: the stylist's own
+ * `save_outfit` tool does the same thing, so keeping a look never costs the user a turn.
+ */
+function ProposalCard({ proposal }: { proposal: ThreadProposal }) {
+  const saveProposal = useMutation(api.threads.saveProposal);
+  const [saving, setSaving] = useState(false);
+  const saved = proposal.savedAt !== undefined;
+  const slots = proposal.outfit.items;
+  const pieces = [slots.outerwear, slots.dress, slots.top, slots.bottom, slots.shoes, ...slots.accessories].filter(
+    (item): item is ItemSummary => Boolean(item),
+  );
+
+  async function save() {
+    setSaving(true);
+    try {
+      await saveProposal({ outfitId: proposal.outfit._id });
+      toast.success(`"${proposal.outfit.name}" is in your outfits.`);
+    } catch (error) {
+      reportError(error, "Could not save that outfit.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <article className="flex min-w-0 flex-col gap-4">
+      <Link
+        href={routes.outfit(proposal.outfit._id)}
+        aria-label={`View outfit: ${proposal.outfit.name}`}
+        className={`group relative grid aspect-[5/4] gap-2 bg-muted/60 p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring ${pieces.length < 3 ? "grid-cols-2" : "grid-cols-3"}`}
+      >
+        {pieces.slice(0, 6).map((item, index) => (
+          <ItemImage
+            key={item._id}
+            src={item.url}
+            alt={item.name}
+            aspect="aspect-auto"
+            className={
+              pieces.length === 1
+                ? "col-span-2 size-full rounded-none bg-transparent p-0 dark:bg-transparent"
+                : index === 0 && pieces.length > 2
+                  ? "col-span-2 row-span-2 size-full rounded-none bg-transparent p-0 dark:bg-transparent"
+                  : "size-full min-h-0 rounded-none bg-transparent p-0 dark:bg-transparent"
+            }
+            imgClassName="transition-transform duration-200 group-hover:scale-[1.03] motion-reduce:transform-none"
+          />
+        ))}
+        <span className="absolute right-3 bottom-3 bg-background/90 px-2 py-1 font-mono text-[9px] tracking-wide uppercase">
+          {pieces.length} pieces
+        </span>
+      </Link>
+      <div className="space-y-1.5">
+        {proposal.outfit.occasion ? (
+          <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">
+            {proposal.outfit.occasion}
+          </p>
+        ) : null}
+        <h3 className="text-xl leading-tight font-medium tracking-[-0.035em]">{proposal.outfit.name}</h3>
+      </div>
+
+      {proposal.outfit.reasoning ? (
+        <p className="text-xs leading-relaxed text-pretty text-muted-foreground">{proposal.outfit.reasoning}</p>
+      ) : null}
+
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+        <Button
+          size="sm"
+          variant="link"
+          className="h-9 px-0"
+          nativeButton={false}
+          render={<Link href={routes.outfit(proposal.outfit._id)} />}
+          aria-label={`View outfit: ${proposal.outfit.name}`}
+        >
+          View outfit
+          <ArrowUpRight data-icon="inline-end" />
+        </Button>
+        {saved ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Check className="size-3.5" aria-hidden />
+            Saved to outfits
+          </span>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 rounded-none px-3"
+            disabled={saving}
+            onClick={() => void save()}
+          >
+            {saving ? <Spinner data-icon="inline-start" /> : <Bookmark data-icon="inline-start" />}
+            Save to outfits
+          </Button>
+        )}
+      </div>
+    </article>
   );
 }

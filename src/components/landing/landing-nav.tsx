@@ -1,27 +1,32 @@
-import { Shirt } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { routes } from "@/lib/routes";
 
 export function LandingNav() {
   return (
-    <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur-md">
-      <nav className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href={routes.home} className="flex items-center gap-2 font-medium tracking-tight">
-          <span className="bg-foreground text-background flex size-7 items-center justify-center rounded-lg">
-            <Shirt className="size-4" aria-hidden />
-          </span>
-          Fitcheck
+    <header className="landing-nav">
+      <div className="landing-shell landing-nav-inner">
+        <Link href={routes.home} className="landing-wordmark" aria-label="Fitcheck home">
+          <svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <path d="M9 2H2v7M19 2h7v7M26 19v7h-7M9 26H2v-7" stroke="currentColor" strokeWidth="2" />
+            <path d="m8 14 4 4 8-9" stroke="currentColor" strokeWidth="2.5" />
+          </svg>
+          <span>fitcheck.</span>
         </Link>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" render={<Link href={routes.signIn} />}>
-            Sign in
-          </Button>
-          <Button size="sm" render={<Link href={routes.signUp} />}>
-            Get started
-          </Button>
+        <nav className="landing-nav-links" aria-label="Main navigation">
+          <a href="#how-it-works">The experience</a>
+          <a href="#looks">The possibilities</a>
+          <a href="#pricing">The plans</a>
+        </nav>
+        <div className="landing-nav-actions">
+          <Link href={routes.signIn} className="landing-login">
+            Log in
+          </Link>
+          <Link href={routes.signUp} className="landing-button landing-button-small">
+            Get started <ArrowUpRight aria-hidden="true" />
+          </Link>
         </div>
-      </nav>
+      </div>
     </header>
   );
 }

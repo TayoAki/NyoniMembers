@@ -15,9 +15,18 @@ import {
 import { RENDER_STEPS } from "../shared/jobs";
 import type { RenderView } from "../views";
 import { resolveAvatar } from "./avatars";
-import { refund, reserve, shortfallError } from "./credits";
-import { completeJob, createJob, getJob, setStep, setWorkflowId, type StepInput } from "./jobs";
+import { assertFreshBilling, hasCurrentFeature, reserve, shortfallError } from "./credits";
+import {
+  assertAffordable,
+  assertBelowJobLimit,
+  assertJobFinished,
+  createJob,
+  setStep,
+  setWorkflowId,
+  type StepInput,
+} from "./jobs";
 import { requireOutfit, validateSlots } from "./outfits";
+import { bumpDailyStats } from "./stats";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -45,13 +54,20 @@ export async function markRenderDone(
   renderId: Id<"renders">,
   result: { storageId: Id<"_storage">; usage?: TokenUsage },
 ): Promise<void> {
+  const costUsd = result.usage ? usageToUsd(result.usage) : 0;
   await ctx.db.patch(renderId, {
     storageId: result.storageId,
     usage: result.usage,
-    costUsd: result.usage ? usageToUsd(result.usage) : undefined,
+    costUsd: result.usage ? costUsd : undefined,
     status: "done",
     completedAt: Date.now(),
   });
+  await bumpDailyStats(ctx, { rendersDone: 1, cogsUsd: costUsd });
+}
+
+/** Keeps the exact prompt we sent, for admin COGS forensics. Written by the render pipeline only. */
+export async function setRenderPrompt(ctx: MutationCtx, renderId: Id<"renders">, prompt: string): Promise<void> {
+  await ctx.db.patch(renderId, { prompt });
 }
 
 export async function markRenderFailed(ctx: MutationCtx, renderId: Id<"renders">, error: string): Promise<void> {
@@ -69,12 +85,13 @@ export async function requireRender(ctx: Ctx, user: Doc<"users">, renderId: Id<"
   return assertOwner(await ctx.db.get(renderId), user, "render");
 }
 
-export async function listByOutfit(ctx: Ctx, outfitId: Id<"outfits">): Promise<Doc<"renders">[]> {
+/** Newest first. Bounded: the outfit detail panel only ever shows the most recent images. */
+export async function listByOutfit(ctx: Ctx, outfitId: Id<"outfits">, limit = 100): Promise<Doc<"renders">[]> {
   return ctx.db
     .query("renders")
     .withIndex("by_outfit", (q) => q.eq("outfitId", outfitId))
     .order("desc")
-    .collect();
+    .take(limit);
 }
 
 export async function findByShareToken(ctx: Ctx, token: string): Promise<Doc<"renders"> | null> {
@@ -87,6 +104,7 @@ export async function findByShareToken(ctx: Ctx, token: string): Promise<Doc<"re
 
 /** Deletes the render and its image file. */
 export async function removeRender(ctx: MutationCtx, render: Doc<"renders">): Promise<void> {
+  await assertJobFinished(ctx, render.jobId);
   if (render.storageId) await ctx.storage.delete(render.storageId);
   await ctx.db.delete("renders", render._id);
 }
@@ -121,7 +139,8 @@ export async function startRenderJob(
       max: LIMITS.maxOutfitsPerRenderRequest,
     });
   }
-  if (input.quality === "hq" && !user.features.includes("hq_renders")) {
+  assertFreshBilling(user);
+  if (input.quality === "hq" && !hasCurrentFeature(user, "hq_renders")) {
     throw appError("FEATURE_LOCKED", "HQ renders are part of the Plus plan.", { feature: "hq_renders" });
   }
 
@@ -133,6 +152,10 @@ export async function startRenderJob(
 
   const images = count * outfitIds.length;
   const needed = renderCreditCost(input.quality, count, outfitIds.length);
+  // Cap and quote are checked before anything is written, so a rejected request leaves no job behind.
+  await assertBelowJobLimit(ctx, user._id);
+  assertAffordable(user, needed);
+
   const steps: StepInput[] = [
     { key: RENDER_STEPS.reserve },
     ...Array.from({ length: images }, (_, index) => ({ key: `${RENDER_STEPS.render}:${index}` })),
@@ -141,11 +164,8 @@ export async function startRenderJob(
   const jobId = await createJob(ctx, user, { type: "render", steps, outfitIds });
 
   const result = await reserve(ctx, user, needed, jobId);
-  if (result.granted < needed) {
-    await refund(ctx, await getJob(ctx, jobId), result.granted, "Not enough credits to start");
-    await completeJob(ctx, jobId, { status: "failed", error: "Not enough credits" });
-    throw shortfallError(result, needed);
-  }
+  // A shortfall here can only be a race with another job; throwing rolls the whole mutation back.
+  if (result.granted < needed) throw shortfallError(result, needed);
   await setStep(ctx, jobId, RENDER_STEPS.reserve, { status: "done", meta: { credits: needed } });
 
   const now = Date.now();

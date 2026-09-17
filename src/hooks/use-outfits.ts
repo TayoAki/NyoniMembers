@@ -1,8 +1,9 @@
 "use client";
 
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, usePaginatedQuery, useQuery, type UsePaginatedQueryResult } from "convex/react";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
 import { useMemo } from "react";
+import { NAVIGATION_PAGE_SIZE, useNavigationOutfits } from "@/components/providers/navigation-data";
 import { guardMutation, type ErrorSink } from "@/lib/errors";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -11,13 +12,33 @@ export type Outfit = NonNullable<FunctionReturnType<typeof api.outfits.get>>;
 export type OutfitSlots = Outfit["slots"];
 export type OutfitItems = Outfit["items"];
 export type OutfitSource = NonNullable<FunctionArgs<typeof api.outfits.list>["source"]>;
+export type OutfitSummary = FunctionReturnType<typeof api.outfits.listSummaries>[number];
 
-export function useOutfits(source?: OutfitSource): Outfit[] | undefined {
+export const OUTFITS_PAGE_SIZE = NAVIGATION_PAGE_SIZE;
+
+/** The saved outfits grid, a page at a time. Agent proposals only appear once the user saves them. */
+export function useSavedOutfits(source?: OutfitSource): UsePaginatedQueryResult<Outfit> {
   const { isAuthenticated } = useConvexAuth();
-  return useQuery(api.outfits.list, isAuthenticated ? (source ? { source } : {}) : "skip");
+  const shared = useNavigationOutfits();
+  const useShared = source === undefined && shared !== null;
+  const local = usePaginatedQuery(
+    api.outfits.list,
+    isAuthenticated && !useShared ? (source ? { source } : {}) : "skip",
+    {
+      initialNumItems: OUTFITS_PAGE_SIZE,
+    },
+  );
+  return useShared ? shared : local;
 }
 
-export function useOutfit(outfitId: Id<"outfits"> | null | undefined): Outfit | null | undefined {
+/** Just ids and names — for filters and select menus that must not subscribe to every outfit. */
+export function useOutfitSummaries(): OutfitSummary[] | undefined {
+  const { isAuthenticated } = useConvexAuth();
+  return useQuery(api.outfits.listSummaries, isAuthenticated ? {} : "skip");
+}
+
+/** Takes the raw route param: the server returns `null` for a malformed, unknown or foreign id. */
+export function useOutfit(outfitId: string | null | undefined): Outfit | null | undefined {
   return useQuery(api.outfits.get, outfitId ? { outfitId } : "skip");
 }
 

@@ -10,10 +10,13 @@ export const ERROR_CODES = [
   "TOO_MANY_JOBS",
   "RATE_LIMITED",
   "FEATURE_LOCKED",
+  "SUBSCRIPTION_REFRESH_REQUIRED",
   "SPEND_KILL_SWITCH",
   "ONBOARDING_REQUIRED",
   "UPSTREAM_FAILED",
   "CONFLICT",
+  "WARDROBE_FULL",
+  "ITEM_BUSY",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

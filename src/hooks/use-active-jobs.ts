@@ -19,6 +19,18 @@ export function useJob(jobId: JobView["_id"] | null | undefined): JobView | null
   return useQuery(api.jobs.get, jobId ? { jobId } : "skip");
 }
 
+/** Running average duration per step prefix (`detect`, `extract`, `render`) in ms, for ETAs. */
+export type StepEstimates = FunctionReturnType<typeof api.jobs.stepEstimates>;
+
+/**
+ * Server-side step averages. Every caller subscribes with the same (empty) args, so the Convex
+ * client keeps one subscription no matter how many steppers and tiles ask for it.
+ */
+export function useStepEstimates(): StepEstimates | undefined {
+  const { isAuthenticated } = useConvexAuth();
+  return useQuery(api.jobs.stepEstimates, isAuthenticated ? {} : "skip");
+}
+
 /**
  * Fires a toast when a job the user is watching finishes.
  * Tracks the set of active job ids and reports transitions out of it.
@@ -34,8 +46,10 @@ export function useJobCompletionToasts(): void {
       seen.current.set(job._id, job.status);
       if (previous === undefined || previous === job.status || !isTerminalJobStatus(job.status)) continue;
       const noun = job.type === "ingest" ? "Wardrobe update" : "Render";
-      if (job.status === "done") toast.success(`${noun} finished.`);
-      else if (job.status === "partial") toast.warning(`${noun} finished with some items skipped.`);
+      if (job.status === "done") {
+        const reviewReady = job.steps.some((step) => step.key === "review" && step.status === "done");
+        toast.success(reviewReady ? "Scan ready. Choose the pieces you want to import." : `${noun} finished.`);
+      } else if (job.status === "partial") toast.warning(`${noun} finished with some items skipped.`);
       else if (job.status === "failed") toast.error(job.error ?? `${noun} failed.`);
     }
   }, [recent]);

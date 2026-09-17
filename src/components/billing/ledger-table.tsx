@@ -3,30 +3,29 @@
 import { Receipt } from "lucide-react";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingRows } from "@/components/common/loading-grid";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useLedger, LEDGER_PAGE_SIZE, type LedgerLine } from "@/hooks/use-billing";
-import { formatCredits, formatDateTime, formatNumber } from "@/lib/format";
+import { useLedger, LEDGER_PAGE_SIZE, type LedgerKind, type LedgerLine } from "@/hooks/use-billing";
+import { formatCredits, formatDateTime, formatNumber, titleCase } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const KIND_LABELS: Record<string, string> = {
+/**
+ * Keyed by the ledger `kind` union the server returns, so a new kind added there shows up here as a
+ * type error rather than as a raw `plan_reset` in the table.
+ */
+const KIND_LABELS: Partial<Record<LedgerKind, string>> = {
   plan_grant: "Plan credits",
   plan_reset: "Cycle reset",
   signup_bonus: "Welcome credits",
-  topup: "Pack",
+  topup: "Credit purchase",
   reserve: "Used",
   refund: "Refund",
   admin: "Adjustment",
 };
 
-/** Credits arriving read as a badge with weight; credits leaving stay quiet. */
-const INBOUND_KINDS = new Set(["plan_grant", "signup_bonus", "topup", "refund"]);
-
-function kindLabel(kind: string): string {
-  return KIND_LABELS[kind] ?? kind;
+function kindLabel(kind: LedgerKind): string {
+  return KIND_LABELS[kind] ?? titleCase(String(kind).replace(/_/g, "-"));
 }
 
 function LedgerRow({ line }: { line: LedgerLine }) {
@@ -34,14 +33,14 @@ function LedgerRow({ line }: { line: LedgerLine }) {
   return (
     <TableRow>
       <TableCell className="text-muted-foreground tabular-nums">{formatDateTime(line.createdAt)}</TableCell>
-      <TableCell>
-        <Badge variant={INBOUND_KINDS.has(line.kind) ? "secondary" : "outline"}>{kindLabel(line.kind)}</Badge>
-      </TableCell>
+      <TableCell className="font-medium">{kindLabel(line.kind)}</TableCell>
       <TableCell className={cn("font-medium tabular-nums", positive ? "text-success" : "text-foreground")}>
         {formatCredits(line.delta, { signed: true })}
       </TableCell>
-      <TableCell className="text-muted-foreground hidden capitalize sm:table-cell">{line.bucket}</TableCell>
-      <TableCell className="text-muted-foreground hidden max-w-[22ch] truncate md:table-cell" title={line.note}>
+      <TableCell className="hidden text-muted-foreground sm:table-cell">
+        {line.bucket === "plan" ? "Plan" : "Non-expiring"}
+      </TableCell>
+      <TableCell className="hidden max-w-[22ch] truncate text-muted-foreground md:table-cell" title={line.note}>
         {line.note ?? "—"}
       </TableCell>
       <TableCell className="text-right tabular-nums">{formatNumber(line.balanceAfter)}</TableCell>
@@ -53,23 +52,26 @@ export function LedgerTable() {
   const { results, status, loadMore } = useLedger();
 
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Credit ledger</CardTitle>
-        <CardDescription>Every credit in and out, newest first. Refunds land here automatically.</CardDescription>
-      </CardHeader>
-      <CardContent className="px-0">
+    <section className="space-y-6" aria-labelledby="ledger-title">
+      <div className="space-y-2">
+        <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">Account history</p>
+        <h2 id="ledger-title" className="text-3xl font-medium tracking-[-0.045em]">
+          Every credit, accounted for.
+        </h2>
+        <p className="text-sm text-muted-foreground">Credit grants, spending and refunds. Newest first.</p>
+      </div>
+      <div className="border-t border-foreground/20">
         {status === "LoadingFirstPage" ? (
-          <LoadingRows count={6} className="px-(--card-spacing) py-2" />
+          <LoadingRows count={6} className="py-4" />
         ) : results.length === 0 ? (
-          <div className="px-(--card-spacing)">
+          <div>
             <EmptyState
               icon={Receipt}
               title="No credit activity yet"
-              description="Extractions, renders, plan grants and top-ups all show up here the moment they happen."
+              description="Welcome credits, plan allowances, try-ons and refunds appear here as they happen."
               action={
-                <Button variant="outline" size="sm" render={<a href="#packs" />}>
-                  Buy a credit pack
+                <Button variant="outline" size="sm" nativeButton={false} render={<a href="#plans" />}>
+                  View plans
                 </Button>
               }
             />
@@ -94,7 +96,7 @@ export function LedgerTable() {
               </TableBody>
             </Table>
             {status !== "Exhausted" ? (
-              <div className="flex justify-center px-(--card-spacing) pt-4">
+              <div className="flex justify-center pt-6">
                 <Button
                   variant="outline"
                   size="sm"
@@ -108,7 +110,7 @@ export function LedgerTable() {
             ) : null}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

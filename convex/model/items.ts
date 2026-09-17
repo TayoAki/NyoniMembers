@@ -2,11 +2,12 @@ import type { Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { assertOwner } from "../lib/auth";
-import { usageToUsd, type TokenUsage } from "../shared/credits";
+import { LIMITS, usageToUsd, type TokenUsage } from "../shared/credits";
 import type { vItemAttributes } from "../shared/validators";
-import { CATEGORY_LABELS, type Category } from "../shared/wardrobe";
+import { CATEGORY_LABELS, ITEM_STATUSES, type Category } from "../shared/wardrobe";
 import type { ItemView } from "../views";
 import { removeItemsFromOutfits } from "./outfits";
+import { bumpDailyStats } from "./stats";
 
 type Ctx = QueryCtx | MutationCtx;
 export type ItemAttributes = Infer<typeof vItemAttributes>;
@@ -105,6 +106,10 @@ export async function insertDetectedItem(
   });
 }
 
+/**
+ * A finished cutout. On a re-extract the item was never taken out of `ready`, so the old blobs are
+ * deleted here (once the new ones are stored) and `pendingJobId` is cleared.
+ */
 export async function markItemReady(
   ctx: MutationCtx,
   itemId: Id<"items">,
@@ -112,30 +117,94 @@ export async function markItemReady(
 ): Promise<void> {
   const item = await ctx.db.get(itemId);
   if (!item) return;
+  const usageUsd = result.usage ? usageToUsd(result.usage) : 0;
   await ctx.db.patch(itemId, {
     storageId: result.storageId,
     thumbStorageId: result.thumbStorageId,
     colours: result.hex ? { ...item.colours, hex: result.hex } : item.colours,
     usage: result.usage,
-    costUsd: result.usage ? usageToUsd(result.usage) : item.costUsd,
+    costUsd: result.usage ? usageUsd : item.costUsd,
     status: "ready",
+    pendingJobId: undefined,
+    updatedAt: Date.now(),
+  });
+  if (item.storageId && item.storageId !== result.storageId) await deleteFile(ctx, item.storageId);
+  if (item.thumbStorageId && item.thumbStorageId !== result.thumbStorageId) {
+    await deleteFile(ctx, item.thumbStorageId);
+  }
+  await bumpDailyStats(ctx, { itemsExtracted: 1, cogsUsd: usageUsd });
+}
+
+/**
+ * A failed extraction. An item that still has its previous cutout (a re-extract) stays `ready` and
+ * only loses `pendingJobId`; an item that never had one becomes `failed` (or `needsCredits`).
+ */
+export async function markItemFailed(
+  ctx: MutationCtx,
+  itemId: Id<"items">,
+  status: Extract<Doc<"items">["status"], "failed" | "needsCredits"> = "failed",
+): Promise<void> {
+  const item = await ctx.db.get(itemId);
+  if (!item) return;
+  // Only a re-extract keeps its status: it never left `ready`, and its old cutout is still there.
+  const keepsCutout = item.status === "ready" && item.storageId !== undefined;
+  await ctx.db.patch(itemId, {
+    status: keepsCutout ? item.status : status,
+    pendingJobId: undefined,
     updatedAt: Date.now(),
   });
 }
 
-export async function markItemFailed(ctx: MutationCtx, itemId: Id<"items">): Promise<void> {
-  const item = await ctx.db.get(itemId);
-  if (!item) return;
-  await ctx.db.patch(itemId, { status: "failed", updatedAt: Date.now() });
+/** Re-extract: the item stays visible and usable while a job rewrites its cutout. */
+export async function markItemPending(ctx: MutationCtx, itemId: Id<"items">, jobId: Id<"jobs">): Promise<void> {
+  await ctx.db.patch(itemId, { pendingJobId: jobId, updatedAt: Date.now() });
 }
 
+/** Embeddings live in their own table (`by_item`), one row per item; writing twice replaces the row. */
 export async function setItemEmbedding(
   ctx: MutationCtx,
   itemId: Id<"items">,
   embedding: number[],
   duplicateOfId?: Id<"items">,
 ): Promise<void> {
-  await ctx.db.patch(itemId, { embedding, duplicateOfId, updatedAt: Date.now() });
+  const item = await ctx.db.get(itemId);
+  if (!item) return;
+  const existing = await ctx.db
+    .query("itemEmbeddings")
+    .withIndex("by_item", (q) => q.eq("itemId", itemId))
+    .unique();
+  if (existing) await ctx.db.patch(existing._id, { embedding, userId: item.userId });
+  else await ctx.db.insert("itemEmbeddings", { itemId, userId: item.userId, embedding });
+  await ctx.db.patch(itemId, { duplicateOfId, updatedAt: Date.now() });
+}
+
+export async function deleteItemEmbedding(ctx: MutationCtx, itemId: Id<"items">): Promise<void> {
+  const existing = await ctx.db
+    .query("itemEmbeddings")
+    .withIndex("by_item", (q) => q.eq("itemId", itemId))
+    .unique();
+  if (existing) await ctx.db.delete("itemEmbeddings", existing._id);
+}
+
+/** Maps vector-search hits on `itemEmbeddings` back to items that can actually be a duplicate target. */
+export async function readyItemsForEmbeddings(
+  ctx: Ctx,
+  embeddingIds: Id<"itemEmbeddings">[],
+  exclude: Id<"items">,
+): Promise<Id<"items">[]> {
+  const rows = await Promise.all(embeddingIds.map((embeddingId) => ctx.db.get(embeddingId)));
+  const items = await Promise.all(
+    rows.map((row) => (row && row.itemId !== exclude ? ctx.db.get(row.itemId) : Promise.resolve(null))),
+  );
+  return items.filter((item): item is Doc<"items"> => item !== null && item.status === "ready").map((item) => item._id);
+}
+
+async function deleteFile(ctx: MutationCtx, storageId: Id<"_storage">): Promise<void> {
+  try {
+    await ctx.storage.delete(storageId);
+  } catch {
+    // The blob may already be gone (a retried step, a manual cleanup); the item patch still stands.
+  }
 }
 
 export async function updateAttributes(
@@ -162,7 +231,28 @@ export async function listByStatus(
     .query("items")
     .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", status))
     .order("desc")
-    .collect();
+    .take(LIMITS.maxItemsPerUser);
+}
+
+/** True as soon as the user has one item in any status — five indexed `first()`s, never a scan. */
+export async function hasAnyItem(ctx: Ctx, userId: Id<"users">): Promise<boolean> {
+  for (const status of ITEM_STATUSES) {
+    const first = await ctx.db
+      .query("items")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", status))
+      .first();
+    if (first) return true;
+  }
+  return false;
+}
+
+/** Ready items, counted up to the wardrobe ceiling (one more tells us the ceiling is already passed). */
+export async function countReady(ctx: Ctx, userId: Id<"users">): Promise<number> {
+  const items = await ctx.db
+    .query("items")
+    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "ready"))
+    .take(LIMITS.maxItemsPerUser + 1);
+  return items.length;
 }
 
 export async function requireItem(ctx: Ctx, user: Doc<"users">, itemId: Id<"items">): Promise<Doc<"items">> {
@@ -177,19 +267,20 @@ export async function listForUser(
 ): Promise<Doc<"items">[]> {
   const status = filters.status ?? "ready";
   const category = filters.category;
+  // Bounded by LIMITS.maxItemsPerUser: the wardrobe has a hard ceiling, so one page is the whole list.
   const items = category
     ? (
         await ctx.db
           .query("items")
           .withIndex("by_user_category", (q) => q.eq("userId", userId).eq("category", category))
           .order("desc")
-          .collect()
+          .take(LIMITS.maxItemsPerUser)
       ).filter((item) => item.status === status)
     : await ctx.db
         .query("items")
         .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", status))
         .order("desc")
-        .collect();
+        .take(LIMITS.maxItemsPerUser);
   return items.sort((a, b) => b.createdAt - a.createdAt);
 }
 
@@ -203,10 +294,11 @@ export async function searchForUser(ctx: Ctx, userId: Id<"users">, text: string,
 }
 
 export async function listByUpload(ctx: Ctx, uploadId: Id<"uploads">): Promise<Doc<"items">[]> {
+  // One photo yields at most LIMITS.maxItemsPerPhoto items, plus re-runs; the take is a safety belt.
   return ctx.db
     .query("items")
     .withIndex("by_upload", (q) => q.eq("uploadId", uploadId))
-    .collect();
+    .take(LIMITS.maxItemsPerPhoto * 4);
 }
 
 export async function setStatus(
@@ -241,8 +333,9 @@ export async function markWorn(ctx: MutationCtx, item: Doc<"items">, wornAt: num
 export async function removeItems(ctx: MutationCtx, user: Doc<"users">, itemIds: Id<"items">[]): Promise<void> {
   const items = await Promise.all(itemIds.map((itemId) => requireItem(ctx, user, itemId)));
   for (const item of items) {
-    if (item.storageId) await ctx.storage.delete(item.storageId);
-    if (item.thumbStorageId) await ctx.storage.delete(item.thumbStorageId);
+    if (item.storageId) await deleteFile(ctx, item.storageId);
+    if (item.thumbStorageId) await deleteFile(ctx, item.thumbStorageId);
+    await deleteItemEmbedding(ctx, item._id);
     await ctx.db.delete("items", item._id);
   }
   await removeItemsFromOutfits(

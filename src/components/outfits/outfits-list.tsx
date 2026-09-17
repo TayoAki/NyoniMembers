@@ -1,19 +1,21 @@
 "use client";
 
-import { Plus, Shapes, Shirt, Sparkles } from "lucide-react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { ArrowUpRight, Plus, Shirt } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useState } from "react";
-import { EmptyState } from "@/components/common/empty-state";
+import { useEffect, useState } from "react";
+import { StudioEmpty } from "@/components/outfits/studio-empty";
 import { LoadingGrid } from "@/components/common/loading-grid";
 import { PageHeader } from "@/components/common/page-header";
 import { OutfitCard } from "@/components/outfits/outfit-card";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useOutfits, type OutfitSource } from "@/hooks/use-outfits";
-import { useWardrobe } from "@/hooks/use-items";
+import { OUTFITS_PAGE_SIZE, useSavedOutfits, type OutfitSource } from "@/hooks/use-outfits";
 import { pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import { api } from "@convex/_generated/api";
 
 type Filter = "all" | OutfitSource;
 
@@ -25,59 +27,87 @@ const FILTERS: ReadonlyArray<{ value: Filter; label: string }> = [
 
 /** The /outfits grid with its source filter. Header and page chrome live in the route file. */
 export function OutfitsList() {
+  const { isAuthenticated } = useConvexAuth();
   const [filter, setFilter] = useState<Filter>("all");
-  const outfits = useOutfits(filter === "all" ? undefined : filter);
-  const { items: wardrobe } = useWardrobe();
+  const { results, status, loadMore } = useSavedOutfits(filter === "all" ? undefined : filter);
+  // One boolean instead of the whole wardrobe, only to pick the empty-state icon and copy.
+  const hasItems = useQuery(api.items.hasAny, isAuthenticated ? {} : "skip");
   const reduceMotion = useReducedMotion();
-  const wardrobeEmpty = wardrobe !== undefined && wardrobe.length === 0;
+  const loadingFirstPage = status === "LoadingFirstPage" || hasItems === undefined;
+  const wardrobeEmpty = hasItems === false;
+
+  // The source filter is applied to each page, so a page can arrive with nothing in it. Keep pulling
+  // until this filter has something to show, or the list runs out — otherwise "Mine" can look empty
+  // while the next page is full of manual outfits.
+  useEffect(() => {
+    if (status === "CanLoadMore" && results.length === 0) loadMore(OUTFITS_PAGE_SIZE);
+  }, [status, results.length, loadMore]);
 
   return (
-    <div className="space-y-6">
+    <div className="@container space-y-8">
       <PageHeader
+        eyebrow="The collection"
         title="Outfits"
-        description="Looks you have put together, and the ones the stylist suggested."
+        description="Your clothes, brought together. Save a look and see it on you."
         actions={
-          <Button render={<Link href={routes.newOutfit} />}>
-            <Plus data-icon="inline-start" />
-            New outfit
-          </Button>
+          hasItems === undefined ? null : (
+            <Button
+              className="h-11 rounded-none px-5"
+              nativeButton={false}
+              render={<Link href={wardrobeEmpty ? routes.add : routes.newOutfit} />}
+            >
+              {wardrobeEmpty ? <Shirt data-icon="inline-start" /> : <Plus data-icon="inline-start" />}
+              {wardrobeEmpty ? "Add clothes" : "New outfit"}
+            </Button>
+          )
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup
-          value={[filter]}
-          onValueChange={(value) => {
-            const next = value[0];
-            if (next) setFilter(next as Filter);
-          }}
-          variant="outline"
-          size="sm"
-          spacing={0}
-          aria-label="Filter outfits by source"
-        >
-          {FILTERS.map((option) => (
-            <ToggleGroupItem key={option.value} value={option.value}>
-              {option.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {outfits ? (
-          <span className="text-muted-foreground text-xs tabular-nums">{pluralize(outfits.length, "outfit")}</span>
-        ) : null}
-      </div>
+      {!wardrobeEmpty || results.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/20">
+          <ToggleGroup
+            value={[filter]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (next) setFilter(next as Filter);
+            }}
+            spacing={6}
+            aria-label="Filter outfits by source"
+          >
+            {FILTERS.map((option) => (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                className="h-12 rounded-none border-b-2 border-transparent px-1 font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase hover:bg-transparent aria-pressed:border-foreground aria-pressed:bg-transparent aria-pressed:text-foreground"
+              >
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          {!loadingFirstPage ? (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {pluralize(results.length, "outfit")}
+              {status === "Exhausted" ? "" : "+"}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
-      {outfits === undefined ? (
-        <LoadingGrid count={8} />
-      ) : outfits.length === 0 ? (
+      {loadingFirstPage ? (
+        <LoadingGrid
+          count={6}
+          aspect="aspect-[2/3]"
+          className="grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4"
+        />
+      ) : results.length === 0 ? (
         <OutfitsEmpty filter={filter} wardrobeEmpty={wardrobeEmpty} onClearFilter={() => setFilter("all")} />
       ) : (
         <motion.div
           layout={!reduceMotion}
-          className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+          className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 @2xl:grid-cols-3 @5xl:grid-cols-4"
         >
           <AnimatePresence initial={false}>
-            {outfits.map((outfit) => (
+            {results.map((outfit) => (
               <motion.div
                 key={outfit._id}
                 layout={!reduceMotion}
@@ -92,6 +122,20 @@ export function OutfitsList() {
           </AnimatePresence>
         </motion.div>
       )}
+
+      {status === "CanLoadMore" || status === "LoadingMore" ? (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            className="h-11 rounded-none px-8"
+            onClick={() => loadMore(OUTFITS_PAGE_SIZE)}
+            disabled={status === "LoadingMore"}
+          >
+            {status === "LoadingMore" ? <Spinner data-icon="inline-start" /> : null}
+            Load more
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -105,67 +149,31 @@ function OutfitsEmpty({
   wardrobeEmpty: boolean;
   onClearFilter: () => void;
 }) {
-  if (filter === "agent") {
-    return (
-      <EmptyState
-        icon={Sparkles}
-        title="No stylist outfits yet"
-        description="Ask the stylist what to wear and the outfits it proposes show up here."
-        action={
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button render={<Link href={routes.stylist} />}>
-              <Sparkles data-icon="inline-start" />
-              Ask the stylist
-            </Button>
-            <Button variant="outline" onClick={onClearFilter}>
-              Show all outfits
-            </Button>
-          </div>
-        }
-      />
-    );
-  }
-
-  if (filter === "manual") {
-    return (
-      <EmptyState
-        icon={Shapes}
-        title="You haven't built an outfit yet"
-        description="Put pieces together in the builder and they land here."
-        action={
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button render={<Link href={routes.newOutfit} />}>
-              <Plus data-icon="inline-start" />
-              New outfit
-            </Button>
-            <Button variant="outline" onClick={onClearFilter}>
-              Show all outfits
-            </Button>
-          </div>
-        }
-      />
-    );
-  }
-
+  const title = wardrobeEmpty
+    ? "Your first look starts in the wardrobe."
+    : filter === "agent"
+      ? "A little styling inspiration?"
+      : "Make something you want to wear.";
+  const description = wardrobeEmpty
+    ? "Add a few pieces you love. Then put them together in the outfit studio."
+    : filter === "agent"
+      ? "Tell Eve what you are dressing for. The suggestions you save will join your collection here."
+      : "Choose a top, find its perfect pair, and add the finishing touches. Your saved outfits will live here.";
+  const href = wardrobeEmpty ? routes.add : filter === "agent" ? routes.stylist : routes.newOutfit;
+  const label = wardrobeEmpty ? "Add clothes" : filter === "agent" ? "Ask Eve" : "Create an outfit";
   return (
-    <EmptyState
-      icon={wardrobeEmpty ? Shirt : Shapes}
-      title={wardrobeEmpty ? "Add some clothes first" : "No outfits yet"}
-      description={
-        wardrobeEmpty
-          ? "Your wardrobe is empty, so there is nothing to build with. Photograph a few pieces, then come back and put them together."
-          : "Pick a top, a bottom and some shoes, name it, then render it on yourself."
-      }
+    <StudioEmpty
+      title={title}
+      description={description}
       action={
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button render={<Link href={routes.newOutfit} />}>
-            <Plus data-icon="inline-start" />
-            New outfit
+        <div className="flex flex-wrap gap-3">
+          <Button className="h-11 rounded-none px-5" nativeButton={false} render={<Link href={href} />}>
+            {label}
+            <ArrowUpRight className="size-4" />
           </Button>
-          {wardrobeEmpty ? (
-            <Button variant="outline" render={<Link href={routes.add} />}>
-              <Shirt data-icon="inline-start" />
-              Add clothes
+          {filter !== "all" ? (
+            <Button variant="ghost" className="h-11 rounded-none" onClick={onClearFilter}>
+              Show all outfits
             </Button>
           ) : null}
         </div>

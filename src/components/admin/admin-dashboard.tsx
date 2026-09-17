@@ -53,7 +53,7 @@ export function AdminDashboard() {
           title="Admins only"
           description="This dashboard is limited to accounts with the admin role. The server enforces it too."
           action={
-            <Button variant="outline" render={<Link href={routes.wardrobe} />}>
+            <Button variant="outline" nativeButton={false} render={<Link href={routes.wardrobe} />}>
               Back to your wardrobe
             </Button>
           }
@@ -78,7 +78,7 @@ export function AdminDashboard() {
 }
 
 function SectionHeading({ children }: { children: ReactNode }) {
-  return <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{children}</h2>;
+  return <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{children}</h2>;
 }
 
 function OverviewSection({ days }: { days: AdminWindow }) {
@@ -96,7 +96,8 @@ function OverviewSection({ days }: { days: AdminWindow }) {
   }
 
   const windowLabel = `last ${pluralize(overview.days, "day")}`;
-  const marginTone = overview.grossMarginPct < 0 ? "negative" : overview.grossMarginPct >= 0.5 ? "positive" : "default";
+  // A fraction, not a percentage: 0.45 is a 45% margin.
+  const marginTone = overview.grossMargin < 0 ? "negative" : overview.grossMargin >= 0.5 ? "positive" : "default";
 
   const spendUsd = overview.todayCreditsReserved * UNIT_ECONOMICS.cogsUsdPerCredit;
   const cap = overview.dailySpendCapUsd;
@@ -112,7 +113,7 @@ function OverviewSection({ days }: { days: AdminWindow }) {
           <StatTile label="COGS" value={formatUsd(overview.cogsUsd)} icon={Flame} hint="From stored token usage" />
           <StatTile
             label="Gross margin"
-            value={formatPercent(overview.grossMarginPct, 1)}
+            value={formatPercent(overview.grossMargin, 1)}
             icon={TrendingUp}
             tone={marginTone}
           />
@@ -169,7 +170,7 @@ function OverviewSection({ days }: { days: AdminWindow }) {
             >
               {formatUsd(spendUsd)}
             </span>
-            <span className="text-muted-foreground text-sm tabular-nums">
+            <span className="text-sm text-muted-foreground tabular-nums">
               {cap !== null ? `of ${formatUsd(cap)} daily cap` : "no cap configured"}
             </span>
           </div>
@@ -180,7 +181,7 @@ function OverviewSection({ days }: { days: AdminWindow }) {
               className={cn(killSwitch && "[&_[data-slot=progress-indicator]]:bg-destructive")}
             />
           ) : null}
-          <p className="text-muted-foreground text-xs tabular-nums">
+          <p className="text-xs text-muted-foreground tabular-nums">
             {formatCredits(overview.todayCreditsReserved)} reserved today
             {capFraction !== null ? ` · ${formatPercent(capFraction)} of the cap` : null}
           </p>

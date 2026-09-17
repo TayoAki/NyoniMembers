@@ -1,97 +1,80 @@
-import { Coins, Gauge, Infinity as InfinityIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { formatCredits, formatUsdPrecise, pluralize } from "@/lib/format";
-import { CREDIT_COSTS, LIMITS, UNIT_ECONOMICS } from "@convex/shared/credits";
+import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+import { formatNumber } from "@/lib/format";
+import { CREDIT_COSTS } from "@convex/shared/credits";
 
-type MeterRow = { action: string; cost: string; note: string; free?: boolean };
-
-const ROWS: readonly MeterRow[] = [
+const CREDIT_ROWS = [
   {
-    action: "Detect and tag a photo",
-    cost: "Free",
-    note: "Reading a photo is a text model, and text is on us.",
-    free: true,
+    number: 0,
+    title: "Explore every possibility.",
+    detail: "Scan photos, build outfits and talk to your stylist. All free.",
   },
   {
-    action: "Cut out one garment",
-    cost: formatCredits(CREDIT_COSTS.extractItem),
-    note: `About ${formatUsdPrecise(CREDIT_COSTS.extractItem * UNIT_ECONOMICS.cogsUsdPerCredit)} of image generation.`,
+    number: CREDIT_COSTS.extractItem,
+    title: "Keep a piece. Try a look.",
+    detail: "Each selected clothing cutout or standard try-on image.",
   },
   {
-    action: "Render you in an outfit",
-    cost: formatCredits(CREDIT_COSTS.render.standard),
-    note: `About ${formatUsdPrecise(CREDIT_COSTS.render.standard * UNIT_ECONOMICS.cogsUsdPerCredit)}, 30–50 seconds.`,
+    number: CREDIT_COSTS.render.hq,
+    title: "Get the finer details.",
+    detail: "Each HQ try-on image. Available with Plus.",
   },
-  {
-    action: "Render in HQ",
-    cost: formatCredits(CREDIT_COSTS.render.hq),
-    note: `About ${formatUsdPrecise(CREDIT_COSTS.render.hq * UNIT_ECONOMICS.cogsUsdPerCredit)} at the higher quality setting.`,
-  },
-];
+] as const;
 
 export function CreditsExplainer() {
   return (
-    <section id="credits" className="bg-muted/30 border-y">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
-        <div>
-          <Badge variant="outline" className="h-6 gap-1.5 rounded-full px-3 text-[0.7rem]">
-            <Coins className="text-credit" aria-hidden />
-            The meter
-          </Badge>
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-            Credits, not surprises
+    <section id="credits" aria-labelledby="credits-heading" className="scroll-mt-24 border-y border-foreground/15">
+      <div className="landing-shell grid gap-12 py-16 md:grid-cols-[0.85fr_1.15fr] md:gap-16 md:py-24">
+        <div className="flex flex-col items-start">
+          <p className="landing-kicker">The credit edit</p>
+          <h2
+            id="credits-heading"
+            className="landing-display mt-5 max-w-[9ch] text-[clamp(2.75rem,5vw,5.25rem)] leading-[0.96] tracking-[-0.055em]"
+          >
+            Good style.
+            <br />
+            Clear costs.
           </h2>
-          <p className="text-muted-foreground mt-3 text-sm text-pretty sm:text-base">
-            One credit is one generated image. Nothing else costs anything — browsing, tagging, searching, outfit
-            building and talking to the stylist are all free. You see the exact price before you press the button, and
-            failed images are refunded automatically.
+          <p className="mt-6 max-w-sm text-sm leading-relaxed text-muted-foreground md:text-base">
+            Only the images you create use credits. You choose the pieces, approve the cost, and see exactly where each
+            credit goes.
           </p>
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="bg-background rounded-xl border p-4">
-              <dt className="flex items-center gap-2 text-sm font-medium">
-                <InfinityIcon className="text-muted-foreground size-4" aria-hidden />
-                Packs never expire
-              </dt>
-              <dd className="text-muted-foreground mt-1 text-sm">
-                Plan credits reset every cycle; anything you top up stays until you spend it.
-              </dd>
-            </div>
-            <div className="bg-background rounded-xl border p-4">
-              <dt className="flex items-center gap-2 text-sm font-medium">
-                <Gauge className="text-muted-foreground size-4" aria-hidden />A daily ceiling
-              </dt>
-              <dd className="text-muted-foreground mt-1 text-sm tabular-nums">
-                {pluralize(LIMITS.dailyCreditCap, "credit")} a day, so a runaway batch can never drain the balance you
-                were saving.
-              </dd>
-            </div>
-          </dl>
+          <Link
+            href="#pricing"
+            className="mt-8 inline-flex items-center gap-3 border-b border-foreground/40 pb-2 text-sm font-medium transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-4"
+          >
+            Find your plan <ArrowUpRight aria-hidden className="size-4" />
+          </Link>
         </div>
-
-        <div className="bg-background rounded-xl border">
-          <div className="flex items-baseline justify-between gap-4 border-b px-5 py-3.5">
-            <h3 className="text-sm font-medium">What costs a credit</h3>
-            <span className="text-muted-foreground text-xs">Measured, not estimated</span>
-          </div>
-          <ul className="divide-y">
-            {ROWS.map((row) => (
-              <li key={row.action} className="flex items-start justify-between gap-4 px-5 py-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{row.action}</p>
-                  <p className="text-muted-foreground mt-0.5 text-xs text-pretty">{row.note}</p>
-                </div>
-                <span
-                  className={
-                    row.free
-                      ? "text-success shrink-0 text-sm font-medium tabular-nums"
-                      : "shrink-0 text-sm font-medium tabular-nums"
-                  }
-                >
-                  {row.cost}
-                </span>
-              </li>
+        <div>
+          <dl className="border-t border-foreground/20">
+            {CREDIT_ROWS.map((row) => (
+              <div
+                key={row.number}
+                className="grid grid-cols-[5rem_1fr] gap-5 border-b border-foreground/15 py-6 sm:grid-cols-[6.5rem_1fr] sm:gap-8"
+              >
+                <dt className="sr-only">{row.title}</dt>
+                <dd className="flex flex-col">
+                  <span className="landing-display text-6xl leading-none tracking-[-0.06em] tabular-nums sm:text-7xl">
+                    {formatNumber(row.number)}
+                  </span>
+                  <span className="mt-1 font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
+                    {row.number === 1 ? "Credit" : "Credits"}
+                  </span>
+                </dd>
+                <dd className="self-center">
+                  <p aria-hidden className="text-lg font-medium tracking-tight">
+                    {row.title}
+                  </p>
+                  <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">{row.detail}</p>
+                </dd>
+              </div>
             ))}
-          </ul>
+          </dl>
+          <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
+            An image fails? Its credits come back automatically. Free scanning and stylist chat are subject to daily
+            limits.
+          </p>
         </div>
       </div>
     </section>

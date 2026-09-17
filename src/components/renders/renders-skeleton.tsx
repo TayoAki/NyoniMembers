@@ -16,7 +16,11 @@ export function LookbookPageSkeleton() {
           <Skeleton className="h-8 w-56 rounded-lg" />
           <Skeleton className="h-4 w-24" />
         </div>
-        <LoadingGrid count={12} />
+        <LoadingGrid
+          count={8}
+          aspect="aspect-[2/3]"
+          className="grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4"
+        />
       </div>
     </div>
   );

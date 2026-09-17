@@ -1,3 +1,4 @@
+import type { PaginationOptions, PaginationResult } from "convex/server";
 import type { Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -6,9 +7,16 @@ import { appError } from "../lib/errors";
 import type { vOutfitSlots } from "../shared/validators";
 import { LAYER_ORDER, SLOT_CATEGORIES, type Slot } from "../shared/wardrobe";
 import type { ItemSummary, OutfitView } from "../views";
+import { assertJobFinished } from "./jobs";
 
 type Ctx = QueryCtx | MutationCtx;
 export type OutfitSlots = Infer<typeof vOutfitSlots>;
+
+/** How far back a card's cover render and render count look. */
+const COVER_SCAN_LIMIT = 50;
+const OUTFIT_SUMMARY_LIMIT = 200;
+/** How many of the user's newest outfits the item page checks for a given item. */
+const CONTAINING_SCAN_LIMIT = 500;
 
 export function slotItemIds(slots: OutfitSlots): Id<"items">[] {
   const single = [slots.outerwear, slots.top, slots.bottom, slots.dress, slots.shoes].filter((id): id is Id<"items"> =>
@@ -86,12 +94,15 @@ export async function toOutfitView(ctx: Ctx, outfit: Doc<"outfits">): Promise<Ou
     const item = id ? map.get(id) : undefined;
     return item ? toItemSummary(ctx, item) : undefined;
   };
-  const renders = await ctx.db
+  // Bounded on purpose: the cover is the newest finished render and the badge count is a hint, not an
+  // audit, so this reads the last COVER_SCAN_LIMIT renders of the outfit instead of collecting them all.
+  const recent = await ctx.db
     .query("renders")
     .withIndex("by_outfit", (q) => q.eq("outfitId", outfit._id))
     .order("desc")
-    .collect();
-  const cover = renders.find((render) => render.status === "done" && render.storageId);
+    .take(COVER_SCAN_LIMIT);
+  const done = recent.filter((render) => render.status === "done");
+  const cover = done.find((render) => render.storageId);
   return {
     _id: outfit._id,
     name: outfit.name,
@@ -111,26 +122,47 @@ export async function toOutfitView(ctx: Ctx, outfit: Doc<"outfits">): Promise<Ou
     reasoning: outfit.reasoning,
     source: outfit.source,
     threadId: outfit.threadId,
+    savedAt: outfit.savedAt,
     wornOn: outfit.wornOn,
-    renderCount: renders.filter((render) => render.status === "done").length,
+    renderCount: done.length,
     coverUrl: cover?.storageId ? await ctx.storage.getUrl(cover.storageId) : null,
     createdAt: outfit.createdAt,
     updatedAt: outfit.updatedAt,
   };
 }
 
-export async function listForUser(
+/**
+ * One page of the user's saved outfits, newest saved first. `savedAt` is unset on agent proposals and
+ * undefined sorts below every number, so `.gt("savedAt", 0)` leaves them out of the range entirely.
+ * `source` is applied to the page in memory — the read is already bounded by the index range, and the
+ * alternative (`.filter` on the query) reads exactly the same documents.
+ */
+export async function listSavedPage(
   ctx: Ctx,
   userId: Id<"users">,
+  paginationOpts: PaginationOptions,
   source?: Doc<"outfits">["source"],
-): Promise<Doc<"outfits">[]> {
+): Promise<PaginationResult<Doc<"outfits">>> {
+  const result = await ctx.db
+    .query("outfits")
+    .withIndex("by_user_savedAt", (q) => q.eq("userId", userId).gt("savedAt", 0))
+    .order("desc")
+    .paginate(paginationOpts);
+  if (!source) return result;
+  return { ...result, page: result.page.filter((outfit) => outfit.source === source) };
+}
+
+/** Names of the newest saved outfits, for select menus. Capped: a picker with 200 entries is already too long. */
+export async function listSavedSummaries(
+  ctx: Ctx,
+  userId: Id<"users">,
+): Promise<Array<{ _id: Id<"outfits">; name: string }>> {
   const outfits = await ctx.db
     .query("outfits")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_user_savedAt", (q) => q.eq("userId", userId).gt("savedAt", 0))
     .order("desc")
-    .collect();
-  const filtered = source ? outfits.filter((outfit) => outfit.source === source) : outfits;
-  return filtered.sort((a, b) => b.updatedAt - a.updatedAt);
+    .take(OUTFIT_SUMMARY_LIMIT);
+  return outfits.map((outfit) => ({ _id: outfit._id, name: outfit.name }));
 }
 
 export async function requireOutfit(ctx: Ctx, user: Doc<"users">, outfitId: Id<"outfits">): Promise<Doc<"outfits">> {
@@ -151,30 +183,34 @@ export async function createOutfit(
   },
 ): Promise<Id<"outfits">> {
   const now = Date.now();
+  const source = input.source ?? "manual";
   return ctx.db.insert("outfits", {
     userId: user._id,
     name: input.name.trim() || "Untitled outfit",
     slots: input.slots,
-    occasion: input.occasion,
+    occasion: input.occasion?.trim() ? input.occasion.trim() : undefined,
     brief: input.brief,
     reasoning: input.reasoning,
-    source: input.source ?? "manual",
+    source,
     threadId: input.threadId,
+    // An outfit the user built is listed straight away; an agent proposal waits for `markOutfitSaved`.
+    savedAt: source === "manual" ? now : undefined,
     wornOn: [],
     createdAt: now,
     updatedAt: now,
   });
 }
 
+/** `occasion: null` (or an empty string) clears the field; leaving the key out keeps whatever is there. */
 export async function updateOutfit(
   ctx: MutationCtx,
   outfit: Doc<"outfits">,
-  patch: { name?: string; slots?: OutfitSlots; occasion?: string },
+  patch: { name?: string; slots?: OutfitSlots; occasion?: string | null },
 ): Promise<void> {
   await ctx.db.patch(outfit._id, {
     ...(patch.name !== undefined ? { name: patch.name.trim() || outfit.name } : {}),
     ...(patch.slots !== undefined ? { slots: patch.slots } : {}),
-    ...(patch.occasion !== undefined ? { occasion: patch.occasion } : {}),
+    ...(patch.occasion !== undefined ? { occasion: patch.occasion?.trim() ? patch.occasion.trim() : undefined } : {}),
     updatedAt: Date.now(),
   });
 }
@@ -185,6 +221,9 @@ export async function removeOutfit(ctx: MutationCtx, outfit: Doc<"outfits">): Pr
     .query("renders")
     .withIndex("by_outfit", (q) => q.eq("outfitId", outfit._id))
     .collect();
+  for (const jobId of new Set(renders.map((render) => render.jobId))) {
+    await assertJobFinished(ctx, jobId);
+  }
   for (const render of renders) {
     if (render.storageId) await ctx.storage.delete(render.storageId);
     await ctx.db.delete("renders", render._id);
@@ -235,7 +274,11 @@ export async function removeItemsFromOutfits(
   }
 }
 
-/** Outfits whose slots reference an item, for the item detail screen. */
+/**
+ * Outfits whose slots reference an item, for the item detail screen. There is no index from item to
+ * outfit, so this reads the user's newest outfits and matches in memory — bounded because the item
+ * page subscribes to it.
+ */
 export async function listContainingItem(
   ctx: Ctx,
   userId: Id<"users">,
@@ -244,6 +287,17 @@ export async function listContainingItem(
   const outfits = await ctx.db
     .query("outfits")
     .withIndex("by_user", (q) => q.eq("userId", userId))
-    .collect();
+    .order("desc")
+    .take(CONTAINING_SCAN_LIMIT);
   return outfits.filter((outfit) => slotItemIds(outfit.slots).includes(itemId));
+}
+
+/** Lists an outfit in /outfits: manual outfits at creation, agent proposals when the user keeps them. Idempotent. */
+export async function markOutfitSaved(
+  ctx: MutationCtx,
+  outfit: Doc<"outfits">,
+  savedAt: number = Date.now(),
+): Promise<void> {
+  if (outfit.savedAt !== undefined) return;
+  await ctx.db.patch(outfit._id, { savedAt, updatedAt: savedAt });
 }

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { OutfitBuilder } from "@/components/outfits/outfit-builder";
-import type { Id } from "@convex/_generated/dataModel";
 import { requireSignedIn } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -11,6 +10,6 @@ export const metadata: Metadata = {
 export default async function OutfitPage({ params }: PageProps<"/outfits/[outfitId]">) {
   await requireSignedIn();
   const { outfitId } = await params;
-  // Convex ids are opaque branded strings; the query rejects anything that is not the user's outfit.
-  return <OutfitBuilder mode="edit" outfitId={outfitId as Id<"outfits">} />;
+  // Passed through raw: the query normalises it and returns null, and the builder calls notFound().
+  return <OutfitBuilder mode="edit" outfitId={outfitId} />;
 }

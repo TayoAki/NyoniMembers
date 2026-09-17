@@ -53,6 +53,11 @@ export function formatDuration(ms: number): string {
   return `${minutes}m ${seconds % 60}s`;
 }
 
+/** Remaining-time copy for a running job or render, e.g. "about 40s left". Callers hide it when there is no estimate. */
+export function formatEta(ms: number): string {
+  return `about ${formatDuration(Math.max(1000, ms))} left`;
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;

@@ -1,6 +1,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { assertOwner } from "../lib/auth";
+import { appError } from "../lib/errors";
 import type { ThreadView } from "../views";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -45,20 +46,49 @@ export async function createThread(
   });
 }
 
-/** The thread behind a durable eve session, created on first message. */
+/** Only a service-authenticated Eve request may establish the session ownership binding. */
+export async function bindSession(
+  ctx: MutationCtx,
+  user: Doc<"users">,
+  threadId: Id<"threads">,
+  eveSessionId: string,
+): Promise<Id<"threads">> {
+  const thread = await requireThread(ctx, user, threadId);
+  if (!eveSessionId.trim()) throw appError("INVALID_INPUT", "A conversation session is required.");
+  if (thread.eveSessionId && thread.eveSessionId !== eveSessionId) {
+    throw appError("CONFLICT", "This conversation already has a session. Start a new chat.");
+  }
+  const matches = await ctx.db
+    .query("threads")
+    .withIndex("by_eveSessionId", (q) => q.eq("eveSessionId", eveSessionId))
+    .take(2);
+  if (matches.some((match) => match._id !== thread._id)) {
+    throw appError("CONFLICT", "That session is already attached to another conversation.");
+  }
+  await ctx.db.patch(thread._id, {
+    eveSessionId,
+    sessionVerifiedAt: thread.sessionVerifiedAt ?? Date.now(),
+    lastMessageAt: Date.now(),
+  });
+  return thread._id;
+}
+
+export async function canAccessSession(ctx: Ctx, user: Doc<"users">, eveSessionId: string): Promise<boolean> {
+  const matches = await ctx.db
+    .query("threads")
+    .withIndex("by_eveSessionId", (q) => q.eq("eveSessionId", eveSessionId))
+    .take(2);
+  return matches.length === 1 && matches[0].userId === user._id && matches[0].sessionVerifiedAt !== undefined;
+}
+
+/** Bind the browser's existing thread before any proposals can be written. */
 export async function resolveByEveSession(
   ctx: MutationCtx,
   user: Doc<"users">,
   eveSessionId: string,
-  title?: string,
+  threadId: Id<"threads">,
 ): Promise<Id<"threads">> {
-  const threads = await listForUser(ctx, user._id);
-  const existing = threads.find((thread) => thread.eveSessionId === eveSessionId);
-  if (existing) {
-    await ctx.db.patch(existing._id, { lastMessageAt: Date.now() });
-    return existing._id;
-  }
-  return createThread(ctx, user, { title, eveSessionId });
+  return bindSession(ctx, user, threadId, eveSessionId);
 }
 
 export async function linkSession(
@@ -67,7 +97,16 @@ export async function linkSession(
   eveSessionId: string,
   streamIndex: number,
 ): Promise<void> {
-  await ctx.db.patch(thread._id, { eveSessionId, streamIndex, lastMessageAt: Date.now() });
+  if (thread.sessionVerifiedAt === undefined || thread.eveSessionId !== eveSessionId) {
+    throw appError("FORBIDDEN", "This session is not attached to your conversation.");
+  }
+  if (!Number.isSafeInteger(streamIndex) || streamIndex < 0) {
+    throw appError("INVALID_INPUT", "The conversation cursor must be a non-negative integer.");
+  }
+  await ctx.db.patch(thread._id, {
+    streamIndex: Math.max(thread.streamIndex ?? 0, streamIndex),
+    lastMessageAt: Date.now(),
+  });
 }
 
 export async function removeThread(ctx: MutationCtx, thread: Doc<"threads">): Promise<void> {

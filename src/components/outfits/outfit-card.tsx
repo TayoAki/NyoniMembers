@@ -1,69 +1,38 @@
-import { ImageIcon, Sparkles } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { ItemImage } from "@/components/common/item-image";
-import { OutfitCollage } from "@/components/common/outfit-collage";
-import { Badge } from "@/components/ui/badge";
+import { OutfitComposition } from "@/components/outfits/outfit-composition";
 import type { Outfit } from "@/hooks/use-outfits";
-import { formatRelative, pluralize } from "@/lib/format";
+import { pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-/** One outfit in the grid: render cover when there is one, the garment collage otherwise. */
 export function OutfitCard({ outfit, className }: { outfit: Outfit; className?: string }) {
-  const wornCount = outfit.wornOn.length;
-  const lastWorn = wornCount > 0 ? Math.max(...outfit.wornOn) : null;
-
   return (
     <Link
       href={routes.outfit(outfit._id)}
-      className={cn(
-        "group bg-card ring-foreground/10 flex h-full flex-col overflow-hidden rounded-xl text-left ring-1 transition-all",
-        "hover:ring-foreground/25 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-        className,
-      )}
+      className={cn("group block text-left focus-visible:outline-2 focus-visible:outline-offset-4", className)}
     >
-      <div className="relative">
+      <div className="relative overflow-hidden bg-muted/35">
         {outfit.coverUrl ? (
-          <ItemImage
-            src={outfit.coverUrl}
-            alt={outfit.name}
-            variant="photo"
-            aspect="aspect-[3/4]"
-            className="rounded-none transition-transform duration-200 group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-          />
+          <ItemImage src={outfit.coverUrl} alt={outfit.name} variant="render" className="rounded-none" />
         ) : (
-          <div className="bg-muted/40 dark:bg-muted/20 flex aspect-[3/4] items-center justify-center p-4">
-            <OutfitCollage items={outfit.items} tile="size-14" max={4} className="flex-wrap justify-center gap-2" />
-          </div>
+          <OutfitComposition items={outfit.items} className="aspect-[2/3]" />
         )}
-        <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
-          {outfit.source === "agent" ? (
-            <Badge variant="secondary" className="shadow-sm backdrop-blur-sm">
-              <Sparkles aria-hidden />
-              Stylist
-            </Badge>
-          ) : (
-            <span />
-          )}
-          {outfit.renderCount > 0 ? (
-            <Badge variant="secondary" className="tabular-nums shadow-sm backdrop-blur-sm">
-              <ImageIcon aria-hidden />
-              {outfit.renderCount}
-            </Badge>
-          ) : null}
-        </div>
+        <span className="absolute top-3 left-3 bg-background/85 px-2 py-1 font-mono text-[9px] tracking-[0.12em] uppercase">
+          {outfit.source === "agent" ? "Styled by Fitcheck" : "Your composition"}
+        </span>
       </div>
-
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        <h3 className="line-clamp-1 text-sm font-medium">{outfit.name}</h3>
-        {outfit.occasion ? (
-          <Badge variant="outline" className="max-w-full">
-            <span className="truncate">{outfit.occasion}</span>
-          </Badge>
-        ) : null}
-        <div className="text-muted-foreground mt-auto flex items-center justify-between gap-2 pt-1 text-xs tabular-nums">
-          <span>{wornCount > 0 ? pluralize(wornCount, "wear") : "Never worn"}</span>
-          {lastWorn ? <span className="truncate">{formatRelative(lastWorn)}</span> : null}
+      <div className="space-y-2 border-b border-foreground/15 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="line-clamp-2 text-base leading-snug font-medium tracking-tight sm:text-lg">{outfit.name}</h3>
+          <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span>
+            {outfit.occasion || (outfit.wornOn.length > 0 ? pluralize(outfit.wornOn.length, "wear") : "Ready to wear")}
+          </span>
+          {outfit.renderCount > 0 ? <span>{pluralize(outfit.renderCount, "try-on")}</span> : null}
         </div>
       </div>
     </Link>

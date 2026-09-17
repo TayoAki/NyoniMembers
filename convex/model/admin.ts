@@ -1,10 +1,21 @@
 import type { Doc, Id } from "../_generated/dataModel";
-import type { QueryCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { optionalEnv } from "../lib/env";
-import { dayKey, PACKS, PLANS, type PackDefinition, type PlanId } from "../shared/credits";
+import { appError } from "../lib/errors";
+import { dayKey, UNIT_ECONOMICS } from "../shared/credits";
 import { JOB_STATUSES, type JobStatus } from "../shared/jobs";
+import { listByUpload } from "./items";
+import { getJob } from "./jobs";
+import { listByJob, startRenderJob } from "./renders";
+import { readDailyStats, readSystemCounter, sumDailyStats } from "./stats";
+import { startExtractionJob } from "./uploads";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** How many active jobs the dashboard is willing to count; beyond this the number is "500+". */
+const ACTIVE_JOB_SCAN_LIMIT = 500;
+/** Ledger lines the top-spender leaderboard reads before it admits to being truncated. */
+const TOP_SPENDER_LEDGER_LIMIT = 5000;
 
 export type AdminWindow = 1 | 7 | 30;
 
@@ -18,7 +29,8 @@ export type AdminOverview = {
   creditsRefunded: number;
   revenueUsd: number;
   cogsUsd: number;
-  grossMarginPct: number;
+  /** Fraction, not percent: 0.45 = 45%. */
+  grossMargin: number;
   rendersDone: number;
   itemsExtracted: number;
   jobsFailed: number;
@@ -28,94 +40,43 @@ export type AdminOverview = {
 };
 
 /**
- * Money in vs. money out. Everything comes from the ledger (credits) and the stored per-image
- * token costs (COGS); nothing is estimated from list prices except plan revenue, which the ledger
- * only records by plan name.
+ * Money in vs. money out, read from the per-day aggregates the credit, item and render mutations
+ * keep up to date (`dailyStats`) plus two counters. Nothing here scans users, the ledger or items.
  */
 export async function overview(ctx: QueryCtx, days: AdminWindow, now: number): Promise<AdminOverview> {
-  const since = now - days * DAY_MS;
-
-  const allUsers = await ctx.db.query("users").withIndex("by_createdAt").collect();
-  const ledger = await ctx.db
-    .query("creditLedger")
-    .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
-    .collect();
-  const renders = await ctx.db
-    .query("renders")
-    .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
-    .collect();
-  const items = await ctx.db
-    .query("items")
-    .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
-    .collect();
-
-  let creditsSold = 0;
-  let creditsGranted = 0;
-  let creditsSpent = 0;
-  let creditsRefunded = 0;
-  let revenueUsd = 0;
-  for (const line of ledger) {
-    switch (line.kind) {
-      case "topup":
-        creditsSold += line.delta;
-        revenueUsd += packRevenueUsd(line);
-        break;
-      case "plan_grant":
-        creditsGranted += line.delta;
-        revenueUsd += planRevenueUsd(line);
-        break;
-      case "signup_bonus":
-        creditsGranted += line.delta;
-        break;
-      case "reserve":
-        creditsSpent += -line.delta;
-        break;
-      case "refund":
-        creditsRefunded += line.delta;
-        break;
-      default:
-        break;
-    }
-  }
-
-  const cogsUsd =
-    renders.reduce((sum, render) => sum + (render.costUsd ?? 0), 0) +
-    items.reduce((sum, item) => sum + (item.costUsd ?? 0), 0);
-
-  const failedJobs = await ctx.db
-    .query("jobs")
-    .withIndex("by_status", (q) => q.eq("status", "failed").gte("createdAt", since))
-    .collect();
-  const jobsRunning = await countActiveJobs(ctx);
-
-  const counter = await ctx.db
-    .query("systemCounters")
-    .withIndex("by_day_key", (q) => q.eq("dayKey", dayKey(now)).eq("key", "credits_reserved"))
-    .unique();
+  const totals = sumDailyStats(await readDailyStats(ctx, days, now));
+  const [users, todayCreditsReserved, jobsRunning] = await Promise.all([
+    readSystemCounter(ctx, "users_total"),
+    readSystemCounter(ctx, "credits_reserved", dayKey(now)),
+    countActiveJobs(ctx),
+  ]);
 
   const capRaw = optionalEnv("MAX_DAILY_SPEND_USD");
   const cap = capRaw === undefined ? Number.NaN : Number(capRaw);
+  const revenueUsd = totals.revenueUsd;
+  const cogsUsd = totals.cogsUsd;
 
   return {
     days,
-    users: allUsers.length,
-    newUsers: allUsers.filter((user) => user.createdAt >= since).length,
-    creditsSold,
-    creditsGranted,
-    creditsSpent,
-    creditsRefunded,
+    users,
+    newUsers: totals.newUsers,
+    creditsSold: totals.creditsSold,
+    creditsGranted: totals.creditsGranted,
+    creditsSpent: totals.creditsSpent,
+    creditsRefunded: totals.creditsRefunded,
     revenueUsd: round2(revenueUsd),
     cogsUsd: round2(cogsUsd),
-    grossMarginPct: revenueUsd > 0 ? round2(((revenueUsd - cogsUsd) / revenueUsd) * 100) : 0,
-    rendersDone: renders.filter((render) => render.status === "done").length,
-    itemsExtracted: items.filter((item) => item.status === "ready").length,
-    jobsFailed: failedJobs.length,
+    grossMargin: revenueUsd > 0 ? round4((revenueUsd - cogsUsd) / revenueUsd) : 0,
+    rendersDone: totals.rendersDone,
+    itemsExtracted: totals.itemsExtracted,
+    jobsFailed: totals.jobsFailed,
     jobsRunning,
-    todayCreditsReserved: counter?.value ?? 0,
+    todayCreditsReserved,
     dailySpendCapUsd: Number.isFinite(cap) ? cap : null,
   };
 }
 
+/** Queued + running jobs across all users, bounded by ACTIVE_JOB_SCAN_LIMIT per status. */
 export async function countActiveJobs(ctx: QueryCtx): Promise<number> {
   const active: readonly JobStatus[] = ["queued", "running"];
   const lists = await Promise.all(
@@ -123,7 +84,7 @@ export async function countActiveJobs(ctx: QueryCtx): Promise<number> {
       ctx.db
         .query("jobs")
         .withIndex("by_status", (q) => q.eq("status", status))
-        .collect(),
+        .take(ACTIVE_JOB_SCAN_LIMIT),
     ),
   );
   return lists.reduce((sum, list) => sum + list.length, 0);
@@ -171,36 +132,31 @@ export type TopSpender = {
   cogsUsd: number;
 };
 
-export async function topSpenders(ctx: QueryCtx, days: AdminWindow, limit: number, now: number): Promise<TopSpender[]> {
+export type TopSpenders = { rows: TopSpender[]; truncated: boolean };
+
+/**
+ * Who spent the most in the window. This is the one admin read that still walks the ledger, so it
+ * is capped: past TOP_SPENDER_LEDGER_LIMIT lines the ranking is reported as `truncated`.
+ */
+export async function topSpenders(ctx: QueryCtx, days: AdminWindow, limit: number, now: number): Promise<TopSpenders> {
   const since = now - days * DAY_MS;
   const ledger = await ctx.db
     .query("creditLedger")
     .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
-    .collect();
-  const renders = await ctx.db
-    .query("renders")
-    .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
-    .collect();
-  const items = await ctx.db
-    .query("items")
-    .withIndex("by_createdAt", (q) => q.gte("createdAt", since))
-    .collect();
+    .take(TOP_SPENDER_LEDGER_LIMIT);
 
   const spent = new Map<Id<"users">, number>();
   for (const line of ledger) {
     if (line.kind !== "reserve") continue;
     spent.set(line.userId, (spent.get(line.userId) ?? 0) + -line.delta);
   }
-  const cogs = new Map<Id<"users">, number>();
-  for (const render of renders) cogs.set(render.userId, (cogs.get(render.userId) ?? 0) + (render.costUsd ?? 0));
-  for (const item of items) cogs.set(item.userId, (cogs.get(item.userId) ?? 0) + (item.costUsd ?? 0));
 
   const ranked = [...spent.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
   const users = await hydrateUsers(
     ctx,
     ranked.map(([userId]) => userId),
   );
-  return ranked.map(([userId, creditsSpent]) => {
+  const rows = ranked.map(([userId, creditsSpent]) => {
     const user = users.get(userId);
     return {
       userId,
@@ -208,9 +164,53 @@ export async function topSpenders(ctx: QueryCtx, days: AdminWindow, limit: numbe
       name: user?.name,
       plan: user?.plan ?? "free",
       creditsSpent,
-      cogsUsd: round2(cogs.get(userId) ?? 0),
+      // Per-user COGS would mean reading every render and item in the window; estimate it from the
+      // measured cost per credit instead. Exact COGS lives in the window totals (`dailyStats`).
+      cogsUsd: round2(creditsSpent * UNIT_ECONOMICS.cogsUsdPerCredit),
     };
   });
+  return { rows, truncated: ledger.length >= TOP_SPENDER_LEDGER_LIMIT };
+}
+
+/**
+ * Re-runs the failed half of a job for its owner. Credits come from THAT user's balance exactly as
+ * if they had pressed Retry themselves (an ingest retry reserves one credit per item, a render
+ * retry one per image); refund separately with `admin.refundJob` if that is not wanted.
+ */
+export async function retryJob(ctx: MutationCtx, jobId: Id<"jobs">): Promise<Id<"jobs">> {
+  const job = await getJob(ctx, jobId);
+  const user = await ctx.db.get(job.userId);
+  if (!user) throw appError("NOT_FOUND", "The owner of that job no longer exists.");
+
+  if (job.type === "ingest") {
+    if (!job.uploadId) throw appError("INVALID_INPUT", "That job has no upload to retry.");
+    const items = await listByUpload(ctx, job.uploadId);
+    const retryable = items.filter((item) => item.status === "failed" || item.status === "needsCredits");
+    if (retryable.length === 0) throw appError("INVALID_INPUT", "Nothing on that upload needs extracting.");
+    return startExtractionJob(
+      ctx,
+      user,
+      retryable.map((item) => item._id),
+      job.uploadId,
+    );
+  }
+
+  const renders = await listByJob(ctx, job._id);
+  const failed = renders.filter((render) => render.status === "failed");
+  const first = failed[0];
+  if (!first) throw appError("INVALID_INPUT", "That job has no failed images to retry.");
+
+  const perOutfit = new Map<Id<"outfits">, number>();
+  for (const render of failed) perOutfit.set(render.outfitId, (perOutfit.get(render.outfitId) ?? 0) + 1);
+  const count = Math.max(...perOutfit.values());
+
+  const result = await startRenderJob(ctx, user, {
+    outfitIds: [...perOutfit.keys()],
+    avatarId: first.avatarId,
+    count,
+    quality: first.quality,
+  });
+  return result.jobId;
 }
 
 async function hydrateUsers(ctx: QueryCtx, userIds: Id<"users">[]): Promise<Map<Id<"users">, Doc<"users">>> {
@@ -221,21 +221,10 @@ async function hydrateUsers(ctx: QueryCtx, userIds: Id<"users">[]): Promise<Map<
   return map;
 }
 
-/** Packs are identified by the note the Stripe webhook writes, falling back to the credit amount. */
-function packRevenueUsd(line: Doc<"creditLedger">): number {
-  const packs = Object.values(PACKS) as PackDefinition[];
-  const byNote = line.note ? packs.find((pack) => line.note?.includes(pack.name)) : undefined;
-  const pack = byNote ?? packs.find((candidate) => candidate.credits === line.delta);
-  return pack?.priceUsd ?? 0;
-}
-
-/** The ledger only records the plan by name ("Pro allowance"), so revenue comes from the list price. */
-function planRevenueUsd(line: Doc<"creditLedger">): number {
-  const planIds = Object.keys(PLANS) as PlanId[];
-  const plan = planIds.find((id) => line.note?.startsWith(PLANS[id].name));
-  return plan ? PLANS[plan].priceUsd : 0;
-}
-
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function round4(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }

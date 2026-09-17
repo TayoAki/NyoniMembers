@@ -19,9 +19,10 @@ type ApprovalCardProps = {
 
 type RenderInput = { outfitIds?: unknown; perOutfit?: unknown; quality?: unknown };
 
+/** The server charges per distinct outfit, so a repeated id must not inflate the number on the button. */
 function renderSummary(input: unknown): { outfits: number; perOutfit: number; quality: RenderQuality } | null {
   const args = (input ?? {}) as RenderInput;
-  const outfits = Array.isArray(args.outfitIds) ? args.outfitIds.length : 0;
+  const outfits = Array.isArray(args.outfitIds) ? new Set(args.outfitIds).size : 0;
   const perOutfit = typeof args.perOutfit === "number" ? args.perOutfit : 0;
   const quality: RenderQuality = args.quality === "hq" ? "hq" : "standard";
   if (outfits === 0 || perOutfit === 0) return null;
@@ -60,19 +61,25 @@ export function ApprovalCard({ pending, onRespond, disabled }: ApprovalCardProps
   }
 
   const busy = busyOption !== null;
+  // The cost belongs on the button that spends it. eve supplies the options, so pick the first
+  // non-destructive one rather than assuming an id or a "primary" style.
+  const approveId = options.find((option) => option.style !== "danger")?.id;
 
   return (
-    <section className="border-credit/40 bg-credit/5 space-y-3 rounded-xl border p-3" aria-label="Approval required">
+    <section
+      className="space-y-5 border-y border-foreground/30 bg-muted/25 px-4 py-5 sm:px-6"
+      aria-label="Approval required"
+    >
       <div className="flex items-start gap-2">
-        <ShieldCheck className="text-credit mt-0.5 size-4 shrink-0" aria-hidden />
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-credit" aria-hidden />
         <div className="min-w-0 space-y-1">
-          <p className="text-sm font-medium">Approve this spend</p>
-          <p className="text-muted-foreground text-sm text-pretty">{pending.request.prompt}</p>
+          <p className="text-lg font-medium tracking-tight">Your fitting, ready to start.</p>
+          <p className="text-sm text-pretty text-muted-foreground">{pending.request.prompt}</p>
         </div>
       </div>
 
       {summary ? (
-        <dl className="bg-background/60 grid grid-cols-3 gap-2 rounded-lg border p-2 text-center text-xs">
+        <dl className="grid grid-cols-3 divide-x border-y py-3 text-center text-xs">
           <div>
             <dt className="text-muted-foreground">Outfits</dt>
             <dd className="font-medium tabular-nums">{summary.outfits}</dd>
@@ -106,12 +113,13 @@ export function ApprovalCard({ pending, onRespond, disabled }: ApprovalCardProps
           <Button
             key={option.id}
             size="sm"
-            variant={option.style === "primary" ? "default" : option.style === "danger" ? "outline" : "outline"}
+            className="h-10 rounded-none px-4"
+            variant={option.style === "primary" ? "default" : "outline"}
             disabled={disabled || busy}
             onClick={() => void choose(option.id)}
           >
             {busyOption === option.id ? <Spinner data-icon="inline-start" /> : null}
-            {option.label}
+            {option.id === approveId && cost !== null ? `${option.label} · ${formatCredits(cost)}` : option.label}
           </Button>
         ))}
       </div>

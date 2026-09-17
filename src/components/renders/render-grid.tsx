@@ -21,13 +21,23 @@ export function RenderGrid({ renders, showOutfit = false, empty, skeletonCount =
   const reduceMotion = useReducedMotion();
 
   if (renders === undefined)
-    return <LoadingGrid count={skeletonCount} withCaption={showOutfit} className={className} />;
+    return (
+      <LoadingGrid
+        count={skeletonCount}
+        aspect="aspect-[2/3]"
+        withCaption={showOutfit}
+        className={cn(
+          "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4",
+          className,
+        )}
+      />
+    );
   if (renders.length === 0) return <>{empty ?? null}</>;
 
   return (
     <motion.div
       layout={!reduceMotion}
-      className={cn("grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5", className)}
+      className={cn("grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 @2xl:grid-cols-3 @5xl:grid-cols-4", className)}
     >
       <AnimatePresence initial={false}>
         {renders.map((render) => (

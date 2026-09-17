@@ -15,7 +15,7 @@ type DropZoneProps = {
   multiple?: boolean;
   maxFiles?: number;
   disabled?: boolean;
-  /** `lg` is the hero zone on /add; `sm` sits above a list. */
+  /** `lg` is the upload workspace; `sm` sits above a list. */
   size?: "sm" | "lg";
   title: string;
   description: string;
@@ -54,8 +54,8 @@ export function DropZone({
     <div
       {...getRootProps({
         className: cn(
-          "group relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 text-center transition-colors dark:bg-muted/15",
-          size === "lg" ? "px-6 py-10 sm:py-14" : "px-4 py-6",
+          "group relative flex flex-col items-center justify-center gap-3 border border-dashed border-foreground/25 bg-background/60 text-center transition-colors",
+          size === "lg" ? "min-h-56 px-5 py-6" : "px-4 py-5",
           disabled ? "pointer-events-none opacity-60" : "cursor-pointer hover:border-foreground/25 hover:bg-muted/50",
           isDragActive && "border-primary/60 bg-primary/5",
           isDragReject && "border-destructive/60 bg-destructive/5",
@@ -66,24 +66,25 @@ export function DropZone({
       <input {...getInputProps()} />
       <div
         className={cn(
-          "bg-background text-muted-foreground ring-border flex items-center justify-center rounded-full ring-1 transition-colors",
-          size === "lg" ? "size-12" : "size-10",
+          "flex items-center justify-center text-foreground transition-colors",
+          size === "lg" ? "size-7" : "size-6",
           isDragActive && "text-primary ring-primary/40",
         )}
         aria-hidden
       >
         {isDragActive ? <UploadCloud className="size-5" /> : <ImagePlus className="size-5" />}
       </div>
-      <div className="space-y-1">
-        <p className={cn("font-medium text-balance", size === "lg" ? "text-base sm:text-lg" : "text-sm")}>
+      <div className="space-y-2">
+        <p className={cn("font-medium text-balance", size === "lg" ? "text-base tracking-tight" : "text-sm")}>
           {isDragActive ? "Drop to upload" : title}
         </p>
-        <p className="text-muted-foreground max-w-md text-sm text-pretty">{description}</p>
+        <p className="mx-auto max-w-md text-sm leading-relaxed text-pretty text-muted-foreground">{description}</p>
       </div>
       <Button
         type="button"
-        variant="outline"
+        variant={size === "lg" ? "default" : "outline"}
         size={size === "lg" ? "lg" : "sm"}
+        className={cn("rounded-sm", size === "lg" && "h-10 min-w-40 px-6")}
         disabled={disabled}
         onClick={(event) => {
           event.stopPropagation();
@@ -92,7 +93,7 @@ export function DropZone({
       >
         {buttonLabel}
       </Button>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         {hint ?? `JPG, PNG or WebP · up to ${formatBytes(MAX_UPLOAD_BYTES)} each`}
       </p>
     </div>

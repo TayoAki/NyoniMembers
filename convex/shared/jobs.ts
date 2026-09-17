@@ -20,6 +20,7 @@ export function isTerminalJobStatus(status: JobStatus): boolean {
 export const INGEST_STEPS = {
   upload: "upload",
   detect: "detect",
+  review: "review",
   reserve: "reserve",
   extract: "extract",
   finalize: "finalize",
@@ -34,6 +35,7 @@ export const RENDER_STEPS = {
 const STATIC_LABELS: Record<string, string> = {
   upload: "Uploaded",
   detect: "Detecting items",
+  review: "Ready to review",
   reserve: "Reserving credits",
   finalize: "Finishing up",
 };
@@ -55,4 +57,10 @@ export function stepLabel(key: string, meta?: Record<string, unknown>): string {
 export function stepIndex(key: string): number | null {
   const [, index] = key.split(":");
   return index === undefined ? null : Number(index);
+}
+
+/** `extract:3` → `extract`; static keys map to themselves. Used for step-duration statistics. */
+export function stepPrefix(key: string): string {
+  const [prefix] = key.split(":");
+  return prefix || key;
 }

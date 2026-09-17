@@ -1,7 +1,9 @@
+import { paginationResultValidator } from "convex/server";
 import { v, type Infer } from "convex/values";
 import {
   vCategory,
   vColours,
+  vDetectedItem,
   vFit,
   vFormality,
   vItemStatus,
@@ -69,6 +71,8 @@ export const vOutfitView = v.object({
   reasoning: v.optional(v.string()),
   source: v.union(v.literal("manual"), v.literal("agent")),
   threadId: v.optional(v.id("threads")),
+  /** Listed in /outfits when set (manual outfits at creation, agent proposals when saved). */
+  savedAt: v.optional(v.number()),
   wornOn: v.array(v.number()),
   renderCount: v.number(),
   /** Most recent finished render, for list covers. */
@@ -113,12 +117,16 @@ export const vUploadView = v.object({
   status: v.union(
     v.literal("queued"),
     v.literal("detecting"),
+    v.literal("awaiting_selection"),
     v.literal("extracting"),
     v.literal("done"),
     v.literal("failed"),
     v.literal("partial"),
   ),
   detectedCount: v.optional(v.number()),
+  candidates: v.optional(v.array(vDetectedItem)),
+  selectedIndices: v.optional(v.array(v.number())),
+  selectionConfirmedAt: v.optional(v.number()),
   jobId: v.optional(v.id("jobs")),
   url: v.union(v.string(), v.null()),
   createdAt: v.number(),
@@ -135,5 +143,5 @@ export const vThreadView = v.object({
 });
 export type ThreadView = Infer<typeof vThreadView>;
 
-export const vPaginated = <T extends ReturnType<typeof v.object>>(item: T) =>
-  v.object({ page: v.array(item), isDone: v.boolean(), continueCursor: v.string() });
+/** Paginated return shape including Convex's `splitCursor`/`pageStatus`, so `usePaginatedQuery` can split pages. */
+export const vPaginated = paginationResultValidator;

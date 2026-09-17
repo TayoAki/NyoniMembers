@@ -1,33 +1,36 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { MessageSquareOff } from "lucide-react";
-import Link from "next/link";
-import { EmptyState } from "@/components/common/empty-state";
+import { notFound } from "next/navigation";
 import { StylistChat } from "@/components/stylist/stylist-chat";
+import { useStylistPanel } from "@/components/stylist/stylist-provider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
 
 /**
  * The chat is only mounted once the thread is loaded: `useEveAgent` reads `initialSession` and
  * `resume` when it builds its store, so the saved session cursor has to be in hand first.
+ *
+ * `threads.get` takes the raw id from the URL and returns `null` for a malformed, deleted or
+ * foreign one, so a bad link renders `not-found.tsx` instead of a validator error.
  */
-export function StylistChatRoute({ threadId, initialBrief }: { threadId: Id<"threads">; initialBrief?: string }) {
+export function StylistChatRoute({ threadId, initialBrief }: { threadId: string; initialBrief?: string }) {
   const thread = useQuery(api.threads.get, { threadId });
+  const panel = useStylistPanel();
 
   if (thread === undefined) return <ChatSkeleton />;
-  if (thread === null) {
+  if (thread === null) notFound();
+
+  if (panel.open && panel.selectedThreadId === threadId) {
     return (
-      <div className="mx-auto w-full max-w-3xl py-10">
-        <EmptyState
-          icon={MessageSquareOff}
-          title="This chat is gone"
-          description="It may have been deleted from another device."
-          action={<Button render={<Link href={routes.stylist} />}>Back to the stylist</Button>}
-        />
+      <div className="mx-auto max-w-3xl space-y-5 py-8">
+        <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">The styling room</p>
+        <h1 className="text-3xl font-medium tracking-tight">{thread.title}</h1>
+        <p className="text-sm text-muted-foreground">This conversation is open in your stylist panel.</p>
+        <Button variant="outline" className="rounded-none" onClick={() => panel.setOpen(false)}>
+          Show conversation here
+        </Button>
       </div>
     );
   }

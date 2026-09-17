@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -44,3 +45,14 @@ next-env.d.ts
 .convex/
 .eve/
 .output/
+
+# pnpm content-addressable store when installed with a project-local store-dir
+.pnpm-store/
+
+# local agent outputs (smoke-test images etc.)
+Claude outputs/
+
+# Local QA screenshots and private image references
+artifacts/verification/
+/verification/
+/.codex/

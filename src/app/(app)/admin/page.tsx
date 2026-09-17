@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AdminDashboard } from "@/components/admin/admin-dashboard";
-import { requireSignedIn } from "@/lib/auth";
+import { requireAdminPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminPage() {
-  await requireSignedIn();
+  await requireAdminPage();
   return <AdminDashboard />;
 }

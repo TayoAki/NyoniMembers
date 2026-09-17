@@ -3,6 +3,8 @@ import { mutation, query } from "./_generated/server";
 import { requireOnboarded, requireUser } from "./lib/auth";
 import { appError } from "./lib/errors";
 import {
+  hasAnyItem,
+  listByUpload as listByUploadDocs,
   listForUser,
   markWorn as markItemWorn,
   removeItems,
@@ -42,8 +44,31 @@ export const search = query({
   },
 });
 
+/** Every item of one upload, in any status, for the /add tiles. Ownership comes from the upload. */
+export const listByUpload = query({
+  args: { uploadId: v.id("uploads") },
+  returns: v.array(vItemView),
+  handler: async (ctx, { uploadId }) => {
+    const user = await requireUser(ctx);
+    const upload = await ctx.db.get(uploadId);
+    if (!upload || upload.userId !== user._id) return [];
+    return toItemViews(ctx, await listByUploadDocs(ctx, upload._id));
+  },
+});
+
+/** Does the wardrobe hold anything at all (any status)? Cheap enough to drive an empty state. */
+export const hasAny = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    return hasAnyItem(ctx, user._id);
+  },
+});
+
+/** A malformed, unknown or foreign id is "not found", never a validator error in the client. */
 export const get = query({
-  args: { itemId: v.id("items") },
+  args: { itemId: v.string() },
   returns: v.union(
     v.object({
       item: vItemView,
@@ -57,7 +82,8 @@ export const get = query({
   ),
   handler: async (ctx, { itemId }) => {
     const user = await requireUser(ctx);
-    const item = await ctx.db.get(itemId);
+    const id = ctx.db.normalizeId("items", itemId);
+    const item = id ? await ctx.db.get(id) : null;
     if (!item || item.userId !== user._id) return null;
 
     const outfits = await listContainingItem(ctx, user._id, item._id);
@@ -151,6 +177,9 @@ export const reextract = mutation({
     const item = await requireItem(ctx, user, itemId);
     if (!item.uploadId || !(await ctx.db.get(item.uploadId))) {
       throw appError("INVALID_INPUT", "The original photo is gone, so this item can't be re-extracted.");
+    }
+    if (item.pendingJobId) {
+      throw appError("ITEM_BUSY", "This item is already being re-extracted.", { jobId: item.pendingJobId });
     }
     const jobId = await startExtractionJob(ctx, user, [item._id], item.uploadId);
     return { jobId };

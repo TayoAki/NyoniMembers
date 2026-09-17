@@ -2,6 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { useCallback, useRef, useState } from "react";
+import { imageUploadMimeType } from "@/lib/image-upload";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 
@@ -33,6 +34,7 @@ export type UseUpload = {
 };
 
 type UploadResponse = { storageId?: string };
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
  * Convex storage uploads with real per-file progress.
@@ -42,33 +44,63 @@ function postFile(url: string, file: File, onProgress: (fraction: number) => voi
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", url, true);
-    request.setRequestHeader("Content-Type", file.type || "application/octet-stream");
-    request.upload.addEventListener("progress", (event) => {
+    request.timeout = UPLOAD_TIMEOUT_MS;
+    request.setRequestHeader("Content-Type", imageUploadMimeType(file));
+    function cleanup() {
+      request.upload.removeEventListener("progress", handleProgress);
+      request.removeEventListener("load", handleLoad);
+      request.removeEventListener("error", handleError);
+      request.removeEventListener("abort", handleAbort);
+      request.removeEventListener("timeout", handleTimeout);
+    }
+    function fail(error: Error) {
+      cleanup();
+      reject(error);
+    }
+    function handleProgress(event: ProgressEvent) {
       if (event.lengthComputable && event.total > 0) onProgress(Math.min(0.99, event.loaded / event.total));
-    });
-    request.addEventListener("load", () => {
+    }
+    function handleLoad() {
       if (request.status < 200 || request.status >= 300) {
-        reject(new Error(`Upload failed (${request.status}). Please try again.`));
+        fail(new Error(`Upload failed (${request.status}). Please try again.`));
         return;
       }
       let body: UploadResponse;
       try {
         body = JSON.parse(request.responseText) as UploadResponse;
       } catch {
-        reject(new Error("Upload did not return a storage id."));
+        fail(new Error("Upload did not return a storage id."));
         return;
       }
       if (!body.storageId) {
-        reject(new Error("Upload did not return a storage id."));
+        fail(new Error("Upload did not return a storage id."));
         return;
       }
+      cleanup();
       onProgress(1);
       // The upload endpoint answers with the id of the file it just stored; there is no typed client for it.
       resolve(body.storageId as Id<"_storage">);
-    });
-    request.addEventListener("error", () => reject(new Error("Upload failed. Check your connection and try again.")));
-    request.addEventListener("abort", () => reject(new Error("Upload cancelled.")));
-    request.send(file);
+    }
+    function handleError() {
+      fail(new Error("Upload failed. Check your connection and try again."));
+    }
+    function handleAbort() {
+      fail(new Error("Upload cancelled. Please try again."));
+    }
+    function handleTimeout() {
+      fail(new Error("Upload timed out. Check your connection and retry this photo."));
+    }
+    request.upload.addEventListener("progress", handleProgress);
+    request.addEventListener("load", handleLoad);
+    request.addEventListener("error", handleError);
+    request.addEventListener("abort", handleAbort);
+    request.addEventListener("timeout", handleTimeout);
+    try {
+      request.send(file);
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
   });
 }
 

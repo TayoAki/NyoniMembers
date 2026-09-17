@@ -6,6 +6,7 @@ import { appError } from "./lib/errors";
 import {
   overview as adminOverview,
   recentJobs as adminRecentJobs,
+  retryJob as adminRetryJob,
   topSpenders as adminTopSpenders,
 } from "./model/admin";
 import { adminAdjust, refund } from "./model/credits";
@@ -26,7 +27,8 @@ export const overview = query({
     creditsRefunded: v.number(),
     revenueUsd: v.number(),
     cogsUsd: v.number(),
-    grossMarginPct: v.number(),
+    /** Fraction, not percent: 0.45 = 45%. */
+    grossMargin: v.number(),
     rendersDone: v.number(),
     itemsExtracted: v.number(),
     jobsFailed: v.number(),
@@ -53,21 +55,39 @@ export const recentJobs = query({
   },
 });
 
+/** `truncated` means the ledger window was longer than the read cap, so the ranking is a sample. */
 export const topSpenders = query({
   args: { days: vWindow, limit: v.optional(v.number()) },
-  returns: v.array(
-    v.object({
-      userId: v.id("users"),
-      email: v.optional(v.string()),
-      name: v.optional(v.string()),
-      plan: v.string(),
-      creditsSpent: v.number(),
-      cogsUsd: v.number(),
-    }),
-  ),
+  returns: v.object({
+    rows: v.array(
+      v.object({
+        userId: v.id("users"),
+        email: v.optional(v.string()),
+        name: v.optional(v.string()),
+        plan: v.string(),
+        creditsSpent: v.number(),
+        cogsUsd: v.number(),
+      }),
+    ),
+    truncated: v.boolean(),
+  }),
   handler: async (ctx, { days, limit }) => {
     await requireAdmin(ctx);
     return adminTopSpenders(ctx, days, Math.min(limit ?? 10, 50), Date.now());
+  },
+});
+
+/**
+ * Re-runs what failed on a job: an ingest job re-extracts its upload's `failed` / `needsCredits`
+ * items, a render job re-queues its failed images. Credits are reserved from THAT user's balance,
+ * exactly as if they had retried it themselves — refund with `refundJob` if that isn't intended.
+ */
+export const retryJob = mutation({
+  args: { jobId: v.id("jobs") },
+  returns: v.id("jobs"),
+  handler: async (ctx, { jobId }) => {
+    await requireAdmin(ctx);
+    return adminRetryJob(ctx, jobId);
   },
 });
 

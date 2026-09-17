@@ -19,7 +19,7 @@ import type { FunctionArgs } from "convex/server";
 type Bucket = FunctionArgs<typeof api.admin.adjustCredits>["bucket"];
 
 const BUCKETS = ["plan", "pack"] as const satisfies readonly Bucket[];
-const BUCKET_LABELS: Record<Bucket, string> = { plan: "Plan credits", pack: "Pack credits" };
+const BUCKET_LABELS: Record<Bucket, string> = { plan: "Plan credits", pack: "Non-expiring credits" };
 
 export function AdjustCreditsForm() {
   const adjustCredits = useMutation(api.admin.adjustCredits);
@@ -101,7 +101,7 @@ export function AdjustCreditsForm() {
 
             <Field>
               <FieldLabel htmlFor="adjust-bucket">Bucket</FieldLabel>
-              <FieldDescription>Pack credits never expire; plan credits reset next cycle.</FieldDescription>
+              <FieldDescription>Non-expiring credits stay available; plan credits reset next cycle.</FieldDescription>
               <Select
                 value={bucket}
                 onValueChange={(value) => {

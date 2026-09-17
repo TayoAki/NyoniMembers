@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { env } from "@/lib/env";
 import { StoreUser } from "./store-user";
+import { NavigationDataProvider } from "./navigation-data";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -34,7 +35,7 @@ function ThemedClerkProvider({ children }: { children: ReactNode }) {
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <TooltipProvider delay={200}>
           <StoreUser />
-          {children}
+          <NavigationDataProvider>{children}</NavigationDataProvider>
           <Toaster position="bottom-right" richColors closeButton />
         </TooltipProvider>
       </ConvexProviderWithClerk>

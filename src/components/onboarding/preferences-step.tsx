@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { ErrorAlert } from "@/components/common/error-alert";
+import { WardrobePreference, type WardrobePresentation } from "@/components/common/wardrobe-preference";
 import { ChipsInput } from "@/components/wardrobe/chips-input";
 import { SingleToggleGroup } from "@/components/wardrobe/toggle-options";
 import { Button } from "@/components/ui/button";
@@ -16,23 +17,25 @@ import type { CurrentUser } from "@/hooks/use-current-user";
 import { reportError } from "@/lib/errors";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
-import { FITS, PRESENTATIONS, type Fit, type Presentation } from "@convex/shared/wardrobe";
-
-const PRESENTATION_HINTS: Record<Presentation, string> = {
-  masculine: "Menswear silhouettes",
-  feminine: "Womenswear silhouettes",
-  neutral: "No assumption either way",
-};
+import { FITS, type Fit } from "@convex/shared/wardrobe";
 
 /** Step 2: the three things the stylist and the renderer need to know about you. */
-export function PreferencesStep({ prefs, onBack }: { prefs: CurrentUser["prefs"]; onBack: () => void }) {
+export function PreferencesStep({
+  prefs,
+  onBack,
+}: {
+  prefs: CurrentUser["prefs"];
+  onBack: (draft: CurrentUser["prefs"]) => void;
+}) {
   const router = useRouter();
   const updatePrefs = useMutation(api.users.updatePrefs);
   const completeOnboarding = useMutation(api.users.completeOnboarding);
   const cityId = useId();
   const coloursId = useId();
 
-  const [presentation, setPresentation] = useState<Presentation>(prefs.presentation);
+  const [presentation, setPresentation] = useState<WardrobePresentation | null>(
+    prefs.presentation === "neutral" ? null : prefs.presentation,
+  );
   const [fit, setFit] = useState<Fit>(prefs.fit);
   const [avoidColours, setAvoidColours] = useState<string[]>(prefs.avoidColours);
   const [homeCity, setHomeCity] = useState(prefs.homeCity ?? "");
@@ -40,6 +43,10 @@ export function PreferencesStep({ prefs, onBack }: { prefs: CurrentUser["prefs"]
   const [error, setError] = useState<string | null>(null);
 
   async function handleFinish() {
+    if (!presentation) {
+      setError("Choose Men’s wardrobe or Women’s wardrobe to finish setup.");
+      return;
+    }
     setPending(true);
     setError(null);
     try {
@@ -55,23 +62,9 @@ export function PreferencesStep({ prefs, onBack }: { prefs: CurrentUser["prefs"]
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <FieldGroup>
-        <FieldSet disabled={pending}>
-          <FieldLegend variant="label">How should outfits be styled?</FieldLegend>
-          <FieldDescription>
-            Used for silhouettes and proportions, not for what the stylist will suggest.
-          </FieldDescription>
-          <SingleToggleGroup
-            options={PRESENTATIONS}
-            value={presentation}
-            onValueChange={setPresentation}
-            label={(option) => `${option[0].toUpperCase()}${option.slice(1)}`}
-            disabled={pending}
-            aria-label="Presentation"
-          />
-          <p className="text-muted-foreground text-sm">{PRESENTATION_HINTS[presentation]}</p>
-        </FieldSet>
+    <div className="space-y-7">
+      <FieldGroup className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
+        <WardrobePreference value={presentation} onChange={setPresentation} disabled={pending} required />
 
         <FieldSet disabled={pending}>
           <FieldLegend variant="label">Preferred fit</FieldLegend>
@@ -102,18 +95,22 @@ export function PreferencesStep({ prefs, onBack }: { prefs: CurrentUser["prefs"]
             autoComplete="address-level2"
             disabled={pending}
           />
-          <FieldDescription>Lets the stylist check the weather before it picks a coat. Optional.</FieldDescription>
+          <FieldDescription>Optional location for your styling preferences.</FieldDescription>
         </Field>
       </FieldGroup>
 
       {error ? <ErrorAlert message={error} onRetry={handleFinish} /> : null}
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-        <Button variant="ghost" onClick={onBack} disabled={pending}>
+      <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-between">
+        <Button
+          variant="ghost"
+          onClick={() => onBack({ presentation: presentation ?? "neutral", fit, avoidColours, homeCity })}
+          disabled={pending}
+        >
           <ArrowLeft data-icon="inline-start" />
           Back to photos
         </Button>
-        <Button size="lg" onClick={handleFinish} disabled={pending}>
+        <Button size="lg" className="h-11 rounded-sm px-6" onClick={handleFinish} disabled={pending || !presentation}>
           {pending ? <Spinner data-icon="inline-start" /> : <Check data-icon="inline-start" />}
           Finish setup
         </Button>

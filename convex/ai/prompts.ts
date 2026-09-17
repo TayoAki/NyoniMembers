@@ -42,9 +42,9 @@ const SLOT_FALLBACK: Partial<Record<Slot, string>> = {
 };
 
 const PRESENTATION_PHRASE: Record<Presentation, string> = {
-  masculine: "Style the outfit and silhouette to read masculine.",
-  feminine: "Style the outfit and silhouette to read feminine.",
-  neutral: "Style the outfit and silhouette to read gender-neutral.",
+  masculine: "Use masculine clothing styling without changing the person's body.",
+  feminine: "Use feminine clothing styling without changing the person's body.",
+  neutral: "Use gender-neutral clothing styling without changing the person's body.",
 };
 
 /** Instructions + structured-output schema for the gpt-5-mini vision pass over one photo. */
@@ -157,20 +157,22 @@ export function renderPrompt(input: RenderPromptInput): string {
     .filter((line): line is string => Boolean(line));
 
   return [
-    "Image 1 is a photo of a person. The following images are clothing items.",
+    "Image 1 identifies the person to dress. The following images are clothing references.",
     ...references,
     "",
-    `Create a realistic three-quarter length photo of the SAME person wearing ALL of these items together as one outfit, layered correctly${
+    `Dress the SAME person in ALL of these items together as one outfit, layered correctly${
       input.hasOuterwear ? " — the jacket open over the top" : ""
     }.`,
     "",
-    "Keep the face, hair, skin tone and build identical to image 1: it must be recognisably the same person. Each garment must match its reference image exactly in colour, print, cut and detail — do not recolour, restyle or substitute anything, and do not add logos or graphics that are not on the reference.",
+    "Preserve the person's face, hair, skin tone and recognizable identity. If image 1 shows the full body, preserve its anatomical proportions, body silhouette and pose; change only the clothes and accessories.",
     "",
-    "Relaxed standing pose, arms down, looking at the camera. Plain light grey studio background, soft natural light, phone-camera realism — not an illustration and not a 3D render.",
+    "If image 1 is a headshot or cropped seated photo, use it for identity only, never its face-to-frame scale. Infer a naturally proportioned adult standing body: the head is roughly one seventh to one eighth of total height, with balanced shoulders, torso and limbs. Pull the camera back for a full-body photo against a plain light grey studio background with soft natural light.",
+    "Show the entire person from head to toe with space above the hair and below both shoes. Use natural perspective and a normal focal length: no enlarged head, portrait zoom, wide-angle distortion or cropped head/feet. Keep the result photographic.",
+    "Match each garment's reference colour, print, cut and detail exactly. Do not substitute items or invent logos.",
     "",
     ...fallbacks,
     "Keep whatever is worn underneath simple and neutral so the listed items stay the focus.",
-    `Garments should sit with a ${input.fit} fit. ${PRESENTATION_PHRASE[input.presentation]}`,
+    `Use a ${input.fit} garment fit by adjusting fabric drape and ease only, never anatomy or body silhouette. ${PRESENTATION_PHRASE[input.presentation]}`,
   ]
     .filter((line, index, lines) => !(line === "" && lines[index - 1] === ""))
     .join("\n");

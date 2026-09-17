@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
+  vDetectedItem,
   vFeature,
   vItemAttributes,
   vItemStatus,
@@ -26,6 +27,7 @@ export default defineSchema({
     role: v.union(v.literal("user"), v.literal("admin")),
     plan: vPlanId,
     planPeriodEnd: v.optional(v.number()),
+    billingCheckedAt: v.optional(v.number()),
     features: v.array(vFeature),
     planCredits: v.number(),
     packCredits: v.number(),
@@ -55,9 +57,14 @@ export default defineSchema({
     sizeBytes: v.number(),
     jobId: v.optional(v.id("jobs")),
     detectedCount: v.optional(v.number()),
+    candidates: v.optional(v.array(vDetectedItem)),
+    selectedIndices: v.optional(v.array(v.number())),
+    selectionJobId: v.optional(v.id("jobs")),
+    selectionConfirmedAt: v.optional(v.number()),
     status: v.union(
       v.literal("queued"),
       v.literal("detecting"),
+      v.literal("awaiting_selection"),
       v.literal("extracting"),
       v.literal("done"),
       v.literal("failed"),
@@ -66,10 +73,12 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"])
     .index("by_batch", ["batchId"]),
 
   items: defineTable({
     userId: v.id("users"),
+    demoKey: v.optional(v.string()),
     uploadId: v.optional(v.id("uploads")),
     storageId: v.optional(v.id("_storage")),
     thumbStorageId: v.optional(v.id("_storage")),
@@ -80,8 +89,9 @@ export default defineSchema({
     status: vItemStatus,
     wearCount: v.number(),
     lastWornAt: v.optional(v.number()),
-    embedding: v.optional(v.array(v.float64())),
     duplicateOfId: v.optional(v.id("items")),
+    /** Set while an extraction job is rewriting this item's cutout (re-extract); the item stays visible meanwhile. */
+    pendingJobId: v.optional(v.id("jobs")),
     usage: v.optional(vTokenUsage),
     costUsd: v.optional(v.number()),
     createdAt: v.number(),
@@ -89,9 +99,18 @@ export default defineSchema({
   })
     .index("by_user_status", ["userId", "status"])
     .index("by_user_category", ["userId", "category"])
+    .index("by_user_demoKey", ["userId", "demoKey"])
     .index("by_upload", ["uploadId"])
     .index("by_createdAt", ["createdAt"])
-    .searchIndex("search_text", { searchField: "searchText", filterFields: ["userId"] })
+    .searchIndex("search_text", { searchField: "searchText", filterFields: ["userId"] }),
+
+  /** Embeddings live apart from items so wardrobe reads stay small (a 1536-float vector is ~12 KB per item). */
+  itemEmbeddings: defineTable({
+    itemId: v.id("items"),
+    userId: v.id("users"),
+    embedding: v.array(v.float64()),
+  })
+    .index("by_item", ["itemId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: EMBEDDING_DIMENSIONS,
@@ -107,11 +126,14 @@ export default defineSchema({
     reasoning: v.optional(v.string()),
     source: v.union(v.literal("manual"), v.literal("agent")),
     threadId: v.optional(v.id("threads")),
+    /** When the outfit was listed in /outfits: creation for manual outfits, "Save" for agent proposals. Unset = proposal only. */
+    savedAt: v.optional(v.number()),
     wornOn: v.array(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_user_savedAt", ["userId", "savedAt"])
     .index("by_thread", ["threadId"]),
 
   renders: defineTable({
@@ -147,6 +169,8 @@ export default defineSchema({
     refunds: vReservation,
     workflowId: v.optional(v.string()),
     uploadId: v.optional(v.id("uploads")),
+    /** Upload batch this ingest job belongs to; a whole batch counts as one running unit for LIMITS.maxRunningJobsPerUser. */
+    batchId: v.optional(v.string()),
     outfitIds: v.optional(v.array(v.id("outfits"))),
     resultIds: v.array(v.string()),
     error: v.optional(v.string()),
@@ -186,10 +210,13 @@ export default defineSchema({
     userId: v.id("users"),
     title: v.string(),
     eveSessionId: v.optional(v.string()),
+    sessionVerifiedAt: v.optional(v.number()),
     streamIndex: v.optional(v.number()),
     lastMessageAt: v.number(),
     createdAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_eveSessionId", ["eveSessionId"]),
 
   proposals: defineTable({
     threadId: v.id("threads"),
@@ -197,11 +224,13 @@ export default defineSchema({
     outfitId: v.id("outfits"),
     jobId: v.optional(v.id("jobs")),
     createdAt: v.number(),
-  }).index("by_thread", ["threadId"]),
+  })
+    .index("by_thread", ["threadId"])
+    .index("by_user", ["userId"]),
 
   systemCounters: defineTable({
     dayKey: v.string(),
-    key: v.literal("credits_reserved"),
+    key: v.union(v.literal("credits_reserved"), v.literal("users_total")),
     value: v.number(),
   }).index("by_day_key", ["dayKey", "key"]),
 
@@ -211,4 +240,26 @@ export default defineSchema({
     counter: v.union(v.literal("detect"), v.literal("stylist")),
     count: v.number(),
   }).index("by_user_day_counter", ["userId", "dayKey", "counter"]),
+
+  /** Per-day aggregates for the admin dashboard, bumped in the same mutations that change the underlying rows. */
+  dailyStats: defineTable({
+    dayKey: v.string(),
+    creditsSold: v.number(),
+    creditsGranted: v.number(),
+    creditsSpent: v.number(),
+    creditsRefunded: v.number(),
+    revenueUsd: v.number(),
+    cogsUsd: v.number(),
+    rendersDone: v.number(),
+    itemsExtracted: v.number(),
+    jobsFailed: v.number(),
+    newUsers: v.number(),
+  }).index("by_day", ["dayKey"]),
+
+  /** Running average duration per step prefix ("detect", "extract", "render") for ETAs. */
+  stepStats: defineTable({
+    key: v.string(),
+    count: v.number(),
+    avgMs: v.number(),
+  }).index("by_key", ["key"]),
 });

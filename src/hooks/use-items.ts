@@ -1,6 +1,6 @@
 "use client";
 
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -13,9 +13,6 @@ export type ItemDetail = NonNullable<FunctionReturnType<typeof api.items.get>>;
 /** Below this the search index is noise, so the wardrobe falls back to the plain list. */
 export const MIN_SEARCH_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 250;
-
-/** Statuses the add-clothes tiles follow while a photo is being ingested. */
-const INGEST_STATUSES: readonly ItemStatus[] = ["extracting", "needsCredits", "failed"];
 
 export type WardrobeQuery = {
   /** Raw text from the search box; debounced here so callers can stay dumb. */
@@ -45,6 +42,9 @@ function useDebounced<T>(value: T, delayMs: number): T {
 /**
  * The wardrobe list: full-text search once the query is long enough, otherwise the indexed list.
  * Search has no server-side filters, so status/category are applied here to keep both paths equal.
+ *
+ * One bounded subscription per view: the server caps the list at `LIMITS.maxItemsPerUser`, so colour,
+ * season, formality and sort stay client-side rather than costing a query (and a re-signed URL set) each.
  */
 export function useWardrobe({ query = "", status, category }: WardrobeQuery = {}): WardrobeResult {
   const { isAuthenticated } = useConvexAuth();
@@ -71,41 +71,72 @@ export function useItemsByStatus(status: ItemStatus, enabled = true): Item[] | u
   return useQuery(api.items.list, isAuthenticated && enabled ? { status } : "skip");
 }
 
-export type UploadItems = {
-  /** Every item produced by an upload, keyed by `uploadId`, oldest first. */
-  byUpload: Map<string, Item[]>;
-  isLoading: boolean;
-};
-
 /**
- * Items the add-clothes screen watches while photos are ingested: the finished cutouts plus the
- * ones still extracting, waiting on credits or failed. One subscription set for the whole page.
+ * Every item a single photo produced, in any status — one indexed subscription per upload tile
+ * instead of one wardrobe-wide list per status.
  */
-export function useUploadItems(enabled = true): UploadItems {
+export function useUploadItems(uploadId: Id<"uploads"> | null | undefined): Item[] | undefined {
   const { isAuthenticated } = useConvexAuth();
-  const active = isAuthenticated && enabled;
-  const ready = useQuery(api.items.list, active ? {} : "skip");
-  const extracting = useQuery(api.items.list, active ? { status: INGEST_STATUSES[0] } : "skip");
-  const needsCredits = useQuery(api.items.list, active ? { status: INGEST_STATUSES[1] } : "skip");
-  const failed = useQuery(api.items.list, active ? { status: INGEST_STATUSES[2] } : "skip");
-
-  return useMemo(() => {
-    const byUpload = new Map<string, Item[]>();
-    const loaded = [ready, extracting, needsCredits, failed].filter((page): page is Item[] => page !== undefined);
-    for (const item of loaded.flat().sort((a, b) => a.createdAt - b.createdAt)) {
-      if (!item.uploadId) continue;
-      const bucket = byUpload.get(item.uploadId);
-      if (bucket) bucket.push(item);
-      else byUpload.set(item.uploadId, [item]);
-    }
-    return { byUpload, isLoading: active && loaded.length < 4 };
-  }, [active, extracting, failed, needsCredits, ready]);
+  return useQuery(api.items.listByUpload, isAuthenticated && uploadId ? { uploadId } : "skip");
 }
 
-/** One item with its outfits, source photo and flagged duplicate. `null` means it is gone. */
-export function useItem(itemId: Id<"items"> | null | undefined): ItemDetail | null | undefined {
+/** One item with its outfits, source photo and flagged duplicate. `null` means it is gone or not yours. */
+export function useItem(itemId: string | null | undefined): ItemDetail | null | undefined {
   const { isAuthenticated } = useConvexAuth();
   return useQuery(api.items.get, isAuthenticated && itemId ? { itemId } : "skip");
+}
+
+/**
+ * Hide / unhide with the grid updated before the round-trip: the wardrobe lists are keyed by status,
+ * so the ids move between them and the detail view follows.
+ */
+export function useSetItemStatus() {
+  return useMutation(api.items.setStatus).withOptimisticUpdate((localStore, { itemIds, status }) => {
+    const ids = new Set<string>(itemIds);
+    for (const { args, value } of localStore.getAllQueries(api.items.list)) {
+      if (value === undefined) continue;
+      const wanted: ItemStatus = args.status ?? "ready";
+      const next = value
+        .filter((item) => !ids.has(item._id) || wanted === status)
+        .map((item) => (ids.has(item._id) ? { ...item, status } : item));
+      localStore.setQuery(api.items.list, args, next);
+    }
+    // Search results carry every status and are filtered in `useWardrobe`, so they only need the new status.
+    for (const { args, value } of localStore.getAllQueries(api.items.search)) {
+      if (value === undefined) continue;
+      localStore.setQuery(
+        api.items.search,
+        args,
+        value.map((item) => (ids.has(item._id) ? { ...item, status } : item)),
+      );
+    }
+    for (const { args, value } of localStore.getAllQueries(api.items.get)) {
+      if (!value || !ids.has(value.item._id)) continue;
+      localStore.setQuery(api.items.get, args, { ...value, item: { ...value.item, status } });
+    }
+  });
+}
+
+/** "Keep both" on a flagged duplicate: the banner and the tile badge go the moment it is tapped. */
+export function useDismissDuplicate() {
+  return useMutation(api.items.dismissDuplicate).withOptimisticUpdate((localStore, { itemId }) => {
+    for (const { args, value } of localStore.getAllQueries(api.items.list)) {
+      if (value === undefined) continue;
+      localStore.setQuery(
+        api.items.list,
+        args,
+        value.map((item) => (item._id === itemId ? { ...item, duplicateOfId: undefined } : item)),
+      );
+    }
+    for (const { args, value } of localStore.getAllQueries(api.items.get)) {
+      if (!value || value.item._id !== itemId) continue;
+      localStore.setQuery(api.items.get, args, {
+        ...value,
+        item: { ...value.item, duplicateOfId: undefined },
+        duplicateOf: null,
+      });
+    }
+  });
 }
 
 /** Distinct swatches across a list of items, most common first — the wardrobe colour filter. */

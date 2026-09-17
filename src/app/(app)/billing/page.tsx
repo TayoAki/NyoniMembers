@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { BillingOverview } from "@/components/billing/billing-overview";
-import { CreditPacks } from "@/components/billing/credit-packs";
 import { LedgerTable } from "@/components/billing/ledger-table";
 import { PlansCard } from "@/components/billing/plans-card";
 import { PageHeader } from "@/components/common/page-header";
@@ -14,14 +13,14 @@ export const metadata: Metadata = {
 export default async function BillingPage() {
   await requireSignedIn();
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <PageHeader
-        title="Billing"
-        description="One credit is one generated image. Plan credits refill each cycle, pack credits never expire."
+        eyebrow="Your account"
+        title="Plans & credits."
+        description="One credit for each clothing cutout or standard try-on. HQ try-ons use three. Styling conversations are free."
       />
       <BillingOverview />
       <PlansCard />
-      <CreditPacks />
       <LedgerTable />
     </div>
   );

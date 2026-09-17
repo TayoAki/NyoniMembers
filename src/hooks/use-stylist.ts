@@ -3,11 +3,13 @@
 import { useAuth } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
+import { Client } from "eve/client";
 import { useEveAgent, type EveMessageData, type EveMessageInputRequest, type UseEveAgentHelpers } from "eve/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { reportError } from "@/lib/errors";
+import { isMissingStylistSession } from "@/lib/stylist-session-error";
 
 export type StylistThread = FunctionReturnType<typeof api.threads.list>[number];
 export type ThreadProposal = FunctionReturnType<typeof api.threads.proposals>[number];
@@ -37,6 +39,7 @@ export type StylistSession = UseEveAgentHelpers<EveMessageData> & {
   pendingRequests: PendingRequest[];
   isBusy: boolean;
   isResuming: boolean;
+  isUnavailable: boolean;
 };
 
 /**
@@ -57,20 +60,40 @@ export function useStylistSession(thread: StylistThread): StylistSession {
   const headers = useMemo(
     () => async (): Promise<Record<string, string>> => {
       const token = await getTokenRef.current();
-      return token ? { authorization: `Bearer ${token}` } : {};
+      if (!token) throw new Error("Sign in again to continue this conversation.");
+      return { authorization: `Bearer ${token}`, "x-fitcheck-thread-id": thread._id };
     },
-    [],
+    [thread._id],
   );
 
   const [initialSession] = useState(() =>
     thread.eveSessionId ? { sessionId: thread.eveSessionId, streamIndex: thread.streamIndex ?? 0 } : undefined,
   );
+  // eslint-disable-next-line react-hooks/refs -- Client.sessions.attach performs no I/O; headers reads the token ref only when a request starts.
+  const [restoredSession] = useState(() => {
+    if (!initialSession) return undefined;
+    const session = new Client({ host: "", headers }).sessions.attach(initialSession.sessionId, {
+      streamIndex: initialSession.streamIndex,
+    });
+    const stream = session.stream.bind(session);
+    // A persisted session already exists or is unavailable; Eve's 404 creation-race retries do not apply.
+    session.stream = (options) =>
+      stream({
+        ...options,
+        streamReconnectPolicy: options?.streamReconnectPolicy ?? {
+          retryableErrorStatuses: [409, 425, 500, 502, 503, 504],
+        },
+      });
+    return session;
+  });
 
   const persisted = useRef<{ sessionId: string; streamIndex: number } | null>(initialSession ?? null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unavailable = useRef(false);
 
   const writeCursor = useCallback(
     (session: { sessionId: string; streamIndex: number }) => {
+      if (unavailable.current) return;
       persisted.current = session;
       void linkSession({
         threadId: thread._id,
@@ -83,7 +106,7 @@ export function useStylistSession(thread: StylistThread): StylistSession {
 
   const onSessionChange = useCallback(
     (session: { sessionId: string; streamIndex: number } | undefined) => {
-      if (!session) return;
+      if (!session || unavailable.current) return;
       if (timer.current) clearTimeout(timer.current);
 
       // A brand-new session id has to land immediately: a reload before the first turn finishes
@@ -101,13 +124,22 @@ export function useStylistSession(thread: StylistThread): StylistSession {
   const agent = useEveAgent({
     headers,
     initialSession,
+    session: restoredSession,
     resume: initialSession !== undefined,
     onSessionChange,
     onFinish: (snapshot) => {
       if (timer.current) clearTimeout(timer.current);
       if (snapshot.session) writeCursor(snapshot.session);
     },
-    onError: (error) => reportError(error, "The stylist could not finish that."),
+    onError: (error) => {
+      if (initialSession && isMissingStylistSession(error)) {
+        // Eve emits cursor/finish callbacks after a failed replay; retain the historical cursor.
+        unavailable.current = true;
+        if (timer.current) clearTimeout(timer.current);
+        return;
+      }
+      reportError(error, "The stylist could not finish that.");
+    },
   });
 
   useEffect(
@@ -124,6 +156,7 @@ export function useStylistSession(thread: StylistThread): StylistSession {
     pendingRequests,
     isBusy: agent.status === "submitted" || agent.status === "streaming",
     isResuming: agent.status === "resuming",
+    isUnavailable: initialSession !== undefined && agent.status === "error" && isMissingStylistSession(agent.error),
   };
 }
 

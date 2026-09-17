@@ -58,24 +58,14 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     monthlyCredits: 300,
     signupCredits: 0,
     maxAvatars: 5,
-    features: ["sharing", "hq_renders", "priority_queue"],
-    blurb: "300 credits a month, HQ renders, five avatars, priority queue.",
+    features: ["sharing", "hq_renders"],
+    blurb: "300 credits a month, HQ renders, five avatars.",
   },
-};
-
-export const PACK_IDS = ["s", "m", "l"] as const;
-export type PackId = (typeof PACK_IDS)[number];
-
-export type PackDefinition = { id: PackId; name: string; credits: number; priceUsd: number };
-
-export const PACKS: Record<PackId, PackDefinition> = {
-  s: { id: "s", name: "Starter pack", credits: 50, priceUsd: 4.99 },
-  m: { id: "m", name: "Regular pack", credits: 120, priceUsd: 9.99 },
-  l: { id: "l", name: "Big pack", credits: 300, priceUsd: 19.99 },
 };
 
 export const LIMITS = {
   dailyCreditCap: 150,
+  /** Running units per user: each render job is one unit; an upload batch (all of its photo jobs) is one unit. */
   maxRunningJobsPerUser: 3,
   maxRendersPerRequest: 4,
   maxOutfitsPerRenderRequest: 3,
@@ -85,12 +75,16 @@ export const LIMITS = {
   detectCallsPerDay: 200,
   stylistMessagesPerDay: 100,
   duplicateCosineThreshold: 0.92,
+  /** Wardrobe size ceiling; keeps items.list well inside Convex's per-query read limits. */
+  maxItemsPerUser: 1500,
 } as const;
 
 /** Measured unit economics, used only for admin estimates; real COGS comes from token usage. */
 export const UNIT_ECONOMICS = {
   cogsUsdPerCredit: 0.033,
   openaiPricingUsdPerMillion: { textIn: 2.5, imageIn: 4, imageOut: 15 },
+  /** gpt-5-mini list prices for detect + tag (PLAN §5 measured ≈ $0.002 per photo). Verify against the current price sheet. */
+  detectPricingUsdPerMillion: { textIn: 0.25, imageIn: 0.25, out: 2 },
   processingFee: { percent: 0.036, fixedUsd: 0.3 },
 } as const;
 
@@ -104,6 +98,14 @@ export function usageToUsd(usage: TokenUsage): number {
   );
 }
 
+/** Cost of a gpt-5-mini detect/tag call, so the free steps still count toward COGS. */
+export function detectUsageToUsd(usage: TokenUsage): number {
+  const p = UNIT_ECONOMICS.detectPricingUsdPerMillion;
+  return (
+    (usage.inputTextTokens * p.textIn + usage.inputImageTokens * p.imageIn + usage.outputTokens * p.out) / 1_000_000
+  );
+}
+
 export function renderCreditCost(quality: RenderQuality, count: number, outfits = 1): number {
   return CREDIT_COSTS.render[quality] * count * outfits;
 }
@@ -114,10 +116,6 @@ export function extractionCreditCost(itemCount: number): number {
 
 export function isPlanId(value: string): value is PlanId {
   return (PLAN_IDS as readonly string[]).includes(value);
-}
-
-export function isPackId(value: string): value is PackId {
-  return (PACK_IDS as readonly string[]).includes(value);
 }
 
 export function planHasFeature(plan: PlanId, feature: Feature): boolean {

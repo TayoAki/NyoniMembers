@@ -1,47 +1,35 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function SectionSkeleton({ rows }: { rows: number }) {
-  return (
-    <Card>
-      <CardHeader className="border-b">
-        <Skeleton className="h-4 w-36" />
-        <Skeleton className="h-3 w-64" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {Array.from({ length: rows }, (_, index) => (
-          <Skeleton key={index} className="h-10 w-full rounded-lg" />
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Route-level skeleton: mirrors header → photos → preferences → appearance → danger zone. */
 export function SettingsSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8" aria-busy="true" aria-label="Loading settings">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-72" />
+    <div className="mx-auto w-full max-w-6xl space-y-6" aria-busy="true" aria-label="Loading settings">
+      <div className="space-y-3">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-12 w-64" />
+        <Skeleton className="h-4 w-80 max-w-full" />
       </div>
-      <Card>
-        <CardHeader className="border-b">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-3 w-72" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton key={index} className="aspect-[3/4] rounded-xl" />
+      <div className="flex gap-5">
+        {[0, 1, 2, 3].map((item) => (
+          <Skeleton key={item} className="h-4 w-24" />
+        ))}
+      </div>
+      {[0, 1, 2, 3].map((section) => (
+        <div key={section} className="grid gap-6 border-t py-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+          <div className="space-y-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-10" />
+          </div>
+          <div className="grid grid-cols-2 gap-5">
+            {[0, 1].map((item) => (
+              <Skeleton
+                key={item}
+                className={section === 0 ? "aspect-[2/3] max-h-80 rounded-none" : "h-24 rounded-none"}
+              />
             ))}
           </div>
-          <Skeleton className="h-24 w-full rounded-xl" />
-        </CardContent>
-      </Card>
-      <SectionSkeleton rows={4} />
-      <SectionSkeleton rows={1} />
-      <SectionSkeleton rows={1} />
+        </div>
+      ))}
     </div>
   );
 }

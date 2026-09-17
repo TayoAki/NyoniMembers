@@ -3,7 +3,6 @@
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,12 +26,16 @@ export function AppearanceSettings() {
   const mounted = useSyncExternalStore(subscribeToNothing, isMounted, isNotMounted);
 
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Appearance</CardTitle>
-        <CardDescription>Applies to this browser only.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <section
+      id="appearance"
+      className="grid scroll-mt-24 gap-6 border-t py-8 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10"
+    >
+      <header className="space-y-2">
+        <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">03 / The studio</p>
+        <h2 className="text-xl font-semibold tracking-tight">Appearance</h2>
+        <p className="text-sm text-muted-foreground">Applies to this browser only.</p>
+      </header>
+      <div className="min-w-0">
         {!mounted ? (
           <div className="grid gap-2 sm:grid-cols-3" aria-busy="true" aria-label="Loading theme">
             {OPTIONS.map((option) => (
@@ -48,10 +51,10 @@ export function AppearanceSettings() {
           >
             {OPTIONS.map((option) => (
               <FieldLabel key={option.value} htmlFor={`theme-${option.value}`}>
-                <Field orientation="horizontal">
+                <Field orientation="horizontal" className="rounded-none border-foreground/15 bg-background/50 py-5">
                   <FieldContent>
                     <FieldTitle>
-                      <option.icon className="text-muted-foreground size-4" aria-hidden />
+                      <option.icon className="size-4 text-muted-foreground" aria-hidden />
                       {option.label}
                     </FieldTitle>
                     <FieldDescription>{option.description}</FieldDescription>
@@ -62,7 +65,7 @@ export function AppearanceSettings() {
             ))}
           </RadioGroup>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

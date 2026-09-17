@@ -2,8 +2,10 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOnboarded, requireUser } from "./lib/auth";
+import { assertFreshBilling, hasCurrentFeature } from "./model/credits";
 import { appError } from "./lib/errors";
 import { layeredItems, toItemSummary, toOutfitView } from "./model/outfits";
+import { assertJobFinished } from "./model/jobs";
 import {
   findByShareToken,
   listByOutfit as listRendersByOutfit,
@@ -99,6 +101,7 @@ export const regenerate = mutation({
   handler: async (ctx, { renderId }) => {
     const user = await requireOnboarded(ctx);
     const render = await requireRender(ctx, user, renderId);
+    await assertJobFinished(ctx, render.jobId, "retry");
     const result = await startRenderJob(ctx, user, {
       outfitIds: [render.outfitId],
       avatarId: render.avatarId,
@@ -117,7 +120,8 @@ export const share = mutation({
   returns: v.object({ token: v.string() }),
   handler: async (ctx, { renderId }) => {
     const user = await requireUser(ctx);
-    if (!user.features.includes("sharing")) {
+    assertFreshBilling(user);
+    if (!hasCurrentFeature(user, "sharing")) {
       throw appError("FEATURE_LOCKED", "Sharing is part of the Pro plan.", { feature: "sharing" });
     }
     const render = await requireRender(ctx, user, renderId);

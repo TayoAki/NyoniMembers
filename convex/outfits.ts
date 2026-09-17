@@ -1,9 +1,11 @@
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUser } from "./lib/auth";
 import {
   createOutfit,
-  listForUser,
+  listSavedPage,
+  listSavedSummaries,
   markOutfitWorn,
   removeOutfit,
   requireOutfit,
@@ -12,24 +14,40 @@ import {
   validateSlots,
 } from "./model/outfits";
 import { vOutfitSlots } from "./shared/validators";
-import { vOutfitView } from "./views";
+import { vOutfitView, vPaginated } from "./views";
 
+const vOutfitSource = v.union(v.literal("manual"), v.literal("agent"));
+
+/** Saved outfits, newest saved first. Agent proposals stay out until the user saves them. */
 export const list = query({
-  args: { source: v.optional(v.union(v.literal("manual"), v.literal("agent"))) },
-  returns: v.array(vOutfitView),
-  handler: async (ctx, { source }) => {
+  args: { paginationOpts: paginationOptsValidator, source: v.optional(vOutfitSource) },
+  returns: vPaginated(vOutfitView),
+  handler: async (ctx, { paginationOpts, source }) => {
     const user = await requireUser(ctx);
-    const outfits = await listForUser(ctx, user._id, source);
-    return Promise.all(outfits.map((outfit) => toOutfitView(ctx, outfit)));
+    const result = await listSavedPage(ctx, user._id, paginationOpts, source);
+    return { ...result, page: await Promise.all(result.page.map((outfit) => toOutfitView(ctx, outfit))) };
   },
 });
 
+/** Names only, for select menus and filters that must not subscribe to the whole list. */
+export const listSummaries = query({
+  args: {},
+  returns: v.array(v.object({ _id: v.id("outfits"), name: v.string() })),
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    return listSavedSummaries(ctx, user._id);
+  },
+});
+
+/** Takes a raw string so a malformed or foreign id renders the not-found page instead of throwing. */
 export const get = query({
-  args: { outfitId: v.id("outfits") },
+  args: { outfitId: v.string() },
   returns: v.union(vOutfitView, v.null()),
   handler: async (ctx, { outfitId }) => {
     const user = await requireUser(ctx);
-    const outfit = await ctx.db.get(outfitId);
+    const id = ctx.db.normalizeId("outfits", outfitId);
+    if (!id) return null;
+    const outfit = await ctx.db.get(id);
     if (!outfit || outfit.userId !== user._id) return null;
     return toOutfitView(ctx, outfit);
   },
@@ -52,7 +70,8 @@ export const update = mutation({
     patch: v.object({
       name: v.optional(v.string()),
       slots: v.optional(vOutfitSlots),
-      occasion: v.optional(v.string()),
+      /** `null` (or an empty string) clears the occasion; omitting the key leaves it alone. */
+      occasion: v.optional(v.union(v.string(), v.null())),
     }),
   },
   returns: v.null(),

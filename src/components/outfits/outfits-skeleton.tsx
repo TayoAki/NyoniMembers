@@ -23,29 +23,32 @@ export function OutfitsPageSkeleton() {
           <Skeleton className="h-7 w-48 rounded-lg" />
           <Skeleton className="h-4 w-20" />
         </div>
-        <LoadingGrid count={10} />
+        <LoadingGrid
+          count={8}
+          aspect="aspect-[2/3]"
+          className="grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 @2xl:grid-cols-3 @5xl:grid-cols-4"
+        />
       </div>
     </div>
   );
 }
 
-/** Matches the builder board: five slot cards, an accessories strip and the two fields. */
 export function OutfitBuilderSkeleton() {
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading outfit">
-      <div className="flex items-center justify-between gap-3">
-        <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-7 w-44 rounded-lg" />
+    <div
+      className="grid gap-8 @3xl:grid-cols-[minmax(0,1fr)_240px] @3xl:gap-8"
+      aria-busy="true"
+      aria-label="Loading outfit"
+    >
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-36 rounded-none" />
+        <Skeleton className="aspect-[5/4] rounded-none" />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }, (_, index) => (
-          <Skeleton key={index} className="aspect-[3/4] rounded-xl" />
-        ))}
-        <Skeleton className="col-span-full h-28 rounded-xl" />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Skeleton className="h-14 rounded-lg" />
-        <Skeleton className="h-14 rounded-lg" />
+      <div className="space-y-8 border-t pt-4">
+        <Skeleton className="h-4 w-32 rounded-none" />
+        <Skeleton className="h-12 w-full rounded-none" />
+        <Skeleton className="h-12 w-full rounded-none" />
+        <Skeleton className="h-10 w-full rounded-none" />
       </div>
     </div>
   );

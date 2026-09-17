@@ -2,6 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { requireEnv } from "./env";
 import { appError } from "./errors";
+import { roleFromClerkMetadata } from "../model/users";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -28,7 +29,9 @@ export async function requireUser(ctx: Ctx): Promise<Doc<"users">> {
 
 export async function requireAdmin(ctx: Ctx): Promise<Doc<"users">> {
   const user = await requireUser(ctx);
-  if (user.role !== "admin") throw appError("FORBIDDEN", "Admins only.");
+  const identity = await ctx.auth.getUserIdentity();
+  const currentRole = roleFromClerkMetadata(identity?.public_metadata ?? identity?.metadata);
+  if (user.role !== "admin" || currentRole !== "admin") throw appError("FORBIDDEN", "Admins only.");
   return user;
 }
 

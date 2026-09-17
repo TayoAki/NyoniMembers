@@ -1,6 +1,6 @@
 "use client";
 
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { ArrowRight, Check, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ function labelFromFile(file: File, index: number): string {
 export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
   const { isAuthenticated } = useConvexAuth();
   const avatars = useQuery(api.avatars.list, isAuthenticated ? {} : "skip");
+  const refreshSubscription = useAction(api.subscriptions.refresh);
   const createAvatar = useMutation(api.avatars.create);
   const setDefault = useMutation(api.avatars.setDefault);
   const removeAvatar = useMutation(api.avatars.remove);
@@ -72,6 +73,7 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
     try {
       for (const { key, file, index } of entries) {
         const storageId = await upload(file, key);
+        await refreshSubscription({});
         await createAvatar({ storageId, label: labelFromFile(file, count + index) });
       }
       toast.success(files.length === 1 ? "Photo added." : `${files.length} photos added.`);
@@ -94,7 +96,7 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-12">
       <div className="space-y-4">
         <DropZone
           onDrop={handleDrop}
@@ -102,8 +104,8 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
           maxFiles={Math.max(1, remaining)}
           disabled={busy || remaining === 0 || avatars === undefined}
           size="lg"
-          title="Add a photo of yourself"
-          description="One clear, full-length-ish photo is all it takes. Renders put your clothes on this person."
+          title="A full-length photo of you"
+          description="Keep your head and shoes in frame, with your arms relaxed by your sides."
           buttonLabel={busy ? "Uploading…" : "Choose a photo"}
           hint={
             remaining === 0
@@ -121,7 +123,7 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
                   <div className="flex items-center gap-2 text-sm">
                     <Spinner className="size-4" aria-hidden />
                     <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                    <span className="text-muted-foreground text-xs tabular-nums">{value}%</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">{value}%</span>
                   </div>
                   <Progress value={value} aria-label={`Uploading ${entry.name}`} />
                 </li>
@@ -134,8 +136,13 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
           <ErrorAlert title="Upload failed" message={error} onRetry={() => setError(null)} retryLabel="Dismiss" />
         ) : null}
 
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Your default photo is selected for new renders. You can replace it later in settings.
+        </p>
+      </div>
+      <div className="min-w-0 space-y-5">
         {avatars === undefined ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-5">
             {Array.from({ length: 2 }, (_, index) => (
               <div key={index} className="space-y-2">
                 <Skeleton className="aspect-[3/4] w-full rounded-xl" />
@@ -146,11 +153,18 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
         ) : avatars.length > 0 ? (
           <div className="space-y-2">
             <p className="text-sm font-medium">Your photos</p>
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <ul className="grid grid-cols-2 gap-5">
               {avatars.map((avatar) => (
                 <li key={avatar._id} className="space-y-2">
                   <div className="relative">
-                    <ItemImage src={avatar.url} alt={avatar.label} variant="photo" />
+                    <ItemImage
+                      src={avatar.url}
+                      alt={avatar.label}
+                      variant="photo"
+                      aspect="aspect-[2/3]"
+                      className="rounded-none"
+                      imgClassName="object-contain"
+                    />
                     {avatar.isDefault ? (
                       <Badge className="absolute top-2 left-2 gap-1">
                         <Check aria-hidden />
@@ -193,17 +207,20 @@ export function AvatarStep({ plan, onContinue }: AvatarStepProps) {
               ))}
             </ul>
           </div>
-        ) : null}
-
-        <div className="flex justify-end pt-2">
-          <Button size="lg" onClick={onContinue} disabled={count === 0 || busy}>
-            Continue
-            <ArrowRight data-icon="inline-end" />
-          </Button>
-        </div>
+        ) : (
+          <PhotoTips />
+        )}
       </div>
 
-      <PhotoTips />
+      <div className="flex items-center justify-between gap-4 border-t pt-5 lg:col-span-2">
+        <p className="text-xs text-muted-foreground">
+          {count > 0 ? "Photo added. Next, choose your styling preferences." : "Add a photo to continue."}
+        </p>
+        <Button size="lg" className="h-11 rounded-sm px-6" onClick={onContinue} disabled={count === 0 || busy}>
+          Continue
+          <ArrowRight data-icon="inline-end" />
+        </Button>
+      </div>
     </div>
   );
 }

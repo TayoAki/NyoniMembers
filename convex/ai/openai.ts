@@ -6,7 +6,7 @@ import type { ImageEditParamsNonStreaming, ImagesResponse } from "openai/resourc
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { internalAction, type ActionCtx } from "../_generated/server";
-import { requireEnv } from "../lib/env";
+import { optionalEnv, requireEnv } from "../lib/env";
 import { appError, isAppError } from "../lib/errors";
 import { EMBEDDING_DIMENSIONS } from "../schema";
 import { LIMITS, type TokenUsage } from "../shared/credits";
@@ -14,6 +14,7 @@ import { INGEST_STEPS } from "../shared/jobs";
 import { vDetectedItem } from "../shared/validators";
 import { FORMALITY, isCategory, SEASONS, type Formality, type Season, type Slot } from "../shared/wardrobe";
 import { dominantHex } from "./colours";
+import { normalizeImageInput } from "./image_input";
 import { detectionInstructions, extractionPrompt, renderPrompt } from "./prompts";
 
 /**
@@ -35,17 +36,6 @@ const MAX_REFERENCE_IMAGES = 16;
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_ERROR_CHARS = 240;
 
-/** What gpt-image-2 accepts as a reference image. */
-const IMAGE_EXTENSIONS: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/webp": "webp",
-};
-
-/** Accepted at upload but not by the image model; fail with something the user can act on. */
-const UNSUPPORTED_IMAGE_TYPES = new Set(["image/heic", "image/heif"]);
-
 export type DetectedItem = Infer<typeof vDetectedItem>;
 
 let cached: OpenAI | null = null;
@@ -53,9 +43,19 @@ let cached: OpenAI | null = null;
 /** One client per container. `maxRetries: 0` — retries are the workflow's job, and they are visible. */
 function openai(): OpenAI {
   if (!cached) {
-    cached = new OpenAI({ apiKey: requireEnv("OPENAI_API_KEY"), maxRetries: 0, timeout: REQUEST_TIMEOUT_MS });
+    const directKey = optionalEnv("OPENAI_API_KEY");
+    cached = new OpenAI({
+      apiKey: directKey ?? requireEnv("AI_GATEWAY_API_KEY"),
+      ...(directKey ? {} : { baseURL: "https://ai-gateway.vercel.sh/v1" }),
+      maxRetries: 0,
+      timeout: REQUEST_TIMEOUT_MS,
+    });
   }
   return cached;
+}
+
+function modelId(model: string): string {
+  return optionalEnv("OPENAI_API_KEY") ? model : `openai/${model}`;
 }
 
 /**
@@ -69,10 +69,10 @@ export const detectItems = internalAction({
     try {
       const photo = await ctx.runQuery(internal.ai.pipeline.uploadPhoto, { uploadId: args.uploadId });
       // Inline the bytes: storage URLs are signed and, on a local deployment, unreachable from OpenAI.
-      const imageUrl = await storageDataUrl(ctx, photo.storageId, photo.mimeType);
+      const imageUrl = await storageDataUrl(ctx, photo.storageId);
       const { instructions, schema } = detectionInstructions();
       const response = await openai().responses.create({
-        model: DETECT_MODEL,
+        model: modelId(DETECT_MODEL),
         input: [
           {
             role: "user",
@@ -138,17 +138,22 @@ export const extractItem = internalAction({
       const hex = dominantHex(bytes, 3);
 
       const embedding = await embedText(embeddingInput(item, hex));
-      const matches = await ctx.vectorSearch("items", "by_embedding", {
+      const matches = await ctx.vectorSearch("itemEmbeddings", "by_embedding", {
         vector: embedding,
         limit: 4,
         filter: (q) => q.eq("userId", item.userId),
       });
       const candidates = matches
-        .filter((match) => match._id !== args.itemId && match._score >= LIMITS.duplicateCosineThreshold)
+        .filter((match) => match._score >= LIMITS.duplicateCosineThreshold)
         .map((match) => match._id);
       const ready =
-        candidates.length > 0 ? await ctx.runQuery(internal.ai.pipeline.readyItemIds, { itemIds: candidates }) : [];
-      const duplicateOfId = candidates.find((candidate) => ready.includes(candidate));
+        candidates.length > 0
+          ? await ctx.runQuery(internal.ai.pipeline.duplicateCandidates, {
+              embeddingIds: candidates,
+              itemId: args.itemId,
+            })
+          : [];
+      const duplicateOfId = ready[0];
 
       await ctx.runMutation(internal.ai.pipeline.itemReady, {
         itemId: args.itemId,
@@ -176,12 +181,13 @@ export const extractItem = internalAction({
 /** One try-on image: the avatar plus every garment cutout as references, one prompt. */
 export const renderImage = internalAction({
   args: { renderId: v.id("renders"), jobId: v.id("jobs"), stepKey: v.string() },
-  returns: v.null(),
-  handler: async (ctx, args): Promise<null> => {
+  returns: v.union(v.null(), v.object({ error: v.string() })),
+  handler: async (ctx, args): Promise<null | { error: string }> => {
     await ctx.runMutation(internal.ai.pipeline.markStep, {
       jobId: args.jobId,
       key: args.stepKey,
       status: "running",
+      meta: { renderId: args.renderId },
     });
     let prompt = "";
     try {
@@ -194,12 +200,11 @@ export const renderImage = internalAction({
       const wearable = garments.filter((_, index) => blobs[index] !== null);
       if (wearable.length === 0) throw appError("NOT_FOUND", "None of this outfit's cutouts are available.");
 
-      const files = await Promise.all([
-        toImageFile(avatar, "person"),
-        ...blobs
-          .filter((blob): blob is Blob => blob !== null)
-          .map((blob, index) => toImageFile(blob, `garment-${index + 1}`)),
-      ]);
+      const files = [await toImageFile(avatar, "person")];
+      // Decode one reference at a time to bound memory for large photos and layered outfits.
+      for (const [index, blob] of blobs.entries()) {
+        if (blob) files.push(await toImageFile(blob, `garment-${index + 1}`));
+      }
 
       prompt = renderPrompt({
         garments: wearable.map((garment) => ({ name: garment.name, slot: garment.slot })),
@@ -228,16 +233,33 @@ export const renderImage = internalAction({
       });
       return null;
     } catch (error) {
-      await ctx.runMutation(internal.ai.pipeline.renderFailed, {
-        renderId: args.renderId,
+      const message = errorText(error);
+      if (isPermanentRenderError(error)) {
+        await ctx.runMutation(internal.ai.pipeline.renderFailed, {
+          renderId: args.renderId,
+          jobId: args.jobId,
+          stepKey: args.stepKey,
+          error: message,
+        });
+        // A settled result stops Workpool retrying rejected images or invalid requests.
+        return { error: message };
+      }
+      await ctx.runMutation(internal.ai.pipeline.markStep, {
         jobId: args.jobId,
-        stepKey: args.stepKey,
-        error: errorText(error),
+        key: args.stepKey,
+        status: "running",
+        error: message,
       });
       throw error;
     }
   },
 });
+
+function isPermanentRenderError(error: unknown): boolean {
+  if (isAppError(error)) return error.data.code !== "UPSTREAM_FAILED" && error.data.code !== "RATE_LIMITED";
+  if (!(error instanceof OpenAI.APIError) || error.status === undefined) return false;
+  return error.status >= 400 && error.status < 500 && ![408, 409, 429].includes(error.status);
+}
 
 type EditRequest = {
   image: ImageEditParamsNonStreaming["image"];
@@ -250,7 +272,7 @@ type EditRequest = {
 async function editImage(request: EditRequest): Promise<ImagesResponse> {
   // `input_fidelity` is rejected by gpt-image-2 — do not add it here.
   const params: ImageEditParamsNonStreaming = {
-    model: IMAGE_MODEL,
+    model: modelId(IMAGE_MODEL),
     image: request.image,
     prompt: request.prompt,
     size: request.size,
@@ -263,21 +285,25 @@ async function editImage(request: EditRequest): Promise<ImagesResponse> {
 
 /**
  * Transparent backgrounds are a preview flag on gpt-image-2: when the account or snapshot doesn't
- * have it the request 4xxs, so redo the same edit opaque rather than failing the item.
+ * have it the request 4xxs, so redo the same edit opaque rather than failing the item. Only that
+ * error is retried — a content-policy or bad-image 400 must not buy a second paid attempt.
  */
 async function editWithTransparency(request: Omit<EditRequest, "background">): Promise<ImagesResponse> {
   try {
     return await editImage({ ...request, background: "transparent" });
   } catch (error) {
-    if (!isClientError(error)) throw error;
+    if (!isBackgroundParamError(error)) throw error;
     return editImage({ ...request, background: "opaque" });
   }
 }
 
-function isClientError(error: unknown): boolean {
-  return (
-    error instanceof OpenAI.APIError && typeof error.status === "number" && error.status >= 400 && error.status < 500
-  );
+/** True only when the 4xx is about the `background` parameter itself. */
+function isBackgroundParamError(error: unknown): boolean {
+  if (!(error instanceof OpenAI.APIError)) return false;
+  if (typeof error.status !== "number" || error.status < 400 || error.status >= 500) return false;
+  if (error.param === "background") return true;
+  const message = error.message.toLowerCase();
+  return message.includes("background") || message.includes("transparent");
 }
 
 function decodeImage(response: ImagesResponse): { bytes: Uint8Array<ArrayBuffer>; usage: TokenUsage } {
@@ -292,11 +318,11 @@ function decodeImage(response: ImagesResponse): { bytes: Uint8Array<ArrayBuffer>
 }
 
 /** Reads a stored file and returns it as a data URL for models that accept inline images. */
-async function storageDataUrl(ctx: ActionCtx, storageId: Id<"_storage">, mimeType: string): Promise<string> {
+async function storageDataUrl(ctx: ActionCtx, storageId: Id<"_storage">): Promise<string> {
   const blob = await ctx.storage.get(storageId);
   if (!blob) throw appError("NOT_FOUND", "The uploaded photo is no longer available.");
-  const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
-  return `data:${mimeType || "image/png"};base64,${base64}`;
+  const base64 = Buffer.from(await normalizeImageInput(blob)).toString("base64");
+  return `data:image/png;base64,${base64}`;
 }
 
 function pngBlob(bytes: Uint8Array<ArrayBuffer>): Blob {
@@ -311,21 +337,15 @@ function imageUsage(usage: ImagesResponse["usage"]): TokenUsage {
   };
 }
 
-/**
- * Wraps a stored blob for the images endpoint. Convex keeps the upload's content type, so the
- * filename and the bytes always agree; HEIC is rejected here rather than as an opaque OpenAI 400.
- */
+/** iPhone HDR JPEGs may contain an MPO gain map that image providers reject. */
 async function toImageFile(blob: Blob, name: string): Promise<File> {
-  if (UNSUPPORTED_IMAGE_TYPES.has(blob.type)) {
-    throw appError("INVALID_INPUT", "HEIC photos can't be used yet — re-upload this one as JPEG or PNG.");
-  }
-  const type = IMAGE_EXTENSIONS[blob.type] ? blob.type : "image/png";
-  return toFile(blob, `${name}.${IMAGE_EXTENSIONS[type] ?? "png"}`, { type });
+  const bytes = await normalizeImageInput(blob, name === "person" ? "profile photo" : name);
+  return toFile(bytes, `${name}.png`, { type: "image/png" });
 }
 
 async function embedText(input: string): Promise<number[]> {
   const response = await openai().embeddings.create({
-    model: EMBED_MODEL,
+    model: modelId(EMBED_MODEL),
     input,
     dimensions: EMBEDDING_DIMENSIONS,
   });

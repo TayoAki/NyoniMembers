@@ -5,6 +5,7 @@ import { Download } from "lucide-react";
 import { useState } from "react";
 import { ItemImage } from "@/components/common/item-image";
 import { JobStepper } from "@/components/common/job-stepper";
+import { renderJobStatus } from "@/components/stylist/render-job-status";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,20 +24,24 @@ export function RenderJobCard({ jobId }: { jobId: Id<"jobs"> }) {
 
   if (job === undefined) return <Skeleton className="h-28 w-full rounded-xl" />;
   if (job === null) {
-    return <p className="text-muted-foreground text-xs">That render job is no longer available.</p>;
+    return <p className="text-xs text-muted-foreground">That render job is no longer available.</p>;
   }
 
   const outfitIds = job.outfitIds ?? [];
-  const running = job.status === "queued" || job.status === "running";
+  const status = renderJobStatus(job);
 
   return (
-    <div className="bg-card ring-foreground/5 space-y-3 rounded-xl border p-3 ring-1">
+    <div className="space-y-5 border-y py-5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">{running ? "Rendering your looks" : "Renders"}</h3>
-        <span className="text-muted-foreground text-xs">{formatRelative(job.createdAt)}</span>
+        <div role="status" aria-live="polite" aria-atomic="true" className="space-y-1">
+          <h3 className="text-xl font-medium tracking-tight">{status.title}</h3>
+          <p className="text-xs text-muted-foreground">{status.detail}</p>
+        </div>
+        <span className="font-mono text-[10px] text-muted-foreground">{formatRelative(job.createdAt)}</span>
       </div>
 
-      {running || job.status === "failed" ? <JobStepper job={job} /> : null}
+      {status.running ? <JobStepper job={job} /> : null}
+      {!status.running && job.error ? <p className="text-xs text-destructive">{job.error}</p> : null}
 
       <div className="space-y-3">
         {outfitIds.map((outfitId) => (
@@ -45,16 +50,17 @@ export function RenderJobCard({ jobId }: { jobId: Id<"jobs"> }) {
       </div>
 
       <Dialog open={lightbox !== null} onOpenChange={(open) => !open && setLightbox(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
           <DialogTitle className="sr-only">{lightbox?.label ?? "Render"}</DialogTitle>
           {lightbox ? (
             <div className="space-y-3">
-              <ItemImage src={lightbox.url} alt={lightbox.label} variant="photo" aspect="aspect-[3/4]" priority />
+              <ItemImage src={lightbox.url} alt={lightbox.label} variant="render" priority />
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-sm font-medium">{lightbox.label}</p>
                 <Button
                   size="sm"
                   variant="outline"
+                  nativeButton={false}
                   render={<a href={lightbox.url} download target="_blank" rel="noreferrer" />}
                 >
                   <Download data-icon="inline-start" />
@@ -81,9 +87,9 @@ function OutfitRenders({
   const renders = useQuery(api.renders.listByOutfit, { outfitId });
   if (renders === undefined) {
     return (
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Array.from({ length: 2 }, (_, index) => (
-          <Skeleton key={index} className="aspect-[3/4] rounded-xl" />
+          <Skeleton key={index} className="aspect-[2/3] rounded-xl" />
         ))}
       </div>
     );
@@ -94,7 +100,7 @@ function OutfitRenders({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-muted-foreground text-xs font-medium">{mine[0].outfitName}</p>
+      <p className="text-xs font-medium text-muted-foreground">{mine[0].outfitName}</p>
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {mine.map((render) => {
           const label = `${render.outfitName} render`;
@@ -106,14 +112,14 @@ function OutfitRenders({
               disabled={!openable}
               onClick={() => (openable && render.url ? onOpen({ url: render.url, label }) : undefined)}
               className={cn(
-                "group focus-visible:ring-ring/50 relative rounded-xl outline-none focus-visible:ring-3",
+                "group relative outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                 openable ? "cursor-zoom-in" : "cursor-default",
               )}
               aria-label={openable ? `Open ${label}` : `${label} — ${render.status}`}
             >
-              <ItemImage src={render.url} alt={label} variant="photo" aspect="aspect-[3/4]" />
+              <ItemImage src={render.url} alt={label} variant="render" className="rounded-none" />
               {render.status === "failed" ? (
-                <span className="bg-background/90 text-destructive absolute inset-x-1 bottom-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium">
+                <span className="absolute inset-x-1 bottom-1 rounded-md bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
                   Failed
                 </span>
               ) : null}

@@ -10,21 +10,27 @@ type Output = {
   results: FunctionReturnType<typeof api.agent.composeOutfits>;
 };
 
-const itemId = z.string().min(1).describe("An item id from get_wardrobe.");
+const itemId = z.string().trim().describe("An exact item id returned by get_wardrobe; never a garment name.");
+const optionalItemId = itemId.nullish().describe("An owned item id, or null when this slot is unused.");
 
 const slots = z.object({
-  outerwear: itemId.optional(),
-  top: itemId.optional(),
-  bottom: itemId.optional(),
-  dress: itemId.optional().describe("Replaces top and bottom; do not send all three."),
-  shoes: itemId.optional(),
-  accessories: z.array(itemId).max(4).describe("Accessories, bags and headwear. Pass [] for none."),
+  outerwear: optionalItemId,
+  top: optionalItemId,
+  bottom: optionalItemId,
+  dress: optionalItemId.describe("Usually null. Only set a dress when it replaces both top and bottom."),
+  shoes: optionalItemId,
+  accessories: z
+    .array(itemId.nullable())
+    .max(4)
+    .nullish()
+    .describe("Accessories, bags and headwear. Pass [] for none."),
 });
 
 export default defineTool({
   description:
-    "Save two or three outfit proposals so they appear as cards in the chat. Every id must come " +
-    "from get_wardrobe. One item per slot; `dress` replaces `top` + `bottom`. The result echoes " +
+    "Create one to three outfit proposals, respecting the user's requested number, so they appear as cards. Every id must come " +
+    "from get_wardrobe. All individual slots are optional: a top, bottom and shoes need no dress. " +
+    "Use null for unused slots and [] for no accessories. A dress replaces top and bottom. The result echoes " +
     "each outfit with the items it resolved and a `problems` list — if an outfit has problems it " +
     "was not saved, so fix the picks and call this again before telling the user about it.",
   inputSchema: z.object({
@@ -35,7 +41,7 @@ export default defineTool({
           name: z.string().min(1).describe("Short and memorable, e.g. 'Navy and stone'."),
           slots,
           reasoning: z.string().min(1).describe("One or two sentences on the colour pairing and the layering."),
-          occasion: z.string().optional(),
+          occasion: z.string().nullable().optional(),
         }),
       )
       .min(1)
@@ -50,24 +56,39 @@ export default defineTool({
   },
   async execute({ brief, outfits }, ctx): Promise<Output> {
     const threadId = await resolveThreadId(ctx);
-    const results = await convex().mutation(api.agent.composeOutfits, {
-      ...serviceArgs(ctx),
-      threadId,
-      brief,
-      outfits: outfits.map((outfit) => ({
+    let results: Output["results"];
+    try {
+      results = await convex().mutation(api.agent.composeOutfits, {
+        ...serviceArgs(ctx),
+        threadId,
+        brief,
+        outfits: outfits.map((outfit) => ({
+          name: outfit.name,
+          occasion: outfit.occasion?.trim() || undefined,
+          reasoning: outfit.reasoning,
+          slots: {
+            ...optionalSlot("outerwear", outfit.slots.outerwear),
+            ...optionalSlot("top", outfit.slots.top),
+            ...optionalSlot("bottom", outfit.slots.bottom),
+            ...optionalSlot("dress", outfit.slots.dress),
+            ...optionalSlot("shoes", outfit.slots.shoes),
+            accessories: (outfit.slots.accessories ?? [])
+              .map((id) => id?.trim())
+              .filter((id): id is Id<"items"> => Boolean(id)),
+          },
+        })),
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("ArgumentValidationError")) throw error;
+      results = outfits.map((outfit) => ({
+        outfitId: null,
         name: outfit.name,
-        occasion: outfit.occasion,
-        reasoning: outfit.reasoning,
-        slots: {
-          outerwear: outfit.slots.outerwear as Id<"items"> | undefined,
-          top: outfit.slots.top as Id<"items"> | undefined,
-          bottom: outfit.slots.bottom as Id<"items"> | undefined,
-          dress: outfit.slots.dress as Id<"items"> | undefined,
-          shoes: outfit.slots.shoes as Id<"items"> | undefined,
-          accessories: outfit.slots.accessories as Id<"items">[],
-        },
-      })),
-    });
+        items: [],
+        problems: [
+          "Nothing was saved because an item id was invalid. Call get_wardrobe and retry with its exact ids. Use null for unused slots; a dress is never required for an outfit with a top and bottom.",
+        ],
+      }));
+    }
 
     return {
       threadId,
@@ -76,3 +97,11 @@ export default defineTool({
     };
   },
 });
+
+function optionalSlot<K extends "outerwear" | "top" | "bottom" | "dress" | "shoes">(
+  slot: K,
+  value: string | null | undefined,
+): Partial<Record<K, Id<"items">>> {
+  const id = value?.trim();
+  return id ? ({ [slot]: id as Id<"items"> } as Record<K, Id<"items">>) : {};
+}

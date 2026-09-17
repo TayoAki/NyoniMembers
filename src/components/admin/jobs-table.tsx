@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { ListChecks, Undo2 } from "lucide-react";
+import { ListChecks, RefreshCw, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -13,8 +13,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCredits, formatRelative, titleCase } from "@/lib/format";
+import { reportError } from "@/lib/errors";
+import { formatCredits, formatNumber, formatRelative, titleCase } from "@/lib/format";
 import { api } from "@convex/_generated/api";
 import type { JobStatus } from "@convex/shared/jobs";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
@@ -49,20 +51,21 @@ function RefundAction({ row }: { row: JobRow }) {
   const refundable = reservedTotal(row.job) - refundedTotal(row.job);
 
   async function handleRefund() {
-    if (!note.trim()) throw new Error("Add a note so the refund has an audit trail.");
     const { refunded } = await refundJob({ jobId: row.job._id, note: note.trim() });
     setNote("");
     toast.success(`Refunded ${formatCredits(refunded)}.`);
   }
 
-  if (refundable <= 0) return <span className="text-muted-foreground text-xs">Nothing left</span>;
+  if (refundable <= 0) return <span className="text-xs text-muted-foreground">Nothing left</span>;
 
   return (
     <ConfirmDialog
       destructive
       title="Refund this job?"
-      description={`Returns up to ${formatCredits(refundable)} to the user, pack bucket first.`}
+      description={`Returns up to ${formatCredits(refundable)} to the user, restoring non-expiring credits first.`}
       confirmLabel="Refund"
+      confirmDisabled={note.trim().length === 0}
+      onOpenChange={(open) => !open && setNote("")}
       onConfirm={handleRefund}
       trigger={
         <Button variant="outline" size="xs">
@@ -82,6 +85,33 @@ function RefundAction({ row }: { row: JobRow }) {
         />
       </Field>
     </ConfirmDialog>
+  );
+}
+
+/** Re-runs what failed inside a job: the upload's unfinished items, or the job's failed renders. */
+function RetryAction({ row }: { row: JobRow }) {
+  const retryJob = useMutation(api.admin.retryJob);
+  const [pending, setPending] = useState(false);
+
+  if (row.job.status !== "failed" && row.job.status !== "partial") return null;
+
+  async function handleRetry() {
+    setPending(true);
+    try {
+      await retryJob({ jobId: row.job._id });
+      toast.success("Retry queued.", { description: "It spends the user's own credits, like any resume." });
+    } catch (error) {
+      reportError(error, "Could not retry that job.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Button variant="outline" size="xs" disabled={pending} onClick={() => void handleRetry()}>
+      {pending ? <Spinner data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" aria-hidden />}
+      Retry
+    </Button>
   );
 }
 
@@ -159,24 +189,27 @@ export function JobsTable() {
                   <TableCell>
                     <Badge variant={STATUS_VARIANT[row.job.status]}>{titleCase(row.job.status)}</Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground hidden max-w-[20ch] truncate sm:table-cell">
+                  <TableCell className="hidden max-w-[20ch] truncate text-muted-foreground sm:table-cell">
                     {row.userName ?? row.userEmail ?? "Unknown"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{reservedTotal(row.job)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNumber(reservedTotal(row.job))}</TableCell>
                   <TableCell className="hidden text-right tabular-nums sm:table-cell">
-                    {refundedTotal(row.job)}
+                    {formatNumber(refundedTotal(row.job))}
                   </TableCell>
-                  <TableCell className="text-muted-foreground hidden md:table-cell">
+                  <TableCell className="hidden text-muted-foreground md:table-cell">
                     {formatRelative(row.job.createdAt)}
                   </TableCell>
                   <TableCell
-                    className="text-destructive hidden max-w-[28ch] truncate lg:table-cell"
+                    className="hidden max-w-[28ch] truncate text-destructive lg:table-cell"
                     title={row.job.error}
                   >
                     {row.job.error ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <RefundAction row={row} />
+                    <div className="flex items-center justify-end gap-1.5">
+                      <RetryAction row={row} />
+                      <RefundAction row={row} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

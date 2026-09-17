@@ -14,15 +14,34 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   await requireSignedIn();
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
-        title="Settings"
-        description="Who you are on screen, how outfits get styled, and what happens to your data."
+        eyebrow="Your studio"
+        title="Make it yours."
+        description="Your fitting photos, styling preferences and personal space."
       />
-      <AvatarsSettings />
-      <PreferencesForm />
-      <AppearanceSettings />
-      <DangerZone />
+      <nav aria-label="Settings sections" className="flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium">
+        {[
+          ["photos", "Fitting photos"],
+          ["preferences", "Style preferences"],
+          ["appearance", "Appearance"],
+          ["data", "Your data"],
+        ].map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className="border-b border-transparent pb-2 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground focus-visible:outline-offset-4"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+      <div>
+        <AvatarsSettings />
+        <PreferencesForm />
+        <AppearanceSettings />
+        <DangerZone />
+      </div>
     </div>
   );
 }

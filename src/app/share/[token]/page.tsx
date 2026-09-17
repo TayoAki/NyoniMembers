@@ -1,12 +1,12 @@
 import { fetchQuery } from "convex/nextjs";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { SharedRender } from "@/components/share/shared-render";
 import { api } from "@convex/_generated/api";
 
-async function getShared(token: string) {
-  return fetchQuery(api.renders.getShared, { token });
-}
+/** Cached per request so `generateMetadata` and the page itself share one Convex round trip. */
+const getShared = cache(async (token: string) => fetchQuery(api.renders.getShared, { token }));
 
 export async function generateMetadata({ params }: PageProps<"/share/[token]">): Promise<Metadata> {
   const { token } = await params;

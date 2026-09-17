@@ -68,7 +68,7 @@ export function ChipsInput({
   return (
     <div
       className={cn(
-        "border-input focus-within:border-ring focus-within:ring-ring/50 dark:bg-input/30 flex min-h-8 w-full flex-wrap items-center gap-1.5 rounded-lg border bg-transparent px-2 py-1.5 text-sm transition-colors focus-within:ring-3",
+        "flex min-h-8 w-full flex-wrap items-center gap-1.5 rounded-lg border border-input bg-transparent px-2 py-1.5 text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30",
         disabled && "pointer-events-none opacity-50",
         className,
       )}
@@ -77,16 +77,16 @@ export function ChipsInput({
       {value.map((chip) => (
         <span
           key={chip}
-          className="bg-secondary text-secondary-foreground inline-flex h-6 items-center gap-1.5 rounded-full pr-1 pl-2 text-xs font-medium"
+          className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full bg-secondary pl-2 text-xs font-medium text-secondary-foreground"
         >
           {swatches ? (
             <span
-              className="ring-foreground/15 size-2.5 shrink-0 rounded-full ring-1"
+              className="size-2.5 shrink-0 rounded-full ring-1 ring-foreground/15"
               style={{ backgroundColor: chip }}
               aria-hidden
             />
           ) : null}
-          {chip}
+          <span className="min-w-0 [overflow-wrap:anywhere]">{chip}</span>
           <button
             type="button"
             onClick={(event) => {
@@ -94,7 +94,7 @@ export function ChipsInput({
               remove(chip);
             }}
             disabled={disabled}
-            className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:ring-ring flex size-4 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             aria-label={`Remove ${chip}`}
           >
             <X className="size-3" aria-hidden />
@@ -111,7 +111,7 @@ export function ChipsInput({
         onBlur={() => commit(draft)}
         placeholder={atLimit ? `Up to ${maxChips}` : value.length ? "" : placeholder}
         aria-describedby={aria["aria-describedby"]}
-        className="placeholder:text-muted-foreground h-6 min-w-24 flex-1 bg-transparent text-base outline-none md:text-sm"
+        className="h-6 min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm"
       />
     </div>
   );

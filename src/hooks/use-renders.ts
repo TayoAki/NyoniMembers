@@ -1,9 +1,10 @@
 "use client";
 
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import type { FunctionArgs, FunctionReturnType } from "convex/server";
-import { useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { NAVIGATION_PAGE_SIZE, useNavigationRenders } from "@/components/providers/navigation-data";
 import { guardMutation, type ErrorSink } from "@/lib/errors";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
@@ -14,6 +15,20 @@ export type RenderDetail = NonNullable<FunctionReturnType<typeof api.renders.get
 export type Avatar = FunctionReturnType<typeof api.avatars.list>[number];
 export type StartRendersArgs = FunctionArgs<typeof api.renders.start>;
 export type StartRendersResult = FunctionReturnType<typeof api.renders.start>;
+
+export const RENDERS_PAGE_SIZE = NAVIGATION_PAGE_SIZE;
+
+export function useLookbookRenders(outfitId: Id<"outfits"> | null) {
+  const { isAuthenticated } = useConvexAuth();
+  const shared = useNavigationRenders();
+  const useShared = outfitId === null && shared !== null;
+  const local = usePaginatedQuery(
+    api.renders.listMine,
+    isAuthenticated && !useShared ? (outfitId ? { outfitId } : {}) : "skip",
+    { initialNumItems: RENDERS_PAGE_SIZE },
+  );
+  return useShared ? shared : local;
+}
 
 export function useRendersForOutfit(outfitId: Id<"outfits"> | null | undefined): Render[] | undefined {
   return useQuery(api.renders.listByOutfit, outfitId ? { outfitId } : "skip");
@@ -44,6 +59,7 @@ export type RenderActions = {
 
 /** Every render mutation, already wrapped so components never repeat try/catch + toast. */
 export function useRenderActions(): RenderActions {
+  const refreshSubscription = useAction(api.subscriptions.refresh);
   const start = useMutation(api.renders.start);
   const regenerate = useMutation(api.renders.regenerate);
   const share = useMutation(api.renders.share);
@@ -52,10 +68,21 @@ export function useRenderActions(): RenderActions {
 
   return useMemo<RenderActions>(
     () => ({
-      start: (args, onError) => guardMutation(() => start(args), onError),
-      regenerate: (renderId, onError) => guardMutation(() => regenerate({ renderId }), onError),
+      start: (args, onError) =>
+        guardMutation(async () => {
+          await refreshSubscription({});
+          return start(args);
+        }, onError),
+      regenerate: (renderId, onError) =>
+        guardMutation(async () => {
+          await refreshSubscription({});
+          return regenerate({ renderId });
+        }, onError),
       shareAndCopy: async (renderId, onError) => {
-        const result = await guardMutation(() => share({ renderId }), onError);
+        const result = await guardMutation(async () => {
+          await refreshSubscription({});
+          return share({ renderId });
+        }, onError);
         if (!result) return undefined;
         return announceShareLink(result.token);
       },
@@ -65,8 +92,61 @@ export function useRenderActions(): RenderActions {
       unshare: (renderId, onError) => guardMutation(() => unshare({ renderId }), onError),
       remove: (renderId, onError) => guardMutation(() => remove({ renderId }), onError),
     }),
-    [start, regenerate, share, unshare, remove],
+    [refreshSubscription, start, regenerate, share, unshare, remove],
   );
+}
+
+export type RenderDownload = {
+  /** Saves the image as a file. Falls back to opening it in a tab when the fetch is blocked. */
+  download: (render: Render) => Promise<void>;
+  /** The render being fetched, so only its button spins. */
+  pendingRenderId: Id<"renders"> | null;
+};
+
+/**
+ * Convex storage URLs are cross-origin and carry no `Content-Disposition`, so an anchor with
+ * `download` would still just navigate. Fetching the bytes first is what actually saves a file.
+ */
+export function useRenderDownload(): RenderDownload {
+  const [pendingRenderId, setPendingRenderId] = useState<Id<"renders"> | null>(null);
+
+  const download = useCallback(async (render: Render) => {
+    const url = render.url;
+    if (!url) return;
+    setPendingRenderId(render._id);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`The image server answered ${response.status}.`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = downloadFileName(render.outfitName, render.completedAt ?? render.createdAt);
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast.success("Image saved.");
+    } catch {
+      toast.error("Could not save the image.", { description: "Opening it in a new tab instead." });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } finally {
+      setPendingRenderId(null);
+    }
+  }, []);
+
+  return { download, pendingRenderId };
+}
+
+function downloadFileName(outfitName: string, timestamp: number): string {
+  const slug =
+    outfitName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "outfit";
+  const date = new Date(timestamp).toISOString().slice(0, 10);
+  return `fitcheck-${slug}-${date}.png`;
 }
 
 export function shareUrl(token: string): string {
