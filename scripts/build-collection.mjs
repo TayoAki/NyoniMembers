@@ -5,20 +5,63 @@
  *
  *   node scripts/build-collection.mjs                 # remote image URLs (the seeder fetches from the store)
  *   node scripts/build-collection.mjs --download      # also save each image to public/collection/<key>.<ext>
- *   node scripts/build-collection.mjs --limit 40      # cap the number of pieces (default 60)
+ *   node scripts/build-collection.mjs --local         # use images already present in public/collection/ (no network)
+ *   node scripts/build-collection.mjs --limit 40      # cap the number of pieces (default 50)
+ *
+ * The store's bot challenge blocks plain downloads; scripts/fetch-collection-images.mjs pulls the
+ * photos through Firecrawl's browser into public/collection/, after which --local wires them up.
  *
  * Reads research/nyoni/woo-products.json. Category slugs map onto the app's wardrobe categories;
  * colours are read from the product name; everything else is a sensible default the concierge can
  * correct. Cloth-only "bespoke clothing" products, services and sale bundles are left out.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const args = process.argv.slice(2);
 const download = args.includes("--download");
+const local = args.includes("--local");
 const limitIndex = args.indexOf("--limit");
-const limit = limitIndex >= 0 ? Number(args[limitIndex + 1]) : 60;
+const limit = limitIndex >= 0 ? Number(args[limitIndex + 1]) : 50;
+
+/** A balanced starter wardrobe rather than the newest fifty ties: caps per garment type (by subcategory). */
+const TYPE_CAPS = {
+  "two-piece suit": 4,
+  "three-piece suit": 3,
+  "double-breasted suit": 2,
+  tuxedo: 3,
+  suit: 1,
+  "traditional set": 2,
+  blazer: 4,
+  overcoat: 2,
+  sweatsuit: 1,
+  sweater: 1,
+  "short set": 0,
+  "dress shirt": 4,
+  shirt: 2,
+  waistcoat: 1,
+  "dress trousers": 3,
+  loafers: 2,
+  "dress shoes": 2,
+  boots: 2,
+  sneakers: 1,
+  "neck tie": 3,
+  "bow tie": 2,
+  "pocket square": 3,
+  cufflinks: 1,
+  belt: 1,
+  scarf: 1,
+  socks: 0,
+  "collar bar": 0,
+  "tie pin": 0,
+  "lapel pin": 0,
+  "leather bag": 2,
+  hat: 1,
+};
+/** Products that are not a wearable piece: WooCommerce variation rows and generic listings. */
+const SKIP_NAMES = /^(variation #|custom suits?\b|rush fee)/i;
 
 const SOURCE = path.resolve("research/nyoni/woo-products.json");
 const TARGET = path.resolve("convex/shared/collection.ts");
@@ -40,6 +83,7 @@ const CATEGORY_MAP = [
   ["sweatsuit", ["top", "sweatsuit", "casual", ["autumn", "winter", "spring"]]],
   ["short-set", ["top", "short set", "casual", ["spring", "summer"]]],
   ["trousers", ["bottom", "dress trousers", "formal", ["spring", "summer", "autumn", "winter"]]],
+  ["traditional-wear", ["suit", "traditional set", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["dress-shoes", ["shoes", "dress shoes", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["loafers", ["shoes", "loafers", "smart-casual", ["spring", "summer", "autumn", "winter"]]],
   ["boots", ["shoes", "boots", "smart-casual", ["autumn", "winter", "spring"]]],
@@ -50,11 +94,16 @@ const CATEGORY_MAP = [
   ["neck-tie", ["accessory", "neck tie", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["cufflinks", ["accessory", "cufflinks", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["belts", ["accessory", "belt", "smart-casual", ["spring", "summer", "autumn", "winter"]]],
+  ["collar-bar", ["accessory", "collar bar", "formal", ["spring", "summer", "autumn", "winter"]]],
+  ["tie-pins", ["accessory", "tie pin", "formal", ["spring", "summer", "autumn", "winter"]]],
+  ["lapel-pins", ["accessory", "lapel pin", "formal", ["spring", "summer", "autumn", "winter"]]],
+  ["scarves", ["accessory", "scarf", "smart-casual", ["autumn", "winter"]]],
+  ["socks", ["accessory", "socks", "smart-casual", ["spring", "summer", "autumn", "winter"]]],
   ["hats", ["headwear", "hat", "smart-casual", ["spring", "summer", "autumn", "winter"]]],
   ["leather-goods", ["bag", "leather bag", "smart-casual", ["spring", "summer", "autumn", "winter"]]],
 ];
 
-const SKIP_CATEGORIES = new Set(["bespoke-clothing", "uncategorized", "labor-day-sale"]);
+const SKIP_CATEGORIES = new Set(["bespoke-clothing", "uncategorized", "labor-day-sale", "measurement"]);
 
 /** Colour words that appear in Nyoni product names, with a representative hex for the swatch. */
 const COLOURS = [
@@ -139,6 +188,15 @@ function firstMatch(text, words, fallback) {
   return words.find((word) => lower.includes(word)) ?? fallback;
 }
 
+/** Store names carry stray dashes and the house prefix; the wardrobe shows the piece's own name. */
+function cleanName(name) {
+  return name
+    .replace(/^[\s\u2013\u2014-]+/, "")
+    .replace(/^Nyoni\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function keyFor(product) {
   const slug = product.slug
     .replace(/[^a-z0-9]+/gi, "-")
@@ -153,15 +211,24 @@ function tsString(value) {
 
 async function main() {
   const products = JSON.parse(await readFile(SOURCE, "utf8"));
+  const localFiles = local && existsSync(PUBLIC_DIR) ? await readdir(PUBLIC_DIR) : [];
   const pieces = [];
+  const perCategory = {};
   for (const product of products) {
     if (!product.inStock || product.categories.some((slug) => SKIP_CATEGORIES.has(slug))) continue;
     const mapping = classify(product);
     if (!mapping || !product.images?.[0]?.src) continue;
     const [category, subcategory, formality, season] = mapping;
+    if (SKIP_NAMES.test(product.name.trim())) continue;
+    if ((perCategory[subcategory] ?? 0) >= (TYPE_CAPS[subcategory] ?? 2)) continue;
     const text = `${product.name} ${product.shortDescription ?? ""} ${product.description ?? ""}`;
     const key = keyFor(product);
     let image = product.images[0].src;
+    if (local) {
+      const file = localFiles.find((name) => name.startsWith(`${key}.`));
+      if (!file) continue;
+      image = `/collection/${file}`;
+    }
     if (download) {
       await mkdir(PUBLIC_DIR, { recursive: true });
       const ext = (new URL(image).pathname.split(".").pop() || "jpg").toLowerCase();
@@ -177,7 +244,7 @@ async function main() {
       priceUsd: product.priceUsd,
       image,
       attributes: {
-        name: product.name.replace(/^Nyoni\s+/i, ""),
+        name: cleanName(product.name),
         category,
         subcategory,
         colours: colourOf(product.name),
@@ -190,6 +257,7 @@ async function main() {
         description: (product.shortDescription || product.description || product.name).slice(0, 240),
       },
     });
+    perCategory[subcategory] = (perCategory[subcategory] ?? 0) + 1;
     if (pieces.length >= limit) break;
   }
 

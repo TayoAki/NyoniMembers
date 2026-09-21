@@ -1,0 +1,143 @@
+{
+  "colorScheme": "dark",
+  "fonts": [
+    {
+      "family": "Manrope",
+      "count": 85
+    },
+    {
+      "family": "Montserrat",
+      "count": 85
+    },
+    {
+      "family": "-apple-system",
+      "count": 85
+    },
+    {
+      "family": "sans-serif",
+      "count": 85
+    },
+    {
+      "family": "Bodoni Moda",
+      "count": 11
+    },
+    {
+      "family": "Cormorant Garamond",
+      "count": 11
+    },
+    {
+      "family": "Georgia",
+      "count": 11
+    },
+    {
+      "family": "serif",
+      "count": 11
+    },
+    {
+      "family": "Arial",
+      "count": 7
+    }
+  ],
+  "colors": {
+    "primary": "#CAA663",
+    "secondary": "#2F281A",
+    "accent": "#F2ECDF",
+    "background": "#080808",
+    "textPrimary": "#080808",
+    "link": "#F2ECDF"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Manrope",
+      "heading": "Bodoni Moda"
+    },
+    "fontStacks": {
+      "body": [
+        "Manrope",
+        "Montserrat",
+        "-apple-system",
+        "sans-serif"
+      ],
+      "heading": [
+        "Bodoni Moda",
+        "Cormorant Garamond",
+        "Georgia",
+        "serif"
+      ],
+      "paragraph": [
+        "Manrope",
+        "Montserrat",
+        "-apple-system",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "78.4px",
+      "h2": "44.8px",
+      "body": "16.32px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "4px"
+  },
+  "components": {
+    "input": {
+      "background": "#0E0E0E",
+      "textColor": "#F2F2F2",
+      "borderColor": "#262626",
+      "borderRadius": "0px",
+      "borderRadiusCorners": {
+        "topLeft": "0px",
+        "topRight": "0px",
+        "bottomRight": "0px",
+        "bottomLeft": "0px"
+      },
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "https://nyonicouture.com/wp-content/themes/Nyoni-Couture-Premium%204/images/logo.png",
+    "favicon": "https://nyonicouture.com/wp-content/uploads/2022/04/white-logo-100x100.png",
+    "ogImage": null
+  },
+  "__llm_logo_reasoning": {
+    "selectedIndex": 1,
+    "reasoning": "Logo rejected: Red flags detected (small square icon). Heuristic fallback: Moderate indicators: header logo linking to homepage, header location, visible, too small (likely icon, penalty), small square icon (likely UI icon, heavy penalty), SVG format. Score: 68. May benefit from LLM validation.",
+    "confidence": 0.5,
+    "rejected": true,
+    "source": "heuristic"
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "secondary": {
+      "index": -1,
+      "text": "N/A",
+      "reasoning": "LLM failed"
+    },
+    "confidence": 0
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": true,
+      "llmSucceeded": false,
+      "finalSource": "heuristic"
+    },
+    "buttonClassification": {
+      "llmCalled": true,
+      "llmSucceeded": false,
+      "error": "LLM call failed or returned fallback values"
+    }
+  },
+  "brandName": "Nyoni Couture",
+  "logo": "https://nyonicouture.com/wp-content/themes/Nyoni-Couture-Premium%204/images/logo.png"
+}

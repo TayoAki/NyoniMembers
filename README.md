@@ -14,7 +14,7 @@ Phase 1 of the plan is under way on this branch:
 - The Nyoni collection seeder: every member's wardrobe is filled automatically after onboarding (`convex/collection.ts`), and "Add the Nyoni collection" in the wardrobe restores it.
 - Menswear-only onboarding.
 
-Still to do from the plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. Product photography is not in the repository yet; see "Collection images" below.
+Still to do from the plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; product photography is being pulled the same way.
 
 ## Documents
 

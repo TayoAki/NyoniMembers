@@ -59,3 +59,7 @@ artifacts/verification/
 node_modules/
 research/nyoni/images/
 research/nyoni/pages/*.png
+research/nyoni/store/
+research/nyoni/*.response.json
+research/nyoni/store-page1.json
+research/nyoni/woo-products-page1.json

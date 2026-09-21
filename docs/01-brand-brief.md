@@ -90,13 +90,26 @@ The site's own sentences set the register. Reuse these lines where they fit; the
 - WishSuite wishlist buttons on every product.
 - Size guide (jacket size = chest in inches; trouser waist ≈ jacket size − 6). Measurements it teaches: chest, sleeve (shoulder seam over a slightly bent arm to the wrist bone), jacket length (base of collar to mid-hand), natural waist, inseam (crotch seam to top of shoe).
 
-### The membership programme as sold today (VERIFIED, prices not indexed)
+### The membership programme as sold today: "The Nyoni Circle" (VERIFIED from the live page, 21 Sep 2026)
 
-| Tier             | Core entitlement                                                                                | Extra notes                                                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **Signature**    | One suit every six months (two a year), made to your measurements and scheduled across the year | Entry tier                                                                         |
-| **Prestige**     | One suit every quarter (four a year)                                                            | Fittings at your convenience                                                       |
-| **Circle Elite** | "A fully bespoke wardrobe"                                                                      | Invitation only; ask your concierge to be considered; fittings at your convenience |
+"A made-to-measure suit each year, cut in Nyoni Fabric — with priority fittings, concierge support and access to experiences beyond bespoke." Three annual tiers, bought as WooCommerce products (checkout ids 19172, 19173, 19174); the page also says "Apply for Membership" with a review-and-approval step.
+
+| Tier                          | Fee           | The annual suit            | Privileges                                                                                                                                              |
+| ----------------------------- | ------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Signature**                 | US$549 / year | in signature Nyoni Fabric  | Priority booking & fittings · complimentary alterations on your suits · member concierge support · invitations to member events                         |
+| **Prestige** ("Most Popular") | US$749 / year | in premium Nyoni Fabric    | All Signature privileges · saved measurements & style profile · complimentary shipping & alterations · early access to new collections & private events |
+| **Circle Elite**              | US$949 / year | in the finest Nyoni Fabric | All Prestige privileges · private fittings at your convenience · bespoke priority (limited slots) · access to exclusive experiences                     |
+
+Rules (FAQ): billed annually; renews each year unless the member says otherwise; upgrades and downgrades at any time with the difference prorated, the next suit cut in the new tier's cloth; members get priority access to fittings; Prestige and Circle Elite fittings "at your convenience"; garments and made-to-measure work beyond the annual suit are billed separately with member savings applied.
+
+"What members receive": wardrobe planning (seasonal, tailored to the member's lifestyle), saved measurements and preferences, event invitations, personal style guidance from style advisors, member-only access to exclusive products and limited editions. Marketing claims on the page: "2,500+ members worldwide", "98% member satisfaction".
+
+Superseded: the search-indexed copy that described "a suit every six months on Signature, every quarter on Prestige" is no longer on the live page. The app follows the live page.
+
+---------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Signature** | One suit every six months (two a year), made to your measurements and scheduled across the year | Entry tier |
+| **Prestige** | One suit every quarter (four a year) | Fittings at your convenience |
+| **Circle Elite** | "A fully bespoke wardrobe" | Invitation only; ask your concierge to be considered; fittings at your convenience |
 
 Benefits listed for members (higher tiers get the fuller set):
 
@@ -154,27 +167,35 @@ Named pieces found (a longer machine-readable list is in `research/nyoni/catalog
 
 ---
 
-## 6. Visual identity
+## 6. Visual identity (VERIFIED by capture of the live site, 21 Sep 2026)
 
-### Verified
+The site is dark: a near-black ground with cream type and gold as the single accent, serif display headlines with gold italic emphasis ("Tailored to Fit. Designed to _Impress_."), gold buttons with black text, square corners on inputs. Full-page screenshots and the branding capture are in `research/nyoni/pages/*.png` and `research/nyoni/branding.json`.
 
-- Wordmark/site name presents as "Nyoni Couture"; taglines used: "Luxury Mens Wear", "Classical Brand".
-- Product photography is studio-style on ready-to-wear pages (implied by WooCommerce listings) with lifestyle imagery on the home page.
-- Packaging cues from the shoe line: brass shoehorn, black dust bag, guarantee certificate — brass on black is a native brand material pairing.
-- No hex codes, font names or logo files could be captured from this environment.
+| Token       | Value     | Role on the site                            |
+| ----------- | --------- | ------------------------------------------- |
+| Black       | `#080808` | Page background                             |
+| Input black | `#0E0E0E` | Inputs and raised surfaces                  |
+| Border      | `#262626` | Hairlines and input borders                 |
+| Brown       | `#2F281A` | Secondary surfaces                          |
+| Gold        | `#CAA663` | Buttons, highlights, italic emphasis, icons |
+| Cream       | `#F2ECDF` | Headings, links, text on black              |
+| Text        | `#F2F2F2` | Input text                                  |
 
-### PROPOSED direction (confirm against the live site before building)
+- **Type:** headings in **Bodoni Moda** (fallback Cormorant Garamond, Georgia), body in **Manrope** (fallback Montserrat, system sans). Measured sizes: h1 78.4px, h2 44.8px, body 16.3px. The app's earlier proposal (Bodoni Moda + Manrope) matched; IBM Plex Mono is the app's addition for measurements and captions.
+- **Shape:** 4px base radius, 0px on inputs, no shadows.
+- **Logo:** `https://nyonicouture.com/wp-content/themes/Nyoni-Couture-Premium%204/images/logo.png` (script wordmark, light on dark); favicon `wp-content/uploads/2022/04/white-logo-100x100.png`. The house also calls itself "The House of Nyoni".
+- **Taglines in use:** "Luxury Mens Wear"; "Premier Bespoke Wears & Accessories. Meticulously crafted. Impeccably tailored. Made for those who define their own standard."; "Exclusivity. Privilege. Refined."
+- **Imagery:** black-and-white and low-key colour photography of the tailor at work, suits on dark backgrounds, a catalogue grid of garments on black, client portraits. Product photography on the store is studio-lit on plain backgrounds.
 
-The direction has to hold two things at once: the "classical brand" restraint of a tailoring house, and the bold colour of the garments. Let the chrome be quiet and let the clothes carry colour, which is also the rule the Fitcheck design system already follows.
+The app's tokens (`src/app/globals.css`) now use these values: the dark theme is the house palette and the default; the light theme puts the same ink and gold on cream.
 
-| Token         | Proposal  | Role                                                                    |
-| ------------- | --------- | ----------------------------------------------------------------------- |
-| Onyx          | `#0E0D0B` | Default (dark) canvas, "atelier at night"                               |
-| Ivory         | `#F4EFE6` | Light canvas and primary text on dark                                   |
-| Charcoal      | `#2A2825` | Cards and raised surfaces on dark                                       |
-| Stone         | `#8E877C` | Muted text, dividers                                                    |
-| Brass         | `#B8925A` | Single accent: active states, membership marks, primary buttons on dark |
-| Nyoni Crimson | `#7E1F2E` | Heritage accent used sparingly (badges, status of note)                 |
+------------- | --------- | ----------------------------------------------------------------------- |
+| Onyx | `#0E0D0B` | Default (dark) canvas, "atelier at night" |
+| Ivory | `#F4EFE6` | Light canvas and primary text on dark |
+| Charcoal | `#2A2825` | Cards and raised surfaces on dark |
+| Stone | `#8E877C` | Muted text, dividers |
+| Brass | `#B8925A` | Single accent: active states, membership marks, primary buttons on dark |
+| Nyoni Crimson | `#7E1F2E` | Heritage accent used sparingly (badges, status of note) |
 
 - **Type:** a high-contrast serif for display (Cormorant Garamond or Playfair Display) paired with a neutral grotesque for UI (Inter, or keep Geist). Small-caps tracked captions (0.16em) for section labels, matching Fitcheck's existing caption style.
 - **Imagery:** full-bleed editorial photography, garments and cloth close-ups, showroom interiors; 2:3 portrait renders as Fitcheck already enforces.

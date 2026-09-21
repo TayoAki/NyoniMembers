@@ -4,10 +4,17 @@ import { ArrowUpRight, Check, Mail, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useBalance } from "@/hooks/use-credits";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { formatDate, pluralize } from "@/lib/format";
+import { formatDate, formatUsd, pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { HOUSE, SHOWROOMS } from "@convex/shared/house";
-import { SUITS_PER_YEAR, TIER_BENEFITS, TIER_BLURBS, TIER_LABELS } from "@convex/shared/membership";
+import {
+  SUITS_PER_YEAR,
+  TIER_BENEFITS,
+  TIER_BLURBS,
+  TIER_CLOTH,
+  TIER_LABELS,
+  TIER_PRICE_USD,
+} from "@convex/shared/membership";
 import { MembershipSkeleton } from "./membership-skeleton";
 
 /** The member's tier as the house recorded it, what it includes, and the way to a person. */
@@ -19,6 +26,8 @@ export function MembershipOverview() {
   const { membership } = user;
   const isMember = membership.tier !== "client";
   const suits = SUITS_PER_YEAR[membership.tier];
+  const cloth = TIER_CLOTH[membership.tier];
+  const price = TIER_PRICE_USD[membership.tier];
   const active = membership.status === "active";
 
   return (
@@ -27,7 +36,7 @@ export function MembershipOverview() {
         <div className="flex flex-col justify-between gap-8 py-7 md:pr-10">
           <div>
             <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
-              {isMember ? "Your membership" : "Your account"}
+              {isMember ? "The Nyoni Circle" : "Your account"}
             </p>
             <p className="mt-4 font-display text-[3.5rem] leading-none font-medium tracking-[-0.01em] sm:text-[5rem]">
               {TIER_LABELS[membership.tier]}
@@ -40,7 +49,8 @@ export function MembershipOverview() {
             {isMember ? <Fact label="Status" value={active ? "Active" : "Lapsed"} warn={!active} /> : null}
             {membership.since ? <Fact label="Member since" value={formatDate(membership.since)} /> : null}
             {membership.renewsAt ? <Fact label="Renews" value={formatDate(membership.renewsAt)} /> : null}
-            {suits ? <Fact label="Suits a year" value={String(suits)} /> : null}
+            {suits ? <Fact label="Suits a year" value={cloth ? `${suits}, in ${cloth}` : String(suits)} /> : null}
+            {price > 0 ? <Fact label="Membership" value={`${formatUsd(price)} a year`} /> : null}
           </dl>
         </div>
         <div className="space-y-5 border-t py-7 md:border-t-0 md:border-l md:pl-10">

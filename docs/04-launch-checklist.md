@@ -39,11 +39,11 @@ Three places. The CLI writes the first two Convex values; everything else is ent
 
 Data and assets:
 
-- [ ] **Catalogue export**: run `node scripts/capture-nyoni.mjs --no-firecrawl` from any normal machine (writes `research/nyoni/woo-products.json`).
-- [ ] **Product photos**: run `node scripts/build-collection.mjs --download` (fills `public/collection/` and regenerates `convex/shared/collection.ts`). Front-facing shots on a plain background preview best.
+- [x] **Catalogue export**: done through Firecrawl (the store's bot challenge blocks plain requests): 775 products, 595 with photos, in `research/nyoni/woo-products.json`.
+- [ ] **Product photos**: the same challenge blocks direct downloads; `scripts/fetch-collection-images.mjs` pulls the rendered photos through Firecrawl's browser into `public/collection/`, then `node scripts/build-collection.mjs --local` wires them up.
 - [ ] **The default wardrobe**: all in-stock pieces (up to 60, the script default) or a curated capsule by slug.
-- [ ] **Brand assets**: logo files, any brand guide, hero photography with rights. Optional: `FIRECRAWL_API_KEY=… node scripts/capture-nyoni.mjs` for screenshots and the branding capture.
-- [ ] **Membership facts**: prices and rules for Signature, Prestige and Circle Elite (savings percentage, "qualifying orders", allowance rollover, what the allowance covers).
+- [x] **Brand assets**: palette, type, sizes and logo URL captured from the live site (`research/nyoni/branding.json`, screenshots in `research/nyoni/pages/`); the app tokens now use them. Still wanted: hero photography with rights.
+- [x] **Membership facts**: The Nyoni Circle, US$549 / 749 / 949 a year, one made-to-measure suit each year in a rising Nyoni Fabric grade, privileges per tier, prorated upgrades. In `convex/shared/membership.ts` and the brand brief.
 - [ ] **The cutter's measurement sheet**: the exact fields the house records, for the measurements phase.
 - [ ] **Staff list and roles**: who sets memberships, who answers the concierge inbox, the response-time promise.
 - [ ] **Square Appointments links** per showroom and service, for the fittings phase.

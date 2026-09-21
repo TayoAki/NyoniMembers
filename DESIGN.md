@@ -1,7 +1,10 @@
 # Nyoni Members design direction
 
-Quiet chrome, loud cloth. The interface is ivory paper in the light theme and onyx in the dark one,
-with brass as the single accent (`--ring`, `--credit`) and the garments supplying every other colour.
+Quiet chrome, loud cloth. The dark theme is the house's own palette, verified from nyonicouture.com on
+21 September 2026: `#080808` ground, `#F2ECDF` cream type, `#CAA663` gold as the single accent (buttons,
+`--ring`, `--credit`), `#2F281A` brown for secondary surfaces, `#262626` hairlines, 4px radius. It is the
+default theme. The light theme puts the same ink and gold on the house's cream. Garments supply every
+other colour.
 Display type is Bodoni Moda (`font-display`, used for page titles, the wordmark and garment names),
 body type is Manrope, captions and measurements are IBM Plex Mono with 0.16em tracking. The wordmark
 is "NYONI" with a tracked "Members" caption (`src/components/common/wordmark.tsx`). No gradients, no

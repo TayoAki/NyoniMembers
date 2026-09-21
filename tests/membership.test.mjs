@@ -40,8 +40,8 @@ test("every tier is described for the member", () => {
     assert.ok(TIER_BENEFITS[tier].length >= 3, `${tier} lists its benefits`);
     assert.ok(tier in SUITS_PER_YEAR);
   }
-  assert.equal(SUITS_PER_YEAR.signature, 2);
-  assert.equal(SUITS_PER_YEAR.prestige, 4);
+  assert.equal(SUITS_PER_YEAR.signature, 1);
+  assert.equal(SUITS_PER_YEAR.circle_elite, 1);
 });
 
 test("setMembership writes the tier once, trims the note and drops unset dates", async () => {

@@ -14,7 +14,7 @@ import { NavigationDataProvider } from "./navigation-data";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
       <ThemedClerkProvider>{children}</ThemedClerkProvider>
     </ThemeProvider>
   );
