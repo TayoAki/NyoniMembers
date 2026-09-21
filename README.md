@@ -69,6 +69,38 @@ Memberships are sold by the house, not the app. A member's tier lives on their r
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format:check`.
 
+## Deploy (no custom domain yet)
+
+The app lives on the URL Vercel assigns (`<project>.vercel.app`) until the house has a domain; Clerk stays on its development instance, which works on any hostname. Convex has two deployments: development `accomplished-lemur-843` and production `good-donkey-546` (US East). The Vercel build deploys the Convex functions to production itself (`vercel.json` runs `convex deploy --cmd …`), so no local CLI is needed.
+
+1. **Convex dashboard, production deployment (`good-donkey-546`)** → Settings → Deploy keys → generate a _production_ deploy key (used in step 2). Then Settings → Environment variables:
+
+   | Variable                  | Value                                                                                      |
+   | ------------------------- | ------------------------------------------------------------------------------------------ |
+   | `CLERK_JWT_ISSUER_DOMAIN` | `https://adjusted-giraffe-1581.clerk.accounts.dev`                                         |
+   | `CLERK_SECRET_KEY`        | the sk_test key                                                                            |
+   | `AGENT_SERVICE_KEY`       | `openssl rand -hex 32` (same value as in Vercel)                                           |
+   | `AI_GATEWAY_API_KEY`      | an AI Gateway key from the Vercel dashboard (or `OPENAI_API_KEY` with a direct OpenAI key) |
+   | `SITE_URL`                | the app URL once step 2 has run, e.g. `https://nyoni-members.vercel.app`                   |
+   | `MAX_DAILY_SPEND_USD`     | `50`                                                                                       |
+
+2. **Vercel** → Add New Project → import `TayoAki/NyoniMembers` (branch `claude/gallant-wozniak-adxpmm` or `main` after merging) → Environment variables:
+
+   | Variable                            | Value                                 |
+   | ----------------------------------- | ------------------------------------- |
+   | `CONVEX_DEPLOY_KEY`                 | the production deploy key from step 1 |
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | the pk_test key                       |
+   | `CLERK_SECRET_KEY`                  | the sk_test key                       |
+   | `AGENT_SERVICE_KEY`                 | same value as on Convex               |
+
+   Deploy. The build pushes Convex functions, injects `NEXT_PUBLIC_CONVEX_URL`, builds Next.js and the concierge service. Enable AI Gateway on the Vercel team; the concierge signs in with the project's OIDC token. Check `https://<project>.vercel.app/eve/v1/health`.
+
+3. **Clerk dashboard** → JWT templates → new template named `convex` with audience `convex` and claim `public_metadata: "{{user.public_metadata}}"`. Users → your account → public metadata `{"role":"admin"}`.
+
+4. Go back to Convex and set `SITE_URL` to the Vercel URL. Sign up in the app, finish onboarding, open Membership and Admin → Membership.
+
+**OpenRouter.** Not a drop-in for the image pipeline: cutouts and try-ons use OpenAI's image-edit endpoint with gpt-image-2, which OpenRouter does not expose (it has its own image API with a different request shape), and the concierge is routed through the Vercel AI Gateway. Use an AI Gateway key or a direct OpenAI key on Convex. Rotate any key that has been pasted into a chat or ticket once setup is done.
+
 ## Collection images
 
 The seeder fetches each piece's `image` through `SITE_URL`. Until the store's photography is in `public/collection/`, pieces are skipped and reported as "awaiting photos". From a machine with normal internet access:
