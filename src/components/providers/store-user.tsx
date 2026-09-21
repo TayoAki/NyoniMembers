@@ -50,7 +50,7 @@ function AuthenticatedUser() {
           reportError(
             error,
             accountReady
-              ? "Could not refresh your plan. Try again from Billing."
+              ? "Could not refresh your membership. Reload the page to try again."
               : "Could not finish setting up your account. Try again.",
           );
       } finally {
