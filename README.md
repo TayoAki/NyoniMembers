@@ -14,7 +14,7 @@ Phase 1 of the plan is under way on this branch:
 - The Nyoni capsule: twenty-two curated pieces (four suits and a tuxedo, a blazer and an overcoat, three trousers, shirts and knitwear, three pairs of shoes, four accessories) seeded into every wardrobe after onboarding (`convex/collection.ts`); "Add the Nyoni capsule" in the wardrobe restores it.
 - Menswear-only onboarding.
 
-Next, per `docs/05-mobile-app-plan.md`: **Nyoni Circle**, an Expo mobile app that becomes the member's front door, sharing this Convex backend and concierge agent. Still to do from the web plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; the capsule's photography was pulled the same way.
+Next, per `docs/05-mobile-app-plan.md`: **Nyoni Circle**, a new Expo app built from scratch in `circle/` on its own Convex deployment, with WooCommerce checkout. It carries over only the tuned image prompts and the concierge persona; this web app is frozen while it is built. Still to do from the web plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; the capsule's photography was pulled the same way.
 
 ## Documents
 
