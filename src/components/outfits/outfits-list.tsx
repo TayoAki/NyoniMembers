@@ -157,10 +157,10 @@ function OutfitsEmpty({
   const description = wardrobeEmpty
     ? "Add a few pieces you love. Then put them together in the outfit studio."
     : filter === "agent"
-      ? "Tell Eve what you are dressing for. The suggestions you save will join your collection here."
+      ? "Tell the concierge what you are dressing for. The looks you save will join your collection here."
       : "Choose a top, find its perfect pair, and add the finishing touches. Your saved outfits will live here.";
   const href = wardrobeEmpty ? routes.add : filter === "agent" ? routes.stylist : routes.newOutfit;
-  const label = wardrobeEmpty ? "Add clothes" : filter === "agent" ? "Ask Eve" : "Create an outfit";
+  const label = wardrobeEmpty ? "Add pieces" : filter === "agent" ? "Ask the concierge" : "Create a look";
   return (
     <StudioEmpty
       title={title}

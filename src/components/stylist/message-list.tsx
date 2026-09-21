@@ -124,7 +124,7 @@ function AssistantMessage({
 
   return (
     <div className="space-y-3">
-      <p className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">Fitcheck / Stylist</p>
+      <p className="font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase">Nyoni / Concierge</p>
       <div className="min-w-0 space-y-4 text-sm leading-relaxed">
         {parts.map((segment) =>
           segment.kind === "activity" ? (

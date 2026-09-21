@@ -14,10 +14,10 @@ export async function generateMetadata({ params }: PageProps<"/share/[token]">):
   if (!shared) return { title: "Render not found", robots: { index: false } };
   return {
     title: shared.outfitName,
-    description: `${shared.outfitName} — rendered with Fitcheck.`,
+    description: `${shared.outfitName} — previewed with Nyoni Members.`,
     openGraph: {
-      title: `${shared.outfitName} · Fitcheck`,
-      description: "Rendered with Fitcheck.",
+      title: `${shared.outfitName} · Nyoni Members`,
+      description: "Previewed with Nyoni Members.",
       images: [{ url: shared.url, alt: shared.outfitName }],
       type: "article",
     },

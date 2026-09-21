@@ -1,4 +1,15 @@
-# Fitcheck design direction
+# Nyoni Members design direction
+
+Quiet chrome, loud cloth. The interface is ivory paper in the light theme and onyx in the dark one,
+with brass as the single accent (`--ring`, `--credit`) and the garments supplying every other colour.
+Display type is Bodoni Moda (`font-display`, used for page titles, the wordmark and garment names),
+body type is Manrope, captions and measurements are IBM Plex Mono with 0.16em tracking. The wordmark
+is "NYONI" with a tracked "Members" caption (`src/components/common/wordmark.tsx`). No gradients, no
+icon circles, no metric cards; hairline rules divide sections. The front door (`src/app/page.tsx`) is
+a single sign-in screen; marketing lives on nyonicouture.com. The section below is the Fitcheck base
+direction this app inherits; where the two disagree, this section wins.
+
+# Fitcheck base direction
 
 Fitcheck is a personal wardrobe and styling studio, not an administration dashboard. The signed-in app uses a horizontal wordmark/navigation bar, a quiet off-white canvas (near-black in dark mode), strong tightly spaced typography, garment cutouts and full-length photographs. Design reference: Renson Gerald's AI Wardrobe Stylist case study on Dribbble. Borrow hierarchy and focus on clothes; do not reuse reference artwork or sustainability features.
 

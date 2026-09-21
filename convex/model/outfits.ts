@@ -19,8 +19,8 @@ const OUTFIT_SUMMARY_LIMIT = 200;
 const CONTAINING_SCAN_LIMIT = 500;
 
 export function slotItemIds(slots: OutfitSlots): Id<"items">[] {
-  const single = [slots.outerwear, slots.top, slots.bottom, slots.dress, slots.shoes].filter((id): id is Id<"items"> =>
-    Boolean(id),
+  const single = [slots.outerwear, slots.top, slots.suit, slots.bottom, slots.dress, slots.shoes].filter(
+    (id): id is Id<"items"> => Boolean(id),
   );
   return [...single, ...slots.accessories];
 }
@@ -78,11 +78,14 @@ export async function validateSlots(
   };
   check("outerwear", slots.outerwear);
   check("top", slots.top);
+  check("suit", slots.suit);
   check("bottom", slots.bottom);
   check("dress", slots.dress);
   check("shoes", slots.shoes);
   for (const id of slots.accessories) check("accessories", id);
   if (slots.dress && (slots.top || slots.bottom)) problems.push("a dress replaces top and bottom");
+  if (slots.suit && slots.bottom) problems.push("a suit includes its trousers and replaces bottom");
+  if (slots.suit && slots.dress) problems.push("a suit and a dress cannot be worn together");
   if (slotItemIds(slots).length === 0) problems.push("an outfit needs at least one item");
   if (problems.length > 0 && !collect) throw appError("INVALID_INPUT", problems[0], { problems });
   return problems;
@@ -110,6 +113,7 @@ export async function toOutfitView(ctx: Ctx, outfit: Doc<"outfits">): Promise<Ou
     items: {
       outerwear: await summary(outfit.slots.outerwear),
       top: await summary(outfit.slots.top),
+      suit: await summary(outfit.slots.suit),
       bottom: await summary(outfit.slots.bottom),
       dress: await summary(outfit.slots.dress),
       shoes: await summary(outfit.slots.shoes),
@@ -258,6 +262,7 @@ export async function removeItemsFromOutfits(
     const next: OutfitSlots = {
       outerwear: drop(slots.outerwear),
       top: drop(slots.top),
+      suit: drop(slots.suit),
       bottom: drop(slots.bottom),
       dress: drop(slots.dress),
       shoes: drop(slots.shoes),
@@ -266,6 +271,7 @@ export async function removeItemsFromOutfits(
     const changed =
       next.outerwear !== slots.outerwear ||
       next.top !== slots.top ||
+      next.suit !== slots.suit ||
       next.bottom !== slots.bottom ||
       next.dress !== slots.dress ||
       next.shoes !== slots.shoes ||

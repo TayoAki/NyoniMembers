@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { ErrorAlert } from "@/components/common/error-alert";
-import { WardrobePreference, type WardrobePresentation } from "@/components/common/wardrobe-preference";
 import { ChipsInput } from "@/components/wardrobe/chips-input";
 import { SingleToggleGroup } from "@/components/wardrobe/toggle-options";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,7 @@ import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import { FITS, type Fit } from "@convex/shared/wardrobe";
 
-/** Step 2: the three things the stylist and the renderer need to know about you. */
+/** Step 2: the three things the concierge and the renderer need to know about you. */
 export function PreferencesStep({
   prefs,
   onBack,
@@ -33,9 +32,6 @@ export function PreferencesStep({
   const cityId = useId();
   const coloursId = useId();
 
-  const [presentation, setPresentation] = useState<WardrobePresentation | null>(
-    prefs.presentation === "neutral" ? null : prefs.presentation,
-  );
   const [fit, setFit] = useState<Fit>(prefs.fit);
   const [avoidColours, setAvoidColours] = useState<string[]>(prefs.avoidColours);
   const [homeCity, setHomeCity] = useState(prefs.homeCity ?? "");
@@ -43,17 +39,15 @@ export function PreferencesStep({
   const [error, setError] = useState<string | null>(null);
 
   async function handleFinish() {
-    if (!presentation) {
-      setError("Choose Men’s wardrobe or Women’s wardrobe to finish setup.");
-      return;
-    }
     setPending(true);
     setError(null);
     try {
       const city = homeCity.trim();
-      await updatePrefs({ prefs: { presentation, fit, avoidColours, ...(city ? { homeCity: city } : {}) } });
+      await updatePrefs({
+        prefs: { presentation: "masculine", fit, avoidColours, ...(city ? { homeCity: city } : {}) },
+      });
       await completeOnboarding({});
-      toast.success("You're all set. Let's fill that wardrobe.");
+      toast.success("You're all set. The Nyoni collection is on its way to your wardrobe.");
       router.replace(routes.wardrobe);
     } catch (caught) {
       setError(reportError(caught).message);
@@ -64,11 +58,9 @@ export function PreferencesStep({
   return (
     <div className="space-y-7">
       <FieldGroup className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
-        <WardrobePreference value={presentation} onChange={setPresentation} disabled={pending} required />
-
         <FieldSet disabled={pending}>
           <FieldLegend variant="label">Preferred fit</FieldLegend>
-          <FieldDescription>Your default when the stylist has a choice between two similar pieces.</FieldDescription>
+          <FieldDescription>Your default when the concierge has a choice between two similar pieces.</FieldDescription>
           <SingleToggleGroup options={FITS} value={fit} onValueChange={setFit} disabled={pending} aria-label="Fit" />
         </FieldSet>
 
@@ -91,7 +83,7 @@ export function PreferencesStep({
             id={cityId}
             value={homeCity}
             onChange={(event) => setHomeCity(event.target.value)}
-            placeholder="London"
+            placeholder="Charlotte"
             autoComplete="address-level2"
             disabled={pending}
           />
@@ -104,13 +96,13 @@ export function PreferencesStep({
       <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-between">
         <Button
           variant="ghost"
-          onClick={() => onBack({ presentation: presentation ?? "neutral", fit, avoidColours, homeCity })}
+          onClick={() => onBack({ presentation: "masculine", fit, avoidColours, homeCity })}
           disabled={pending}
         >
           <ArrowLeft data-icon="inline-start" />
           Back to photos
         </Button>
-        <Button size="lg" className="h-11 rounded-sm px-6" onClick={handleFinish} disabled={pending || !presentation}>
+        <Button size="lg" className="h-11 rounded-sm px-6" onClick={handleFinish} disabled={pending}>
           {pending ? <Spinner data-icon="inline-start" /> : <Check data-icon="inline-start" />}
           Finish setup
         </Button>

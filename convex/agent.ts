@@ -175,11 +175,13 @@ function describeGaps(
   const gaps: string[] = [];
   const countOf = (category: Category) => byCategory.find((row) => row.category === category)?.count ?? 0;
 
-  // A dress covers the top + bottom slots on its own, so only flag those when there is no dress either.
+  // A dress covers top + bottom on its own and a suit brings its own trousers, so only flag those
+  // slots when nothing else fills them.
   const hasDress = countOf("dress") > 0;
+  const hasSuit = countOf("suit") > 0;
   if (countOf("shoes") === 0) gaps.push("no shoes");
   if (countOf("top") === 0 && !hasDress) gaps.push("no tops");
-  if (countOf("bottom") === 0 && !hasDress) gaps.push("no bottoms");
+  if (countOf("bottom") === 0 && !hasDress && !hasSuit) gaps.push("no bottoms");
   if (countOf("outerwear") === 0) gaps.push("no outerwear");
   if (countOf("accessory") + countOf("bag") + countOf("headwear") === 0) gaps.push("no accessories");
 

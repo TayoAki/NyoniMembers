@@ -17,82 +17,393 @@
     "madeToMeasureCommissions": { "from": 1795, "to": 2985 }
   },
   "categories": [
-    "suits", "two-piece", "three-piece-suit", "double-breasted", "tuxedo", "blazers", "trousers", "vest",
-    "dress-shirts", "casual-shirts", "winter-coat", "sweater", "sweatsuit", "short-set", "dress-shoes", "loafers",
-    "boots", "sneakers", "leather-goods", "belts", "hats", "pocket-squares", "cufflinks", "neck-tie", "bow-tie",
-    "pre-tied-bow", "bespoke-clothing", "labor-day-sale"
+    "suits",
+    "two-piece",
+    "three-piece-suit",
+    "double-breasted",
+    "tuxedo",
+    "blazers",
+    "trousers",
+    "vest",
+    "dress-shirts",
+    "casual-shirts",
+    "winter-coat",
+    "sweater",
+    "sweatsuit",
+    "short-set",
+    "dress-shoes",
+    "loafers",
+    "boots",
+    "sneakers",
+    "leather-goods",
+    "belts",
+    "hats",
+    "pocket-squares",
+    "cufflinks",
+    "neck-tie",
+    "bow-tie",
+    "pre-tied-bow",
+    "bespoke-clothing",
+    "labor-day-sale"
   ],
   "products": [
-    { "name": "Nyoni Steel Blue Linen Two Piece Suit", "properName": "Fonda Azul", "category": "two-piece", "url": "https://nyonicouture.com/product/two-piece/fonda-azul-suit/", "notes": "100% linen, warm-weather suit" },
-    { "name": "Nyoni Navy Two Piece Tailored Fit Armada Suit", "properName": "Armada", "category": "two-piece", "url": "https://nyonicouture.com/product/two-piece/armada-suit/" },
-    { "name": "Nyoni French Fuchsia Suit", "properName": "Wynrooi", "category": "two-piece", "url": "https://nyonicouture.com/product/two-piece/wynrooi-suit/" },
+    {
+      "name": "Nyoni Steel Blue Linen Two Piece Suit",
+      "properName": "Fonda Azul",
+      "category": "two-piece",
+      "url": "https://nyonicouture.com/product/two-piece/fonda-azul-suit/",
+      "notes": "100% linen, warm-weather suit"
+    },
+    {
+      "name": "Nyoni Navy Two Piece Tailored Fit Armada Suit",
+      "properName": "Armada",
+      "category": "two-piece",
+      "url": "https://nyonicouture.com/product/two-piece/armada-suit/"
+    },
+    {
+      "name": "Nyoni French Fuchsia Suit",
+      "properName": "Wynrooi",
+      "category": "two-piece",
+      "url": "https://nyonicouture.com/product/two-piece/wynrooi-suit/"
+    },
     { "name": "Kirton", "category": "suits", "url": "https://nyonicouture.com/product/kirton/" },
     { "name": "Pinot Noir Suit", "category": "suits", "url": "https://nyonicouture.com/product/pinot-noir-suit" },
-    { "name": "Nyoni Red Crimson Three Piece Suit", "properName": "Nue Burg", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/nue-burg-suit/", "notes": "Super 200s wool; single-breasted notch lapel jacket, double-breasted waistcoat, matched trousers" },
-    { "name": "Azure", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/azure/" },
-    { "name": "Geo Sharkskin Suit", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/geo-sharkskin-suit/" },
-    { "name": "Corry Blue Ribbon Suit", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/corry-blue-ribbon-suit/" },
-    { "name": "Leonardo Grey Suit", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/leonardo-grey-suit/" },
-    { "name": "Giorgio Light Grey Glenn Plaid Suit", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/giorgio-light-grey-glenn-plaid-suit/" },
-    { "name": "Fabio Glencheck Suit", "category": "three-piece-suit", "url": "https://nyonicouture.com/product/three-piece-suit/fabio-glencheck-suit/" },
-    { "name": "Expo Suit", "category": "double-breasted", "url": "https://nyonicouture.com/product/double-breasted/expo-suit/" },
-    { "name": "Nyoni Onyx Peak DB Power Suit", "properName": "Dominico", "category": "double-breasted", "url": "https://nyonicouture.com/product/double-breasted/dominico/" },
-    { "name": "Diallo Suit", "category": "double-breasted", "url": "https://nyonicouture.com/product/double-breasted/diallo-suit-2/", "notes": "Peak lapel, double-breasted, flat-front trousers" },
-    { "name": "Nyoni Onyx Avant-Garde Satin Panel Tuxedo", "properName": "Euforia", "category": "tuxedo", "url": "https://nyonicouture.com/product/tuxedo/nyoni-black-tux-tailored-fit-euforia/", "notes": "Geometric satin panel construction" },
-    { "name": "Pine Green Tux", "category": "tuxedo", "url": "https://nyonicouture.com/product/uncategorized/pine-green-tux-2/" },
+    {
+      "name": "Nyoni Red Crimson Three Piece Suit",
+      "properName": "Nue Burg",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/nue-burg-suit/",
+      "notes": "Super 200s wool; single-breasted notch lapel jacket, double-breasted waistcoat, matched trousers"
+    },
+    {
+      "name": "Azure",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/azure/"
+    },
+    {
+      "name": "Geo Sharkskin Suit",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/geo-sharkskin-suit/"
+    },
+    {
+      "name": "Corry Blue Ribbon Suit",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/corry-blue-ribbon-suit/"
+    },
+    {
+      "name": "Leonardo Grey Suit",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/leonardo-grey-suit/"
+    },
+    {
+      "name": "Giorgio Light Grey Glenn Plaid Suit",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/giorgio-light-grey-glenn-plaid-suit/"
+    },
+    {
+      "name": "Fabio Glencheck Suit",
+      "category": "three-piece-suit",
+      "url": "https://nyonicouture.com/product/three-piece-suit/fabio-glencheck-suit/"
+    },
+    {
+      "name": "Expo Suit",
+      "category": "double-breasted",
+      "url": "https://nyonicouture.com/product/double-breasted/expo-suit/"
+    },
+    {
+      "name": "Nyoni Onyx Peak DB Power Suit",
+      "properName": "Dominico",
+      "category": "double-breasted",
+      "url": "https://nyonicouture.com/product/double-breasted/dominico/"
+    },
+    {
+      "name": "Diallo Suit",
+      "category": "double-breasted",
+      "url": "https://nyonicouture.com/product/double-breasted/diallo-suit-2/",
+      "notes": "Peak lapel, double-breasted, flat-front trousers"
+    },
+    {
+      "name": "Nyoni Onyx Avant-Garde Satin Panel Tuxedo",
+      "properName": "Euforia",
+      "category": "tuxedo",
+      "url": "https://nyonicouture.com/product/tuxedo/nyoni-black-tux-tailored-fit-euforia/",
+      "notes": "Geometric satin panel construction"
+    },
+    {
+      "name": "Pine Green Tux",
+      "category": "tuxedo",
+      "url": "https://nyonicouture.com/product/uncategorized/pine-green-tux-2/"
+    },
     { "name": "Tuxedo Pant", "category": "trousers", "url": "https://nyonicouture.com/product/trousers/tuxedo-pants/" },
-    { "name": "Die Caprie Dress Pant", "category": "trousers", "url": "https://nyonicouture.com/product/trousers/die-caprie-dress-pants/", "notes": "Mid rise, flat front, dress cut" },
-    { "name": "Piserro Maroon Plain Vest", "category": "vest", "url": "https://nyonicouture.com/product/vest/piserro-maroon-plain-vest/" },
-    { "name": "Navy Aztec Blazer", "category": "blazers", "url": "https://nyonicouture.com/product/blazers/navy-aztec-blazer/" },
-    { "name": "Nyoni Orange Tailored Fit Ochre Blazer", "properName": "Ochre", "category": "blazers", "url": "https://nyonicouture.com/product/blazers/ochre-blazer/" },
-    { "name": "Bordeaux Blazer", "category": "blazers", "url": "https://nyonicouture.com/product/blazers/bordeaux-blazer/" },
-    { "name": "Nyoni Mint Notch Sport Blazer", "properName": "Eau de Nil", "category": "blazers", "url": "https://nyonicouture.com/product/blazers/eau-de-nil-blazer/" },
-    { "name": "Nyoni Liquid Rose Tailored Fit Rosé Blazer", "properName": "Rosé", "category": "blazers", "url": "https://nyonicouture.com/product/blazers/rose-blazer/" },
-    { "name": "Nyoni Light Rose Tailored Fit Rosado Blazer", "properName": "Rosado", "category": "blazers", "url": "https://nyonicouture.com/product/rosado-blazer" },
-    { "name": "Cavalera Geo Shirt", "category": "dress-shirts", "url": "https://nyonicouture.com/product/dress-shirts/cavalera-geo-shirt/", "notes": "100% cotton" },
-    { "name": "Nyoni Genteel Tuxedo Shirt", "category": "dress-shirts", "url": "https://nyonicouture.com/product/dress-shirts/genteel-tux-shirt/" },
-    { "name": "Nyoni Pink Cutaway Collar Shirt", "properName": "Arno", "category": "dress-shirts", "url": "https://nyonicouture.com/product/dress-shirts/arno/", "notes": "Cutaway collar" },
-    { "name": "Astonian", "category": "dress-shirts", "url": "https://nyonicouture.com/product/dress-shirts/cavalera-check/" },
-    { "name": "GrosV Solid", "category": "casual-shirts", "url": "https://nyonicouture.com/product/casual-shirts/grosv-solid/" },
-    { "name": "Grosv Brid", "category": "casual-shirts", "url": "https://nyonicouture.com/product/casual-shirts/grosv-brid/" },
-    { "name": "Red Overcoat", "category": "winter-coat", "priceUsd": 595, "url": "https://nyonicouture.com/product/winter-coat/red-overcoat/", "notes": "100% cashmere" },
-    { "name": "Beige Overcoat", "category": "winter-coat", "priceUsd": 595, "url": "https://nyonicouture.com/product/winter-coat/beige-overcoat/", "notes": "100% cashmere" },
-    { "name": "Grey Overcoat", "category": "winter-coat", "priceUsd": 595, "url": "https://nyonicouture.com/product/winter-coat/grey-overcoat/", "notes": "100% cashmere" },
-    { "name": "Yellow Overcoat", "category": "winter-coat", "priceUsd": 595, "url": "https://nyonicouture.com/product/winter-coat/yellow-overcoat/", "notes": "100% cashmere" },
-    { "name": "Blush Pink Overcoat", "category": "winter-coat", "url": "https://nyonicouture.com/product/blush-pink-overcoat/", "notes": "100% cashmere" },
-    { "name": "Nyoni Navy White Varsity Bomber Sweatsuit", "properName": "Yenneth", "category": "sweatsuit", "url": "https://nyonicouture.com/product/labor-day-sale/yenneth/" },
-    { "name": "Nyoni Olive Varsity Hoodie Sweatsuit", "properName": "Donald", "category": "sweatsuit", "url": "https://nyonicouture.com/product/labor-day-sale/donald/" },
-    { "name": "Verona Tassel Loafer", "category": "loafers", "url": "https://nyonicouture.com/product/loafers/verona-tassel-loafer/", "notes": "Bismack Biyombo Luxury Shoes; black or bordeaux calfskin; made in Italy" },
-    { "name": "Veron III Tassel Loafer", "category": "loafers", "url": "https://nyonicouture.com/product/loafers/veron-iii-tassel-loafer/", "notes": "Bismack Biyombo Luxury Shoes; made in Italy" },
-    { "name": "Montpellier Kiltie Loafer", "category": "loafers", "url": "https://nyonicouture.com/product/loafers/montpellier-kiltie-loafer/", "notes": "Brown and black water snake, calfskin lining, leather soles; made in Italy" },
-    { "name": "Hamburg Wing-Tip", "category": "boots", "url": "https://nyonicouture.com/product/boots/hamburg-wing-tip/", "notes": "Calfskin, leather soles; made in Italy; brass shoehorn, dust bag, guarantee certificate" },
+    {
+      "name": "Die Caprie Dress Pant",
+      "category": "trousers",
+      "url": "https://nyonicouture.com/product/trousers/die-caprie-dress-pants/",
+      "notes": "Mid rise, flat front, dress cut"
+    },
+    {
+      "name": "Piserro Maroon Plain Vest",
+      "category": "vest",
+      "url": "https://nyonicouture.com/product/vest/piserro-maroon-plain-vest/"
+    },
+    {
+      "name": "Navy Aztec Blazer",
+      "category": "blazers",
+      "url": "https://nyonicouture.com/product/blazers/navy-aztec-blazer/"
+    },
+    {
+      "name": "Nyoni Orange Tailored Fit Ochre Blazer",
+      "properName": "Ochre",
+      "category": "blazers",
+      "url": "https://nyonicouture.com/product/blazers/ochre-blazer/"
+    },
+    {
+      "name": "Bordeaux Blazer",
+      "category": "blazers",
+      "url": "https://nyonicouture.com/product/blazers/bordeaux-blazer/"
+    },
+    {
+      "name": "Nyoni Mint Notch Sport Blazer",
+      "properName": "Eau de Nil",
+      "category": "blazers",
+      "url": "https://nyonicouture.com/product/blazers/eau-de-nil-blazer/"
+    },
+    {
+      "name": "Nyoni Liquid Rose Tailored Fit Rosé Blazer",
+      "properName": "Rosé",
+      "category": "blazers",
+      "url": "https://nyonicouture.com/product/blazers/rose-blazer/"
+    },
+    {
+      "name": "Nyoni Light Rose Tailored Fit Rosado Blazer",
+      "properName": "Rosado",
+      "category": "blazers",
+      "url": "https://nyonicouture.com/product/rosado-blazer"
+    },
+    {
+      "name": "Cavalera Geo Shirt",
+      "category": "dress-shirts",
+      "url": "https://nyonicouture.com/product/dress-shirts/cavalera-geo-shirt/",
+      "notes": "100% cotton"
+    },
+    {
+      "name": "Nyoni Genteel Tuxedo Shirt",
+      "category": "dress-shirts",
+      "url": "https://nyonicouture.com/product/dress-shirts/genteel-tux-shirt/"
+    },
+    {
+      "name": "Nyoni Pink Cutaway Collar Shirt",
+      "properName": "Arno",
+      "category": "dress-shirts",
+      "url": "https://nyonicouture.com/product/dress-shirts/arno/",
+      "notes": "Cutaway collar"
+    },
+    {
+      "name": "Astonian",
+      "category": "dress-shirts",
+      "url": "https://nyonicouture.com/product/dress-shirts/cavalera-check/"
+    },
+    {
+      "name": "GrosV Solid",
+      "category": "casual-shirts",
+      "url": "https://nyonicouture.com/product/casual-shirts/grosv-solid/"
+    },
+    {
+      "name": "Grosv Brid",
+      "category": "casual-shirts",
+      "url": "https://nyonicouture.com/product/casual-shirts/grosv-brid/"
+    },
+    {
+      "name": "Red Overcoat",
+      "category": "winter-coat",
+      "priceUsd": 595,
+      "url": "https://nyonicouture.com/product/winter-coat/red-overcoat/",
+      "notes": "100% cashmere"
+    },
+    {
+      "name": "Beige Overcoat",
+      "category": "winter-coat",
+      "priceUsd": 595,
+      "url": "https://nyonicouture.com/product/winter-coat/beige-overcoat/",
+      "notes": "100% cashmere"
+    },
+    {
+      "name": "Grey Overcoat",
+      "category": "winter-coat",
+      "priceUsd": 595,
+      "url": "https://nyonicouture.com/product/winter-coat/grey-overcoat/",
+      "notes": "100% cashmere"
+    },
+    {
+      "name": "Yellow Overcoat",
+      "category": "winter-coat",
+      "priceUsd": 595,
+      "url": "https://nyonicouture.com/product/winter-coat/yellow-overcoat/",
+      "notes": "100% cashmere"
+    },
+    {
+      "name": "Blush Pink Overcoat",
+      "category": "winter-coat",
+      "url": "https://nyonicouture.com/product/blush-pink-overcoat/",
+      "notes": "100% cashmere"
+    },
+    {
+      "name": "Nyoni Navy White Varsity Bomber Sweatsuit",
+      "properName": "Yenneth",
+      "category": "sweatsuit",
+      "url": "https://nyonicouture.com/product/labor-day-sale/yenneth/"
+    },
+    {
+      "name": "Nyoni Olive Varsity Hoodie Sweatsuit",
+      "properName": "Donald",
+      "category": "sweatsuit",
+      "url": "https://nyonicouture.com/product/labor-day-sale/donald/"
+    },
+    {
+      "name": "Verona Tassel Loafer",
+      "category": "loafers",
+      "url": "https://nyonicouture.com/product/loafers/verona-tassel-loafer/",
+      "notes": "Bismack Biyombo Luxury Shoes; black or bordeaux calfskin; made in Italy"
+    },
+    {
+      "name": "Veron III Tassel Loafer",
+      "category": "loafers",
+      "url": "https://nyonicouture.com/product/loafers/veron-iii-tassel-loafer/",
+      "notes": "Bismack Biyombo Luxury Shoes; made in Italy"
+    },
+    {
+      "name": "Montpellier Kiltie Loafer",
+      "category": "loafers",
+      "url": "https://nyonicouture.com/product/loafers/montpellier-kiltie-loafer/",
+      "notes": "Brown and black water snake, calfskin lining, leather soles; made in Italy"
+    },
+    {
+      "name": "Hamburg Wing-Tip",
+      "category": "boots",
+      "url": "https://nyonicouture.com/product/boots/hamburg-wing-tip/",
+      "notes": "Calfskin, leather soles; made in Italy; brass shoehorn, dust bag, guarantee certificate"
+    },
     { "name": "Monaco Cap-Toe", "category": "boots", "url": "https://nyonicouture.com/product/boots/monaco-cap-toe/" },
-    { "name": "Nyoni Messenger Bag Brown", "category": "leather-goods", "url": "https://nyonicouture.com/product/nyoni-messenger-bag-brown/" },
-    { "name": "Fedyenka", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/fedyenka/", "notes": "100% silk, made in Italy" },
-    { "name": "Luminosa", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/luminosa/" },
-    { "name": "Nadenka", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/nadenka/" },
-    { "name": "Flo la viva", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/flo-la-viva/" },
-    { "name": "El floral", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/el-floral/" },
-    { "name": "Iosif", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/iosif/" },
-    { "name": "Arch", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/arch-2/" },
-    { "name": "Tulii", "category": "pocket-squares", "url": "https://nyonicouture.com/product/accessories/pocket-squares/tulii/" },
-    { "name": "Dimme", "category": "cufflinks", "priceUsd": 75, "url": "https://nyonicouture.com/product/cufflinks/dimme/" },
-    { "name": "Avery Stone", "category": "cufflinks", "priceUsd": 75, "url": "https://nyonicouture.com/product/cufflinks/avery-7/" },
-    { "name": "ArtDeco Neck-tie", "category": "neck-tie", "url": "https://nyonicouture.com/product/accessories/neck-tie/artdeco/" },
+    {
+      "name": "Nyoni Messenger Bag Brown",
+      "category": "leather-goods",
+      "url": "https://nyonicouture.com/product/nyoni-messenger-bag-brown/"
+    },
+    {
+      "name": "Fedyenka",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/fedyenka/",
+      "notes": "100% silk, made in Italy"
+    },
+    {
+      "name": "Luminosa",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/luminosa/"
+    },
+    {
+      "name": "Nadenka",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/nadenka/"
+    },
+    {
+      "name": "Flo la viva",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/flo-la-viva/"
+    },
+    {
+      "name": "El floral",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/el-floral/"
+    },
+    {
+      "name": "Iosif",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/iosif/"
+    },
+    {
+      "name": "Arch",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/arch-2/"
+    },
+    {
+      "name": "Tulii",
+      "category": "pocket-squares",
+      "url": "https://nyonicouture.com/product/accessories/pocket-squares/tulii/"
+    },
+    {
+      "name": "Dimme",
+      "category": "cufflinks",
+      "priceUsd": 75,
+      "url": "https://nyonicouture.com/product/cufflinks/dimme/"
+    },
+    {
+      "name": "Avery Stone",
+      "category": "cufflinks",
+      "priceUsd": 75,
+      "url": "https://nyonicouture.com/product/cufflinks/avery-7/"
+    },
+    {
+      "name": "ArtDeco Neck-tie",
+      "category": "neck-tie",
+      "url": "https://nyonicouture.com/product/accessories/neck-tie/artdeco/"
+    },
     { "name": "Ventaglio", "category": "neck-tie", "url": "https://nyonicouture.com/product/neck-tie/ventaglio/" },
-    { "name": "Frenci", "category": "neck-tie", "url": "https://nyonicouture.com/product/accessories/neck-tie/frenci/" },
+    {
+      "name": "Frenci",
+      "category": "neck-tie",
+      "url": "https://nyonicouture.com/product/accessories/neck-tie/frenci/"
+    },
     { "name": "Rutendo", "category": "neck-tie", "url": "https://nyonicouture.com/product/neck-tie/rutendo/" },
     { "name": "Avvenente", "category": "neck-tie", "url": "https://nyonicouture.com/product/avvenente" },
-    { "name": "Bonolo", "category": "bow-tie", "url": "https://nyonicouture.com/product/accessories/bow-tie/bow-tie-2/" },
+    {
+      "name": "Bonolo",
+      "category": "bow-tie",
+      "url": "https://nyonicouture.com/product/accessories/bow-tie/bow-tie-2/"
+    },
     { "name": "Whyette", "category": "bow-tie", "url": "https://nyonicouture.com/product/bow-tie/whyette/" },
     { "name": "Arron", "category": "bow-tie", "url": "https://nyonicouture.com/product/accessories/bow-tie/arron/" },
-    { "name": "Manilo", "category": "pre-tied-bow", "url": "https://nyonicouture.com/product/accessories/pre-tied-bow/manilo/" },
-    { "name": "Kapra Sohini Collection", "category": "bespoke-clothing", "url": "https://nyonicouture.com/product/bespoke-clothing/kapra-sohini-collection/", "notes": "House cloth collection for made-to-measure commissions" },
-    { "name": "Loro Piana (S 170's wool) 713", "category": "bespoke-clothing", "url": "https://nyonicouture.com/product/bespoke-clothing/loro-piana-s-170s-wool-713/" },
-    { "name": "Myikgo wool (super 110's – 140's) 1", "category": "bespoke-clothing", "url": "https://nyonicouture.com/product/bespoke-clothing/myikgo-wool-super-110s-140s-1/" },
-    { "name": "Myikgo wool (super 110's – 140's) 3", "category": "bespoke-clothing", "url": "https://nyonicouture.com/product/bespoke-clothing/myikgo-wool-super-110s-140s-3/" },
-    { "name": "Trofeo 600 (Ermenegildo Zegna) 207", "category": "bespoke-clothing", "url": "https://nyonicouture.com/product/bespoke-clothing/trofeo-600-summer-cloth-ermenegildo-zegna-207/", "notes": "Summer cloth" },
-    { "name": "Lanificio Di Crilu", "category": "bespoke-clothing", "url": "https://nyonicouture.com/product/bespoke-clothing/lanificio-di-crilu/" },
-    { "name": "Rush Fee \"Suit\"", "category": "service", "url": "https://nyonicouture.com/product/uncategorized/rush-fee-suit/", "notes": "Rush service fee for suit commissions" }
+    {
+      "name": "Manilo",
+      "category": "pre-tied-bow",
+      "url": "https://nyonicouture.com/product/accessories/pre-tied-bow/manilo/"
+    },
+    {
+      "name": "Kapra Sohini Collection",
+      "category": "bespoke-clothing",
+      "url": "https://nyonicouture.com/product/bespoke-clothing/kapra-sohini-collection/",
+      "notes": "House cloth collection for made-to-measure commissions"
+    },
+    {
+      "name": "Loro Piana (S 170's wool) 713",
+      "category": "bespoke-clothing",
+      "url": "https://nyonicouture.com/product/bespoke-clothing/loro-piana-s-170s-wool-713/"
+    },
+    {
+      "name": "Myikgo wool (super 110's – 140's) 1",
+      "category": "bespoke-clothing",
+      "url": "https://nyonicouture.com/product/bespoke-clothing/myikgo-wool-super-110s-140s-1/"
+    },
+    {
+      "name": "Myikgo wool (super 110's – 140's) 3",
+      "category": "bespoke-clothing",
+      "url": "https://nyonicouture.com/product/bespoke-clothing/myikgo-wool-super-110s-140s-3/"
+    },
+    {
+      "name": "Trofeo 600 (Ermenegildo Zegna) 207",
+      "category": "bespoke-clothing",
+      "url": "https://nyonicouture.com/product/bespoke-clothing/trofeo-600-summer-cloth-ermenegildo-zegna-207/",
+      "notes": "Summer cloth"
+    },
+    {
+      "name": "Lanificio Di Crilu",
+      "category": "bespoke-clothing",
+      "url": "https://nyonicouture.com/product/bespoke-clothing/lanificio-di-crilu/"
+    },
+    {
+      "name": "Rush Fee \"Suit\"",
+      "category": "service",
+      "url": "https://nyonicouture.com/product/uncategorized/rush-fee-suit/",
+      "notes": "Rush service fee for suit commissions"
+    }
   ]
 }

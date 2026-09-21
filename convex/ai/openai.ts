@@ -386,7 +386,7 @@ function missingSlots(slots: Slot[]): Slot[] {
   const missing: Slot[] = [];
   if (!present.has("dress")) {
     if (!present.has("top")) missing.push("top");
-    if (!present.has("bottom")) missing.push("bottom");
+    if (!present.has("bottom") && !present.has("suit")) missing.push("bottom");
   }
   if (!present.has("shoes")) missing.push("shoes");
   return missing;

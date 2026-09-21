@@ -61,7 +61,7 @@ export async function upsertFromProfile(ctx: MutationCtx, profile: UserProfileIn
     planCredits: 0,
     packCredits: 0,
     dailySpend: { dayKey: "", credits: 0 },
-    prefs: { presentation: "neutral", fit: "regular", avoidColours: [] },
+    prefs: { presentation: "masculine", fit: "regular", avoidColours: [] },
     createdAt: Date.now(),
   });
   const created = await ctx.db.get(userId);

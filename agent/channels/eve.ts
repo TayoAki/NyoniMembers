@@ -33,7 +33,7 @@ function clerkAuth(): AuthFn<Request> {
           ...(authorizedParties ? { authorizedParties: [authorizedParties] } : {}),
         });
         return {
-          attributes: { clerkUserId: payload.sub, threadId: request.headers.get("x-fitcheck-thread-id") ?? "" },
+          attributes: { clerkUserId: payload.sub, threadId: request.headers.get("x-nyoni-thread-id") ?? "" },
           authenticator: "clerk",
           issuer: payload.iss,
           principalId: payload.sub,
@@ -60,7 +60,7 @@ const localUserAuth: AuthFn<Request> = async (request) => {
         attributes: {
           ...principal.attributes,
           clerkUserId,
-          threadId: request.headers.get("x-fitcheck-thread-id") ?? "",
+          threadId: request.headers.get("x-nyoni-thread-id") ?? "",
         },
       }
     : null;

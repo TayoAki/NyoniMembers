@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useStylistPanel } from "@/components/stylist/stylist-provider";
 import { createStylistDraftContext } from "@/lib/stylist-context";
 import { ItemImage } from "@/components/common/item-image";
-import { BOARD_SLOT_CLASS } from "@/components/outfits/outfit-composition";
+import { boardSlotClass, type Silhouette } from "@/components/outfits/outfit-composition";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { ItemPickerSheet } from "@/components/outfits/item-picker-sheet";
@@ -28,6 +28,7 @@ import { SLOTS, SLOT_CATEGORIES, SLOT_LABELS, type Slot } from "@convex/shared/w
 export type DraftSlots = {
   outerwear?: Id<"items">;
   top?: Id<"items">;
+  suit?: Id<"items">;
   bottom?: Id<"items">;
   dress?: Id<"items">;
   shoes?: Id<"items">;
@@ -47,12 +48,24 @@ export function draftFromOutfit(outfit: Outfit): OutfitDraft {
     slots: {
       outerwear: outfit.slots.outerwear,
       top: outfit.slots.top,
+      suit: outfit.slots.suit,
       bottom: outfit.slots.bottom,
       dress: outfit.slots.dress,
       shoes: outfit.slots.shoes,
       accessories: [...outfit.slots.accessories],
     },
   };
+}
+
+/** Which slots each silhouette shows on the board. */
+const SILHOUETTE_SLOTS: Record<Silhouette, readonly Slot[]> = {
+  separates: ["outerwear", "top", "bottom", "shoes", "accessories"],
+  suit: ["outerwear", "top", "suit", "shoes", "accessories"],
+  dress: ["outerwear", "dress", "shoes", "accessories"],
+};
+
+function silhouetteOf(slots: DraftSlots): Silhouette {
+  return slots.dress ? "dress" : slots.suit ? "suit" : "separates";
 }
 
 type OutfitFormProps = {
@@ -75,7 +88,7 @@ export function OutfitForm(props: OutfitFormProps) {
   const [occasion, setOccasion] = useState(initial.occasion);
   const [name, setName] = useState(initial.name);
   const [nameTouched, setNameTouched] = useState(initial.name.length > 0);
-  const [useDress, setUseDress] = useState(Boolean(initial.slots.dress));
+  const [silhouette, setSilhouette] = useState<Silhouette>(() => silhouetteOf(initial.slots));
   const [pickerSlot, setPickerSlot] = useState<Slot | null>(null);
   const [baseline, setBaseline] = useState<OutfitDraft>(initial);
   const [pending, setPending] = useState(false);
@@ -95,7 +108,7 @@ export function OutfitForm(props: OutfitFormProps) {
     !slotsEqual(slots, baseline.slots);
   const canSave = itemCount > 0 && dirty && !pending;
   const hasUnsavedChanges = dirty && (props.mode === "edit" || itemCount > 0);
-  const visibleSlots = SLOTS.filter((slot) => (useDress ? slot !== "top" && slot !== "bottom" : slot !== "dress"));
+  const visibleSlots = SLOTS.filter((slot) => SILHOUETTE_SLOTS[silhouette].includes(slot));
 
   const savedOutfitId = props.mode === "edit" ? props.outfitId : undefined;
   const stylistContext = useMemo(
@@ -154,11 +167,15 @@ export function OutfitForm(props: OutfitFormProps) {
     else setSlot(pickerSlot, undefined);
   }
 
-  function switchLayer(next: "separates" | "dress") {
-    setUseDress(next === "dress");
-    setSlots((current) =>
-      next === "dress" ? { ...current, top: undefined, bottom: undefined } : { ...current, dress: undefined },
-    );
+  function switchSilhouette(next: Silhouette) {
+    setSilhouette(next);
+    setSlots((current) => ({
+      ...current,
+      top: next === "dress" ? undefined : current.top,
+      suit: next === "suit" ? current.suit : undefined,
+      bottom: next === "separates" ? current.bottom : undefined,
+      dress: next === "dress" ? current.dress : undefined,
+    }));
   }
 
   async function handleSave() {
@@ -195,8 +212,9 @@ export function OutfitForm(props: OutfitFormProps) {
   function startWithPiece(item: WardrobeItem) {
     const slot = SLOTS.find((candidate) => SLOT_CATEGORIES[candidate].includes(item.category));
     if (!slot) return;
-    if (slot === "dress") switchLayer("dress");
-    else if (slot === "top" || slot === "bottom") switchLayer("separates");
+    if (slot === "dress") switchSilhouette("dress");
+    else if (slot === "suit") switchSilhouette("suit");
+    else if (slot === "bottom" || (slot === "top" && silhouette === "dress")) switchSilhouette("separates");
     if (slot === "accessories") toggleAccessory(item._id);
     else setSlot(slot, item._id);
   }
@@ -235,7 +253,7 @@ export function OutfitForm(props: OutfitFormProps) {
                     slot={slot}
                     compact={compact}
                     multiple={!compact && slot === "accessories"}
-                    className={compact ? "h-25 bg-muted/25 p-2 @min-[30rem]:h-28" : BOARD_SLOT_CLASS[slot]}
+                    className={compact ? "h-25 bg-muted/25 p-2 @min-[30rem]:h-28" : boardSlotClass(slot, silhouette)}
                     items={group}
                     onOpen={() => setPickerSlot(slot)}
                     onRemove={(itemId) => {
@@ -358,13 +376,13 @@ export function OutfitForm(props: OutfitFormProps) {
             <div className={compact ? "col-span-2 flex flex-wrap items-center justify-between gap-2" : "space-y-2"}>
               <p className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground uppercase">The silhouette</p>
               <ToggleGroup
-                value={[useDress ? "dress" : "separates"]}
+                value={[silhouette]}
                 onValueChange={(value) => {
                   const next = value[0];
-                  if (next === "dress" || next === "separates") switchLayer(next);
+                  if (next === "separates" || next === "suit" || next === "dress") switchSilhouette(next);
                 }}
                 spacing={1}
-                aria-label="Top and bottom, or a dress"
+                aria-label="Top and bottom, a suit, or a dress"
                 className={compact ? "rounded-none" : "w-full rounded-none"}
               >
                 <ToggleGroupItem
@@ -376,6 +394,16 @@ export function OutfitForm(props: OutfitFormProps) {
                   }
                 >
                   Top + bottom
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="suit"
+                  className={
+                    compact
+                      ? "h-9 flex-1 rounded-none border border-foreground/15 text-xs aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
+                      : "h-10 flex-1 rounded-none border border-foreground/15 text-xs aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background"
+                  }
+                >
+                  Suit
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="dress"
@@ -471,12 +499,14 @@ function selectedIds(slot: Slot, slots: DraftSlots): Id<"items">[] {
 }
 
 function pickItems(slots: DraftSlots, itemsById: Map<Id<"items">, WardrobeItem>): WardrobeItem[] {
-  const ids = [slots.outerwear, slots.dress, slots.top, slots.bottom, slots.shoes, ...slots.accessories];
+  const ids = [slots.outerwear, slots.dress, slots.suit, slots.top, slots.bottom, slots.shoes, ...slots.accessories];
   return ids.map((id) => (id ? itemsById.get(id) : undefined)).filter((item): item is WardrobeItem => Boolean(item));
 }
 
 function countItems(slots: DraftSlots): number {
-  const single = [slots.outerwear, slots.top, slots.bottom, slots.dress, slots.shoes].filter(Boolean).length;
+  const single = [slots.outerwear, slots.top, slots.suit, slots.bottom, slots.dress, slots.shoes].filter(
+    Boolean,
+  ).length;
   return single + slots.accessories.length;
 }
 
@@ -488,6 +518,7 @@ function toSlotsArg(slots: DraftSlots): DraftSlots {
   return {
     outerwear: slots.outerwear,
     top: slots.top,
+    suit: slots.suit,
     bottom: slots.bottom,
     dress: slots.dress,
     shoes: slots.shoes,
@@ -499,6 +530,7 @@ function slotsEqual(a: DraftSlots, b: DraftSlots): boolean {
   return (
     a.outerwear === b.outerwear &&
     a.top === b.top &&
+    a.suit === b.suit &&
     a.bottom === b.bottom &&
     a.dress === b.dress &&
     a.shoes === b.shoes &&

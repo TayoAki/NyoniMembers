@@ -23,7 +23,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { Category } from "@convex/shared/wardrobe";
 import { ItemTile } from "./item-tile";
-import { SeedDemoWardrobe } from "./seed-demo-wardrobe";
+import { AddCollection } from "./add-collection";
 import { SelectionBar } from "./selection-bar";
 import { activeFilterCount, DEFAULT_FILTERS, WardrobeToolbar, type WardrobeFilters } from "./wardrobe-toolbar";
 
@@ -114,7 +114,7 @@ export function WardrobeGrid() {
         description="The pieces you love. The looks you haven’t tried yet."
         actions={
           <div className="flex flex-wrap gap-2">
-            <SeedDemoWardrobe
+            <AddCollection
               onSeeded={() => {
                 setFilters(DEFAULT_FILTERS);
                 setSelected(new Set());

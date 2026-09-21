@@ -55,6 +55,7 @@ export type ItemSummary = Infer<typeof vItemSummary>;
 export const vOutfitItems = v.object({
   outerwear: v.optional(vItemSummary),
   top: v.optional(vItemSummary),
+  suit: v.optional(vItemSummary),
   bottom: v.optional(vItemSummary),
   dress: v.optional(vItemSummary),
   shoes: v.optional(vItemSummary),

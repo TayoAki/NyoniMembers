@@ -16,15 +16,15 @@ Working title: **Nyoni Members** (matches the repository). Name candidates for t
 
 ## 2. Who uses it
 
-| Role | Description | Entry |
-| --- | --- | --- |
-| Client | Has bought ready-to-wear or one commission; no membership | Sign-up with email/phone; limited home |
-| Signature member | A suit every six months; priority booking; concierge; alterations | Synced from WooCommerce or invited |
-| Prestige member | A suit every quarter; fittings at their convenience; early access; events | Same |
-| Circle Elite member | Invitation only; fully bespoke wardrobe; private surfaces | Invited by staff |
-| Concierge / stylist (staff) | Answers requests, books fittings, records preferences | Staff role in Clerk |
-| Master tailor / cutter (staff) | Records measurements and fitting outcomes; moves commissions through stages | Staff role |
-| Admin | Membership sync, catalogue, spend guard, reports | Admin role (exists in Fitcheck) |
+| Role                           | Description                                                                 | Entry                                  |
+| ------------------------------ | --------------------------------------------------------------------------- | -------------------------------------- |
+| Client                         | Has bought ready-to-wear or one commission; no membership                   | Sign-up with email/phone; limited home |
+| Signature member               | A suit every six months; priority booking; concierge; alterations           | Synced from WooCommerce or invited     |
+| Prestige member                | A suit every quarter; fittings at their convenience; early access; events   | Same                                   |
+| Circle Elite member            | Invitation only; fully bespoke wardrobe; private surfaces                   | Invited by staff                       |
+| Concierge / stylist (staff)    | Answers requests, books fittings, records preferences                       | Staff role in Clerk                    |
+| Master tailor / cutter (staff) | Records measurements and fitting outcomes; moves commissions through stages | Staff role                             |
+| Admin                          | Membership sync, catalogue, spend guard, reports                            | Admin role (exists in Fitcheck)        |
 
 Menswear only. The onboarding "men's or women's wardrobe" choice is removed.
 
@@ -32,29 +32,29 @@ Menswear only. The onboarding "men's or women's wardrobe" choice is removed.
 
 ## 3. Feature map: Fitcheck → Nyoni Members
 
-| Fitcheck today | Treatment | Nyoni Members |
-| --- | --- | --- |
-| Public landing page with pricing columns | **Replace** | Private sign-in page; membership is bought on nyonicouture.com or granted by staff |
-| Sign-in / sign-up (Clerk) | Keep | Add phone (SMS) sign-in, since the house already talks to clients by SMS |
-| Onboarding: photo, men's/women's, preferences | **Rework** | Photo (optional, private), fit and style preferences, occasions calendar, consent screens for photos and measurements |
-| Wardrobe (scan photo → detect → select → extract cutouts) | Keep, rename "Add pieces" | Nyoni purchases and delivered commissions appear automatically as pieces; own clothes added by scan |
-| Demo wardrobe seed (fictional pieces) | **Replace** | "The Collection": Nyoni's catalogue imported from WooCommerce; members can add any piece to a look, wishlist it or reserve in store |
-| Outfits / Outfit Studio | Keep, rename "Looks" | Slots gain waistcoat, pocket square, tie/bow tie, cufflinks, overcoat; occasion field maps to weddings / business / black tie |
-| Try-on renders on an avatar (standard / HQ, credit-priced) | Keep, **hide metering** | "Preview on you": one quality, included with membership, fair-use limit enforced silently; house spend guard stays |
-| Stylist (Eve agent) | Keep, **re-persona** | "Concierge": the house stylist's assistant; knows measurements, allowance, next fitting, the Collection; hands off to a human |
-| Lookbook (renders) | Keep | Lookbook |
-| Billing (Clerk plans Free/Pro/Plus, credits) | **Replace** | Membership: tier, renewal date, allowance clock, member savings, benefits, "speak to your concierge" |
-| Credits ledger (plan + non-expiring buckets) | **Repurpose** | Entitlement ledger: suit allowances granted per period (6-monthly / quarterly), consumed by commissions, never shown as a balance |
-| Share render by token | Keep | Share a look with your concierge or a guest |
-| Admin dashboard (credits, COGS, users) | **Extend** | Staff console: members, measurements, commissions, fittings, concierge inbox, catalogue sync, spend guard |
-| Settings (avatar, prefs, delete data) | Keep | Add consent controls and data export; deletion keeps commission records the house must retain |
-| — | **New** | Measurements profile with history and verification |
-| — | **New** | Commissions tracker (stage stepper, next action, fittings, delivery estimate, rush) |
-| — | **New** | Fittings & appointments (deep link to Square Appointments first; API later) |
-| — | **New** | Party (wedding/group) commissions |
-| — | **New** | Events & early access (member evenings, trunk shows, first look drops) |
-| — | **New** | Wishlist and Reserve in store (replaces WishSuite for members) |
-| — | **New** | Showrooms (three locations, hours, directions, "book here") |
+| Fitcheck today                                             | Treatment                 | Nyoni Members                                                                                                                       |
+| ---------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Public landing page with pricing columns                   | **Replace**               | Private sign-in page; membership is bought on nyonicouture.com or granted by staff                                                  |
+| Sign-in / sign-up (Clerk)                                  | Keep                      | Add phone (SMS) sign-in, since the house already talks to clients by SMS                                                            |
+| Onboarding: photo, men's/women's, preferences              | **Rework**                | Photo (optional, private), fit and style preferences, occasions calendar, consent screens for photos and measurements               |
+| Wardrobe (scan photo → detect → select → extract cutouts)  | Keep, rename "Add pieces" | Nyoni purchases and delivered commissions appear automatically as pieces; own clothes added by scan                                 |
+| Demo wardrobe seed (fictional pieces)                      | **Replace**               | "The Collection": Nyoni's catalogue imported from WooCommerce; members can add any piece to a look, wishlist it or reserve in store |
+| Outfits / Outfit Studio                                    | Keep, rename "Looks"      | Slots gain waistcoat, pocket square, tie/bow tie, cufflinks, overcoat; occasion field maps to weddings / business / black tie       |
+| Try-on renders on an avatar (standard / HQ, credit-priced) | Keep, **hide metering**   | "Preview on you": one quality, included with membership, fair-use limit enforced silently; house spend guard stays                  |
+| Stylist (Eve agent)                                        | Keep, **re-persona**      | "Concierge": the house stylist's assistant; knows measurements, allowance, next fitting, the Collection; hands off to a human       |
+| Lookbook (renders)                                         | Keep                      | Lookbook                                                                                                                            |
+| Billing (Clerk plans Free/Pro/Plus, credits)               | **Replace**               | Membership: tier, renewal date, allowance clock, member savings, benefits, "speak to your concierge"                                |
+| Credits ledger (plan + non-expiring buckets)               | **Repurpose**             | Entitlement ledger: suit allowances granted per period (6-monthly / quarterly), consumed by commissions, never shown as a balance   |
+| Share render by token                                      | Keep                      | Share a look with your concierge or a guest                                                                                         |
+| Admin dashboard (credits, COGS, users)                     | **Extend**                | Staff console: members, measurements, commissions, fittings, concierge inbox, catalogue sync, spend guard                           |
+| Settings (avatar, prefs, delete data)                      | Keep                      | Add consent controls and data export; deletion keeps commission records the house must retain                                       |
+| —                                                          | **New**                   | Measurements profile with history and verification                                                                                  |
+| —                                                          | **New**                   | Commissions tracker (stage stepper, next action, fittings, delivery estimate, rush)                                                 |
+| —                                                          | **New**                   | Fittings & appointments (deep link to Square Appointments first; API later)                                                         |
+| —                                                          | **New**                   | Party (wedding/group) commissions                                                                                                   |
+| —                                                          | **New**                   | Events & early access (member evenings, trunk shows, first look drops)                                                              |
+| —                                                          | **New**                   | Wishlist and Reserve in store (replaces WishSuite for members)                                                                      |
+| —                                                          | **New**                   | Showrooms (three locations, hours, directions, "book here")                                                                         |
 
 ---
 
@@ -62,18 +62,18 @@ Menswear only. The onboarding "men's or women's wardrobe" choice is removed.
 
 Tier definitions live in one shared file (replacing `convex/shared/credits.ts` plans) and are imported by client, backend and agent, following Fitcheck's existing single-source rule.
 
-| Entitlement | Client | Signature | Prestige | Circle Elite |
-| --- | --- | --- | --- | --- |
-| Suit allowance | — | 1 per 6 months | 1 per quarter | Bespoke wardrobe (staff-managed) |
-| Priority booking | — | Yes | Yes, "at your convenience" | Yes, "at your convenience" |
-| Complimentary alterations | — | Qualifying orders | Qualifying orders | All |
-| Member savings on MTM/bespoke | — | % TBC | % TBC | TBC |
-| Personal concierge | — | Yes | Yes | Dedicated |
-| Saved style profile & measurements | Basic | Yes | Yes | Yes |
-| First look / early access | — | Higher tiers per site | Yes | Yes |
-| Private events & member evenings | — | Higher tiers per site | Yes | Yes |
-| Preview on you (try-on) | Trial | Included | Included | Included |
-| Concierge AI stylist | Limited | Included | Included | Included |
+| Entitlement                        | Client  | Signature             | Prestige                   | Circle Elite                     |
+| ---------------------------------- | ------- | --------------------- | -------------------------- | -------------------------------- |
+| Suit allowance                     | —       | 1 per 6 months        | 1 per quarter              | Bespoke wardrobe (staff-managed) |
+| Priority booking                   | —       | Yes                   | Yes, "at your convenience" | Yes, "at your convenience"       |
+| Complimentary alterations          | —       | Qualifying orders     | Qualifying orders          | All                              |
+| Member savings on MTM/bespoke      | —       | % TBC                 | % TBC                      | TBC                              |
+| Personal concierge                 | —       | Yes                   | Yes                        | Dedicated                        |
+| Saved style profile & measurements | Basic   | Yes                   | Yes                        | Yes                              |
+| First look / early access          | —       | Higher tiers per site | Yes                        | Yes                              |
+| Private events & member evenings   | —       | Higher tiers per site | Yes                        | Yes                              |
+| Preview on you (try-on)            | Trial   | Included              | Included                   | Included                         |
+| Concierge AI stylist               | Limited | Included              | Included                   | Included                         |
 
 **Billing source: decision required.**
 
@@ -146,14 +146,14 @@ Public: `/` (sign-in with "membership enquiries" link to the website) · `/share
 
 ## 10. Roadmap
 
-| Phase | Scope | Done when |
-| --- | --- | --- |
-| **0. Foundations (1 week)** | Confirm brand visuals with the capture script; decide name, billing source, licence; obtain WooCommerce read keys; import Fitcheck into this repo | Tokens, fonts and copy deck approved; catalogue JSON in the repo |
-| **1. Rebrand + Collection (2–3 weeks)** | Theme, wordmark, sign-in screen, copy; remove credits from member surfaces; Collection import and browse; house looks; concierge persona | A member signs in, sees the Collection and house looks, previews a look on their photo, chats with the concierge |
-| **2. Membership + measurements (2–3 weeks)** | Tier model and ledger; WooCommerce sync or Clerk plans; membership screen with allowance clock; measurements profile with staff editor and history; showrooms | A Signature member sees "next suit unlocks on …"; staff record a measurement set; the member sees it |
-| **3. Commissions + fittings (3 weeks)** | Commission tracker with stage stepper; fittings with Square deep links and reminders; rush flag; delivered commissions become wardrobe pieces; staff console | A commission moves through stages with dates and the member gets each change as a notification |
-| **4. Circle + parties + events (2–3 weeks)** | Party module; events with RSVPs; first-look drops; Circle Elite private surfaces; data export and consent tooling | A groom builds a party, each member is measured, staff see the deadline board |
-| **5. Later** | Square Appointments API; photo-based measurement capture; push notifications; iOS/Android wrappers | — |
+| Phase                                        | Scope                                                                                                                                                         | Done when                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **0. Foundations (1 week)**                  | Confirm brand visuals with the capture script; decide name, billing source, licence; obtain WooCommerce read keys; import Fitcheck into this repo             | Tokens, fonts and copy deck approved; catalogue JSON in the repo                                                 |
+| **1. Rebrand + Collection (2–3 weeks)**      | Theme, wordmark, sign-in screen, copy; remove credits from member surfaces; Collection import and browse; house looks; concierge persona                      | A member signs in, sees the Collection and house looks, previews a look on their photo, chats with the concierge |
+| **2. Membership + measurements (2–3 weeks)** | Tier model and ledger; WooCommerce sync or Clerk plans; membership screen with allowance clock; measurements profile with staff editor and history; showrooms | A Signature member sees "next suit unlocks on …"; staff record a measurement set; the member sees it             |
+| **3. Commissions + fittings (3 weeks)**      | Commission tracker with stage stepper; fittings with Square deep links and reminders; rush flag; delivered commissions become wardrobe pieces; staff console  | A commission moves through stages with dates and the member gets each change as a notification                   |
+| **4. Circle + parties + events (2–3 weeks)** | Party module; events with RSVPs; first-look drops; Circle Elite private surfaces; data export and consent tooling                                             | A groom builds a party, each member is measured, staff see the deadline board                                    |
+| **5. Later**                                 | Square Appointments API; photo-based measurement capture; push notifications; iOS/Android wrappers                                                            | —                                                                                                                |
 
 Estimates assume one full-stack engineer plus design review, on the Fitcheck architecture.
 

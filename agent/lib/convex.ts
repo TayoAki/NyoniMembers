@@ -88,5 +88,5 @@ export function convexErrorMessage(error: unknown): { code: string; message: str
     if (typeof code === "string" && typeof message === "string") return { code, message };
   }
   if (error instanceof Error) return { code: "UNKNOWN", message: error.message };
-  return { code: "UNKNOWN", message: "Something went wrong talking to Fitcheck." };
+  return { code: "UNKNOWN", message: "Something went wrong talking to Nyoni Members." };
 }

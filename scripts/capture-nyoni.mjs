@@ -60,7 +60,9 @@ async function firecrawl(endpoint, body) {
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || json.success === false) {
-    throw new Error(`Firecrawl ${endpoint} failed (${res.status}): ${json.error ?? JSON.stringify(json).slice(0, 200)}`);
+    throw new Error(
+      `Firecrawl ${endpoint} failed (${res.status}): ${json.error ?? JSON.stringify(json).slice(0, 200)}`,
+    );
   }
   return json;
 }
@@ -82,7 +84,11 @@ async function captureWithFirecrawl() {
     } catch (error) {
       if (slug === "home" && String(error).includes("branding")) {
         console.log("  branding format not supported by this API version; retrying without it");
-        result = await firecrawl("/scrape", { url, formats: formats.filter((f) => f !== "branding"), onlyMainContent: false });
+        result = await firecrawl("/scrape", {
+          url,
+          formats: formats.filter((f) => f !== "branding"),
+          onlyMainContent: false,
+        });
       } else {
         console.warn(`  skipped: ${error.message}`);
         continue;
@@ -155,12 +161,18 @@ async function captureWooCommerce() {
 
 async function getJson(url) {
   const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`${url} → HTTP ${res.status}. If the Store API is disabled, use /wp-json/wc/v3/products with a read-only consumer key instead.`);
+  if (!res.ok)
+    throw new Error(
+      `${url} → HTTP ${res.status}. If the Store API is disabled, use /wp-json/wc/v3/products with a read-only consumer key instead.`,
+    );
   return res.json();
 }
 
 function stripHtml(html) {
-  return String(html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return String(html ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 main().catch((error) => {

@@ -78,7 +78,8 @@ export default defineSchema({
 
   items: defineTable({
     userId: v.id("users"),
-    demoKey: v.optional(v.string()),
+    /** Set on pieces seeded from `shared/collection.ts`; absent on the member's own garments. */
+    collectionKey: v.optional(v.string()),
     uploadId: v.optional(v.id("uploads")),
     storageId: v.optional(v.id("_storage")),
     thumbStorageId: v.optional(v.id("_storage")),
@@ -99,7 +100,7 @@ export default defineSchema({
   })
     .index("by_user_status", ["userId", "status"])
     .index("by_user_category", ["userId", "category"])
-    .index("by_user_demoKey", ["userId", "demoKey"])
+    .index("by_user_collectionKey", ["userId", "collectionKey"])
     .index("by_upload", ["uploadId"])
     .index("by_createdAt", ["createdAt"])
     .searchIndex("search_text", { searchField: "searchText", filterFields: ["userId"] }),

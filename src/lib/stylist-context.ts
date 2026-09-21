@@ -118,6 +118,7 @@ type StylistContextOutfit = {
   slots: {
     outerwear: string | null;
     top: string | null;
+    suit: string | null;
     bottom: string | null;
     dress: string | null;
     shoes: string | null;
@@ -165,6 +166,7 @@ export function createStylistOutfitContext(path: string, outfit: OutfitView): St
   const items = [
     outfit.items.outerwear,
     outfit.items.top,
+    outfit.items.suit,
     outfit.items.bottom,
     outfit.items.dress,
     outfit.items.shoes,
@@ -187,6 +189,7 @@ export function createStylistOutfitContext(path: string, outfit: OutfitView): St
       slots: {
         outerwear: slots.outerwear ?? null,
         top: slots.top ?? null,
+        suit: slots.suit ?? null,
         bottom: slots.bottom ?? null,
         dress: slots.dress ?? null,
         shoes: slots.shoes ?? null,
@@ -221,7 +224,15 @@ export function createStylistDraftContext({
   if (route?.kind !== "outfit-draft" && route?.kind !== "outfit") return null;
   if (route.kind === "outfit" && route.outfitId !== savedOutfitId) return null;
   if (route.kind === "outfit-draft" && savedOutfitId) return null;
-  const itemIds = new Set([slots.outerwear, slots.top, slots.bottom, slots.dress, slots.shoes, ...slots.accessories]);
+  const itemIds = new Set([
+    slots.outerwear,
+    slots.top,
+    slots.suit,
+    slots.bottom,
+    slots.dress,
+    slots.shoes,
+    ...slots.accessories,
+  ]);
   const selected = items.filter((item) => itemIds.has(item._id));
   const isDraft = dirty || !savedOutfitId;
   const label = name.trim().slice(0, 120) || "New outfit";
@@ -243,6 +254,7 @@ export function createStylistDraftContext({
       slots: {
         outerwear: slots.outerwear ?? null,
         top: slots.top ?? null,
+        suit: slots.suit ?? null,
         bottom: slots.bottom ?? null,
         dress: slots.dress ?? null,
         shoes: slots.shoes ?? null,
@@ -281,7 +293,7 @@ export function toStylistClientContext(
 ): SendTurnOptions["clientContext"] {
   if (!context || !getStylistPageRoute(context.path)) return undefined;
   return {
-    source: "fitcheck-page",
+    source: "nyoni-page",
     version: 1,
     trust: "untrusted_page_data",
     page: {

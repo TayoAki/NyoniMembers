@@ -28,6 +28,7 @@ export type RenderPromptInput = {
 const SLOT_PHRASE: Record<Slot, string> = {
   dress: "a dress",
   top: "a top, worn on the upper body",
+  suit: "a suit — its matching jacket and trousers, the jacket worn over the top",
   bottom: "bottoms, worn on the lower body",
   shoes: "shoes, worn on the feet",
   outerwear: "outerwear, worn open over the top",
@@ -41,6 +42,12 @@ const SLOT_FALLBACK: Partial<Record<Slot, string>> = {
   shoes: "The outfit has no shoes: add plain white trainers.",
 };
 
+/** Under a suit the neutral fallbacks are tailoring, not a t-shirt and trainers. */
+const SUIT_FALLBACK: Partial<Record<Slot, string>> = {
+  top: "The outfit has no shirt: add a plain white dress shirt under the suit jacket.",
+  shoes: "The outfit has no shoes: add plain black leather dress shoes.",
+};
+
 const PRESENTATION_PHRASE: Record<Presentation, string> = {
   masculine: "Use masculine clothing styling without changing the person's body.",
   feminine: "Use feminine clothing styling without changing the person's body.",
@@ -52,7 +59,7 @@ export function detectionInstructions(): DetectionSpec {
   const instructions = [
     "You are cataloguing one photo for a digital wardrobe.",
     "",
-    "List every distinct clothing item, pair of shoes, bag, hat or accessory that is visible, whether it is worn, folded, hanging or laid flat. One entry per physical item: a pair of shoes is one item, a pair of earrings is one item, a two-piece suit is two items. Ignore anything that is not wearable — furniture, hangers, plants, packaging, bare skin.",
+    "List every distinct clothing item, pair of shoes, bag, hat or accessory that is visible, whether it is worn, folded, hanging or laid flat. One entry per physical item: a pair of shoes is one item, a pair of earrings is one item, and a suit shown as a matched set (jacket with its trousers, with or without a waistcoat) is ONE item with category suit, while a lone blazer or sport coat is outerwear. Ignore anything that is not wearable — furniture, hangers, plants, packaging, bare skin.",
     "",
     `Return at most ${LIMITS.maxItemsPerPhoto} items, most prominent first. If the photo contains no wearable items, return an empty list.`,
     "",
@@ -152,8 +159,9 @@ export function renderPrompt(input: RenderPromptInput): string {
   const references = input.garments.map(
     (garment, index) => `Image ${index + 2} is the ${garment.name} — ${SLOT_PHRASE[garment.slot]}.`,
   );
+  const hasSuit = input.garments.some((garment) => garment.slot === "suit");
   const fallbacks = input.missingSlots
-    .map((slot) => SLOT_FALLBACK[slot])
+    .map((slot) => (hasSuit ? (SUIT_FALLBACK[slot] ?? SLOT_FALLBACK[slot]) : SLOT_FALLBACK[slot]))
     .filter((line): line is string => Boolean(line));
 
   return [

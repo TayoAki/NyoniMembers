@@ -102,6 +102,7 @@ test("outfit context preserves exact persisted slots and strips image URLs and t
   assert.deepEqual(context.outfit.slots, {
     outerwear: null,
     top: "item_1",
+    suit: null,
     bottom: "item_2",
     dress: null,
     shoes: "item_3",

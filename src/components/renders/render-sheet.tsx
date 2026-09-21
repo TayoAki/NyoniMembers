@@ -92,7 +92,7 @@ export function RenderSheet({ outfitId, open, onOpenChange, onStarted }: RenderS
               icon={UserRound}
               className="min-h-0 rounded-none border-0 py-5"
               title="No photo of you yet"
-              description="Add a full-length photo in settings and Fitcheck can dress it in your clothes."
+              description="Add a full-length photo in settings and we can dress it in your pieces."
               action={
                 <Button nativeButton={false} render={<Link href={routes.settings} />}>
                   Add a photo

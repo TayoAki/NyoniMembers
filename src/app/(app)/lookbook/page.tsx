@@ -4,7 +4,7 @@ import { requireSignedIn } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Lookbook",
-  description: "Every image Fitcheck has rendered of you.",
+  description: "Every preview we have made of you.",
 };
 
 export default async function LookbookPage() {

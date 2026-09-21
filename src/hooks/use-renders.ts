@@ -146,7 +146,7 @@ function downloadFileName(outfitName: string, timestamp: number): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 40) || "outfit";
   const date = new Date(timestamp).toISOString().slice(0, 10);
-  return `fitcheck-${slug}-${date}.png`;
+  return `nyoni-${slug}-${date}.png`;
 }
 
 export function shareUrl(token: string): string {

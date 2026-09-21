@@ -6,17 +6,17 @@ _Prepared 21 September 2026 for the Nyoni Members app. Research basis: search-en
 
 ## 1. Snapshot
 
-| Fact | Value | Status |
-| --- | --- | --- |
-| Legal / trading name | Nyoni Couture | VERIFIED |
-| Site title | "Nyoni Couture – Luxury Mens Wear" (earlier: "Nyoni Couture – Classical Brand") | VERIFIED |
-| Founder | Nyonisela Sioh, Founder & Master Tailor / CEO | VERIFIED |
-| Founded | 2016, Charlotte, North Carolina | VERIFIED |
-| Category | High-end bespoke and made-to-measure menswear; ready-to-wear suits, shirts, outerwear, shoes and accessories | VERIFIED |
-| Showrooms | Charlotte NC (flagship), Atlanta GA (Buckhead, invitation-only, opened March 2024), Houston TX (opened March 2025) | VERIFIED |
-| Platform | WordPress + WooCommerce storefront; WishSuite wishlist plugin; Square Appointments for booking (nyoni-couture.square.site) | VERIFIED (confirmed by client) |
-| Membership | Three annual tiers already sold on the site: Signature, Prestige, Circle Elite | VERIFIED |
-| Reputation | 4.9 stars, 135+ five-star reviews; recurring complaints about communication and appointment/fitting delays | VERIFIED (third-party listings) |
+| Fact                 | Value                                                                                                                      | Status                          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Legal / trading name | Nyoni Couture                                                                                                              | VERIFIED                        |
+| Site title           | "Nyoni Couture – Luxury Mens Wear" (earlier: "Nyoni Couture – Classical Brand")                                            | VERIFIED                        |
+| Founder              | Nyonisela Sioh, Founder & Master Tailor / CEO                                                                              | VERIFIED                        |
+| Founded              | 2016, Charlotte, North Carolina                                                                                            | VERIFIED                        |
+| Category             | High-end bespoke and made-to-measure menswear; ready-to-wear suits, shirts, outerwear, shoes and accessories               | VERIFIED                        |
+| Showrooms            | Charlotte NC (flagship), Atlanta GA (Buckhead, invitation-only, opened March 2024), Houston TX (opened March 2025)         | VERIFIED                        |
+| Platform             | WordPress + WooCommerce storefront; WishSuite wishlist plugin; Square Appointments for booking (nyoni-couture.square.site) | VERIFIED (confirmed by client)  |
+| Membership           | Three annual tiers already sold on the site: Signature, Prestige, Circle Elite                                             | VERIFIED                        |
+| Reputation           | 4.9 stars, 135+ five-star reviews; recurring complaints about communication and appointment/fitting delays                 | VERIFIED (third-party listings) |
 
 ---
 
@@ -34,11 +34,11 @@ _Prepared 21 September 2026 for the Nyoni Members app. Research basis: search-en
 
 **Showrooms and contact (VERIFIED).**
 
-| Showroom | Address |
-| --- | --- |
-| Charlotte | 325 N Graham St, Charlotte, NC 28202 |
-| Atlanta | 2955 Peachtree Rd, Atlanta, GA 30305 |
-| Houston | 2301 Yorktown St Suite 105, Houston, TX 77056 |
+| Showroom  | Address                                       |
+| --------- | --------------------------------------------- |
+| Charlotte | 325 N Graham St, Charlotte, NC 28202          |
+| Atlanta   | 2955 Peachtree Rd, Atlanta, GA 30305          |
+| Houston   | 2301 Yorktown St Suite 105, Houston, TX 77056 |
 
 Hours: Monday–Saturday 11am–7pm, Sunday 12pm–6pm. Email info@nyonicouture.com. SMS (980) 237-2331. Instagram @nyoni_couture. Facebook /nyonicouture.
 
@@ -92,11 +92,11 @@ The site's own sentences set the register. Reuse these lines where they fit; the
 
 ### The membership programme as sold today (VERIFIED, prices not indexed)
 
-| Tier | Core entitlement | Extra notes |
-| --- | --- | --- |
-| **Signature** | One suit every six months (two a year), made to your measurements and scheduled across the year | Entry tier |
-| **Prestige** | One suit every quarter (four a year) | Fittings at your convenience |
-| **Circle Elite** | "A fully bespoke wardrobe" | Invitation only; ask your concierge to be considered; fittings at your convenience |
+| Tier             | Core entitlement                                                                                | Extra notes                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Signature**    | One suit every six months (two a year), made to your measurements and scheduled across the year | Entry tier                                                                         |
+| **Prestige**     | One suit every quarter (four a year)                                                            | Fittings at your convenience                                                       |
+| **Circle Elite** | "A fully bespoke wardrobe"                                                                      | Invitation only; ask your concierge to be considered; fittings at your convenience |
 
 Benefits listed for members (higher tiers get the fuller set):
 
@@ -120,21 +120,21 @@ Categories seen in the store (VERIFIED): Suits (Two Piece, Three Piece, Double B
 
 Price architecture (VERIFIED from category and product snippets):
 
-| Line | Price band | Notes |
-| --- | --- | --- |
-| Two-piece suits | from $495 (40 pieces); some at $895 | |
-| Three-piece suits | from $449 (26 pieces) | Super 200s wool at the top |
-| Tuxedos | from $495 (25 pieces) | Satin-panel and peak-lapel styles |
-| Blazers | $495–$1,095 | Mostly wool |
-| Cashmere overcoats | $595 | Red, beige, grey, yellow, blush pink |
-| Dress shirts | $89–$169 | 100% cotton; spread or cutaway collar; French or barrel cuffs |
-| Dress shoes / loafers / boots | $145–$525 (loafers ≈ $475) | "Bismack Biyombo Luxury Shoes", made in Italy, brass shoehorn + dust bag + guarantee certificate |
-| Belts | $145 | |
-| Pocket squares | $49–$69 | 100% silk, made in Italy |
-| Bow ties | $59–$69 | Silk |
-| Cufflinks | $75 | |
-| Sweatsuits | from $495 | Varsity bomber / hoodie sets |
-| Made-to-measure commissions | $1,795–$2,985 | Priced by cloth |
+| Line                          | Price band                          | Notes                                                                                            |
+| ----------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Two-piece suits               | from $495 (40 pieces); some at $895 |                                                                                                  |
+| Three-piece suits             | from $449 (26 pieces)               | Super 200s wool at the top                                                                       |
+| Tuxedos                       | from $495 (25 pieces)               | Satin-panel and peak-lapel styles                                                                |
+| Blazers                       | $495–$1,095                         | Mostly wool                                                                                      |
+| Cashmere overcoats            | $595                                | Red, beige, grey, yellow, blush pink                                                             |
+| Dress shirts                  | $89–$169                            | 100% cotton; spread or cutaway collar; French or barrel cuffs                                    |
+| Dress shoes / loafers / boots | $145–$525 (loafers ≈ $475)          | "Bismack Biyombo Luxury Shoes", made in Italy, brass shoehorn + dust bag + guarantee certificate |
+| Belts                         | $145                                |                                                                                                  |
+| Pocket squares                | $49–$69                             | 100% silk, made in Italy                                                                         |
+| Bow ties                      | $59–$69                             | Silk                                                                                             |
+| Cufflinks                     | $75                                 |                                                                                                  |
+| Sweatsuits                    | from $495                           | Varsity bomber / hoodie sets                                                                     |
+| Made-to-measure commissions   | $1,795–$2,985                       | Priced by cloth                                                                                  |
 
 Named pieces found (a longer machine-readable list is in `research/nyoni/catalogue-snapshot.json`):
 
@@ -167,14 +167,14 @@ Named pieces found (a longer machine-readable list is in `research/nyoni/catalog
 
 The direction has to hold two things at once: the "classical brand" restraint of a tailoring house, and the bold colour of the garments. Let the chrome be quiet and let the clothes carry colour, which is also the rule the Fitcheck design system already follows.
 
-| Token | Proposal | Role |
-| --- | --- | --- |
-| Onyx | `#0E0D0B` | Default (dark) canvas, "atelier at night" |
-| Ivory | `#F4EFE6` | Light canvas and primary text on dark |
-| Charcoal | `#2A2825` | Cards and raised surfaces on dark |
-| Stone | `#8E877C` | Muted text, dividers |
-| Brass | `#B8925A` | Single accent: active states, membership marks, primary buttons on dark |
-| Nyoni Crimson | `#7E1F2E` | Heritage accent used sparingly (badges, status of note) |
+| Token         | Proposal  | Role                                                                    |
+| ------------- | --------- | ----------------------------------------------------------------------- |
+| Onyx          | `#0E0D0B` | Default (dark) canvas, "atelier at night"                               |
+| Ivory         | `#F4EFE6` | Light canvas and primary text on dark                                   |
+| Charcoal      | `#2A2825` | Cards and raised surfaces on dark                                       |
+| Stone         | `#8E877C` | Muted text, dividers                                                    |
+| Brass         | `#B8925A` | Single accent: active states, membership marks, primary buttons on dark |
+| Nyoni Crimson | `#7E1F2E` | Heritage accent used sparingly (badges, status of note)                 |
 
 - **Type:** a high-contrast serif for display (Cormorant Garamond or Playfair Display) paired with a neutral grotesque for UI (Inter, or keep Geist). Small-caps tracked captions (0.16em) for section labels, matching Fitcheck's existing caption style.
 - **Imagery:** full-bleed editorial photography, garments and cloth close-ups, showroom interiors; 2:3 portrait renders as Fitcheck already enforces.

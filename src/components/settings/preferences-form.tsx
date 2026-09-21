@@ -4,7 +4,6 @@ import { useMutation } from "convex/react";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { WardrobePreference } from "@/components/common/wardrobe-preference";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
@@ -101,18 +100,12 @@ function PreferencesFields({ initial }: { initial: Prefs }) {
         <p className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">02 / Personal style</p>
         <h2 className="text-xl font-semibold tracking-tight">Your preferences</h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          The stylist and every render read these before suggesting anything.
+          The concierge and every preview read these before suggesting anything.
         </p>
       </header>
 
       <div className="min-w-0 space-y-6">
         <FieldGroup className="grid gap-7 sm:grid-cols-2">
-          <WardrobePreference
-            value={draft.presentation}
-            onChange={(presentation) => setDraft({ ...draft, presentation })}
-            disabled={saving}
-          />
-
           <Field>
             <FieldTitle>Preferred fit</FieldTitle>
             <FieldDescription>Used when an item could be worn more than one way.</FieldDescription>
@@ -199,7 +192,7 @@ function PreferencesFields({ initial }: { initial: Prefs }) {
             <Input
               id="home-city"
               value={draft.homeCity ?? ""}
-              placeholder="London"
+              placeholder="Charlotte"
               autoComplete="address-level2"
               disabled={saving}
               onChange={(event) => setDraft({ ...draft, homeCity: event.target.value })}

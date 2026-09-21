@@ -10,7 +10,6 @@ import { ItemImage } from "@/components/common/item-image";
 import { PageHeader } from "@/components/common/page-header";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { ImportQueue } from "./import-queue";
 import { isUploadSuccess, useUpload, type UploadSuccess } from "@/hooks/use-upload";
 import { toClientError, type ClientError } from "@/lib/errors";
@@ -20,23 +19,17 @@ import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CREDIT_COSTS, LIMITS } from "@convex/shared/credits";
-import { DEMO_WARDROBE } from "@convex/shared/demo_wardrobe";
+import { COLLECTION } from "@convex/shared/collection";
 import { describeRejection, DropZone, type FileRejection } from "./drop-zone";
 import { PendingTile, type PendingFile } from "./pending-tile";
 import { RecentUploads } from "./recent-uploads";
 import { UploadTile } from "./upload-tile";
 
-const EXAMPLE_KEYS = {
-  masculine: ["v2-men-mens-cotton-jacket", "v2-men-blue-jeans", "v2-men-white-red-trainers"],
-  feminine: ["v2-women-womens-blouse", "v2-women-blue-jeans", "v2-women-brown-leather-bag"],
-} as const;
+const EXAMPLE_KEYS: readonly string[] = ["nyoni-armada-suit", "nyoni-arno-shirt", "nyoni-verona-tassel-loafer"];
 
 export function AddClothes() {
   const router = useRouter();
-  const { user } = useCurrentUser();
-  const presentation = user?.prefs.presentation;
-  const exampleKeys: readonly string[] = presentation && presentation !== "neutral" ? EXAMPLE_KEYS[presentation] : [];
-  const exampleItems = DEMO_WARDROBE.filter((item) => exampleKeys.includes(item.key));
+  const exampleItems = COLLECTION.filter((item) => EXAMPLE_KEYS.includes(item.key));
   const searchParams = useSearchParams();
   const batchId = searchParams.get("batch");
 
@@ -385,7 +378,7 @@ export function AddClothes() {
                 {exampleItems.map((item) => (
                   <figure key={item.key} className="min-w-0 space-y-3">
                     <ItemImage
-                      src={item.imagePath}
+                      src={item.image}
                       alt={item.attributes.name}
                       aspect="aspect-auto"
                       className="h-28 rounded-none bg-transparent p-1 dark:bg-transparent"
@@ -397,15 +390,6 @@ export function AddClothes() {
                   </figure>
                 ))}
               </div>
-              {exampleItems.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Choose men’s or women’s clothing in{" "}
-                  <Link href={routes.settings} className="underline underline-offset-4">
-                    your preferences
-                  </Link>{" "}
-                  to personalise your examples.
-                </p>
-              ) : null}
               <ol className="grid gap-4 pb-2 sm:grid-cols-3">
                 {[
                   ["Scan", "We identify the clothing in each photo."],

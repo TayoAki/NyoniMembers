@@ -1,7 +1,7 @@
 import { defineAgent } from "eve";
 
 /**
- * The Fitcheck stylist. Routed through the Vercel AI Gateway, so the runtime needs
+ * The Nyoni Members concierge. Routed through the Vercel AI Gateway, so the runtime needs
  * `AI_GATEWAY_API_KEY` (or a linked Vercel project supplying `VERCEL_OIDC_TOKEN`).
  *
  * Tools are registered by file under `agent/tools/`: `get_context`, `get_wardrobe`, `gap_analysis`,

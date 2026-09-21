@@ -113,7 +113,7 @@ function SavedOutfitBuilder({ outfit }: { outfit: Outfit }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={outfit.source === "agent" ? "The outfit studio / Styled by Fitcheck" : "The outfit studio"}
+        eyebrow={outfit.source === "agent" ? "The outfit studio / Styled by the concierge" : "The outfit studio"}
         title={outfit.name}
         description={describe(outfit)}
         actions={

@@ -15,14 +15,14 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly
 
 export const PRIMARY_NAV: readonly NavItem[] = [
   { href: routes.wardrobe, label: "Wardrobe", icon: Shirt },
-  { href: routes.add, label: "Add clothes", icon: Plus },
-  { href: routes.outfits, label: "Outfits", icon: LayoutGrid },
-  { href: routes.stylist, label: "Stylist", icon: Sparkles },
+  { href: routes.add, label: "Add pieces", icon: Plus },
+  { href: routes.outfits, label: "Looks", icon: LayoutGrid },
+  { href: routes.stylist, label: "Concierge", icon: Sparkles },
   { href: routes.lookbook, label: "Lookbook", icon: Images },
 ];
 
 export const SECONDARY_NAV: readonly NavItem[] = [
-  { href: routes.billing, label: "Billing", icon: CreditCard },
+  { href: routes.billing, label: "Membership", icon: CreditCard },
   { href: routes.settings, label: "Settings", icon: Settings },
   { href: routes.admin, label: "Admin", icon: ShieldCheck, adminOnly: true },
 ];

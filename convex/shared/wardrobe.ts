@@ -1,7 +1,18 @@
-export const CATEGORIES = ["top", "bottom", "outerwear", "dress", "shoes", "accessory", "bag", "headwear"] as const;
+export const CATEGORIES = [
+  "suit",
+  "top",
+  "bottom",
+  "outerwear",
+  "dress",
+  "shoes",
+  "accessory",
+  "bag",
+  "headwear",
+] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<Category, string> = {
+  suit: "Suits",
   top: "Tops",
   bottom: "Bottoms",
   outerwear: "Outerwear",
@@ -30,13 +41,17 @@ export type Fit = (typeof FITS)[number];
 export const PRESENTATIONS = ["masculine", "feminine", "neutral"] as const;
 export type Presentation = (typeof PRESENTATIONS)[number];
 
-/** Builder slots. `dress` replaces top + bottom when set. */
-export const SLOTS = ["outerwear", "top", "bottom", "dress", "shoes", "accessories"] as const;
+/**
+ * Builder slots. `dress` replaces top + bottom. `suit` is a matched jacket and trousers (two-piece,
+ * three-piece or tuxedo): it replaces bottom and is worn over the top, under any outerwear.
+ */
+export const SLOTS = ["outerwear", "top", "suit", "bottom", "dress", "shoes", "accessories"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 export const SLOT_LABELS: Record<Slot, string> = {
   outerwear: "Outerwear",
   top: "Top",
+  suit: "Suit",
   bottom: "Bottom",
   dress: "Dress",
   shoes: "Shoes",
@@ -47,6 +62,7 @@ export const SLOT_LABELS: Record<Slot, string> = {
 export const SLOT_CATEGORIES: Record<Slot, readonly Category[]> = {
   outerwear: ["outerwear"],
   top: ["top"],
+  suit: ["suit"],
   bottom: ["bottom"],
   dress: ["dress"],
   shoes: ["shoes"],
@@ -54,7 +70,7 @@ export const SLOT_CATEGORIES: Record<Slot, readonly Category[]> = {
 };
 
 /** Order garments are layered when rendering, inner to outer. */
-export const LAYER_ORDER: readonly Slot[] = ["dress", "top", "bottom", "shoes", "outerwear", "accessories"];
+export const LAYER_ORDER: readonly Slot[] = ["dress", "top", "bottom", "suit", "shoes", "outerwear", "accessories"];
 
 export const ITEM_STATUSES = ["extracting", "ready", "failed", "hidden", "needsCredits"] as const;
 export type ItemStatus = (typeof ITEM_STATUSES)[number];

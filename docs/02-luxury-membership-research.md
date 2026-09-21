@@ -12,11 +12,11 @@ _Research notes for the Nyoni Members app, 21 September 2026. Sources at the end
 
 **Three models seen in the wild**
 
-| Model | Who qualifies | Example | Nyoni today |
-| --- | --- | --- | --- |
-| Spend-qualified tiers | Annual spend threshold, recalculated yearly | Farfetch Private Client, Chanel Privilège | — |
+| Model                                    | Who qualifies                                           | Example                                                     | Nyoni today                                               |
+| ---------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- |
+| Spend-qualified tiers                    | Annual spend threshold, recalculated yearly             | Farfetch Private Client, Chanel Privilège                   | —                                                         |
 | Paid annual membership with an allowance | Anyone who pays; entitlements scheduled across the year | Wardrobe-subscription tailors; Nyoni Signature and Prestige | Signature: a suit every 6 months; Prestige: every quarter |
-| Invitation-only inner circle | Chosen by the house | Top tiers of most maisons | Circle Elite: "a fully bespoke wardrobe", invitation only |
+| Invitation-only inner circle             | Chosen by the house                                     | Top tiers of most maisons                                   | Circle Elite: "a fully bespoke wardrobe", invitation only |
 
 Nyoni already runs the second and third models. The app's job is to make the entitlements tangible (a visible allowance clock, priority booking that is actually prioritised) and to give the inner circle something private.
 
@@ -47,11 +47,11 @@ Bespoke and made-to-measure software (TailorSync, Atelierware, GarmentDesk, Orde
 
 **Capture methods**
 
-| Method | Detail | Fit for Nyoni |
-| --- | --- | --- |
-| Hand-measured by the tailor | The house's own standard ("dozens of measurements taken by hand"); authoritative | Default; staff-entered in the console |
-| Guided self-measure | Indochino: about ten minutes at home with a tape; fit saved for future orders; editable | Useful for remote members and shirts |
-| Photo-based scan | Knot Standard's Fit app: front and side photos produce a pattern from 41 measurements plus posture; Mobile Tailor/3DLOOK: up to 70 points in under a minute | Later phase; needs vendor and consent review |
+| Method                      | Detail                                                                                                                                                      | Fit for Nyoni                                |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Hand-measured by the tailor | The house's own standard ("dozens of measurements taken by hand"); authoritative                                                                            | Default; staff-entered in the console        |
+| Guided self-measure         | Indochino: about ten minutes at home with a tape; fit saved for future orders; editable                                                                     | Useful for remote members and shirts         |
+| Photo-based scan            | Knot Standard's Fit app: front and side photos produce a pattern from 41 measurements plus posture; Mobile Tailor/3DLOOK: up to 70 points in under a minute | Later phase; needs vendor and consent review |
 
 **Recommended measurement schema** (units in inches with cm toggle; every record versioned):
 

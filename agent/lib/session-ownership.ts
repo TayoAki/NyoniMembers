@@ -34,7 +34,7 @@ export function withSessionOwnership(channel: EveChannel, policy: OwnershipPolic
           }
 
           if (route.path !== "/eve/v1/session" || route.method !== "POST") return denied();
-          const threadId = request.headers.get("x-fitcheck-thread-id");
+          const threadId = request.headers.get("x-nyoni-thread-id");
           if (!threadId) return denied(400, "Choose a conversation before sending a message.");
           try {
             if (!(await policy.canAccessThread(caller, threadId))) return denied();

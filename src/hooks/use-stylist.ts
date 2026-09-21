@@ -61,7 +61,7 @@ export function useStylistSession(thread: StylistThread): StylistSession {
     () => async (): Promise<Record<string, string>> => {
       const token = await getTokenRef.current();
       if (!token) throw new Error("Sign in again to continue this conversation.");
-      return { authorization: `Bearer ${token}`, "x-fitcheck-thread-id": thread._id };
+      return { authorization: `Bearer ${token}`, "x-nyoni-thread-id": thread._id };
     },
     [thread._id],
   );

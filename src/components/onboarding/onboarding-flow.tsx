@@ -12,11 +12,11 @@ import { PreferencesStep } from "./preferences-step";
 const STEPS = [
   {
     title: "Your fitting photo.",
-    description: "Start with a full-length photo. This is who your outfits will be rendered on.",
+    description: "Start with a full-length photo. This is who your looks will be previewed on.",
   },
   {
-    title: "Set your style.",
-    description: "Choose your wardrobe and fit. We’ll tailor your examples and styling to you.",
+    title: "Set your fit.",
+    description: "Your preferred fit, colours to avoid and home city. The concierge and every preview read these.",
   },
 ] as const;
 

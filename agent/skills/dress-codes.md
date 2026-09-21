@@ -4,7 +4,7 @@ description: Use when the brief names a dress code or an occasion with rules —
 
 # Dress codes
 
-Fitcheck tags every item `casual`, `smart-casual` or `formal`. Map the brief to those tags, then
+The wardrobe tags every item `casual`, `smart-casual` or `formal`. Map the brief to those tags, then
 pick within them.
 
 ## The ladder

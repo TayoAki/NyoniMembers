@@ -47,11 +47,11 @@ export function AppSidebar() {
       <SidebarHeader className="px-4 py-5 group-data-[collapsible=icon]:px-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<Link href={routes.wardrobe} />} size="lg" tooltip="Fitcheck">
+            <SidebarMenuButton render={<Link href={routes.wardrobe} />} size="lg" tooltip="Nyoni Members">
               <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Shirt className="size-4" />
               </span>
-              <span className="text-xl font-semibold tracking-tight">Fitcheck</span>
+              <span className="font-display text-xl font-medium tracking-[0.12em]">NYONI</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

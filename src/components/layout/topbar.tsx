@@ -6,6 +6,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useStylistPanel } from "@/components/stylist/stylist-provider";
 import { CreditBadge } from "@/components/common/credit-badge";
+import { Wordmark } from "@/components/common/wordmark";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -32,16 +33,10 @@ export function Topbar() {
       <div className="mx-auto flex h-16 max-w-[1520px] items-center gap-2 px-4 sm:h-[72px] sm:gap-4 sm:px-8 lg:px-12">
         <Link
           href={routes.wardrobe}
-          aria-label="Fitcheck home"
-          className="flex min-h-11 shrink-0 items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 sm:gap-2.5"
+          aria-label="Nyoni Members home"
+          className="flex min-h-11 shrink-0 items-center rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4"
         >
-          <svg viewBox="0 0 28 28" fill="none" className="size-6 sm:size-7" aria-hidden="true">
-            <path d="M9 2H2v7M19 2h7v7M26 19v7h-7M9 26H2v-7" stroke="currentColor" strokeWidth="2" />
-            <path d="m8 14 4 4 8-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" />
-          </svg>
-          <span className="text-[23px] leading-none font-bold tracking-[-0.065em] max-[359px]:hidden sm:text-[27px]">
-            fitcheck<span className="text-muted-foreground">.</span>
-          </span>
+          <Wordmark />
         </Link>
         {onboarded ? (
           <nav aria-label="Main navigation" className="ml-auto hidden h-full items-center gap-4 lg:flex xl:gap-6">

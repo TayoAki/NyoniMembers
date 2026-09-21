@@ -100,7 +100,7 @@ test("first sign-in waits for the stored user before mounting credit, activity, 
     assert.deepEqual(protectedCalls(state), []);
     assert.doesNotMatch(html, /TOPBAR|STYLIST/);
     assert.match(html, /PAGE_SKELETON/);
-    assert.match(html, user === null ? /Setting up your Fitcheck account/ : /Loading your account/);
+    assert.match(html, user === null ? /Setting up your Nyoni Members account/ : /Loading your account/);
   }
 });
 
@@ -127,7 +127,7 @@ test("a matching stored user mounts the complete app and shared navigation queri
 
 test("account switching discards the previous user's result before any protected read", () => {
   const state = fixture({ user: readyUser(), userId: "clerk-b" });
-  assert.match(renderApp(), /Setting up your Fitcheck account/);
+  assert.match(renderApp(), /Setting up your Nyoni Members account/);
   assert.deepEqual(protectedCalls(state), []);
   state.user = readyUser("clerk-b");
   assert.match(renderApp(), /TOPBAR/);

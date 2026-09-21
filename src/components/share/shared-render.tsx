@@ -16,7 +16,7 @@ export function SharedRender({ shared }: { shared: SharedRenderPayload }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-8 px-4 py-10 sm:px-6 sm:py-14">
       <header className="space-y-1">
-        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Fitcheck</p>
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Nyoni Members</p>
         <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{shared.outfitName}</h1>
         <p className="text-sm text-muted-foreground">{formatDate(shared.createdAt)}</p>
       </header>
@@ -44,7 +44,7 @@ export function SharedRender({ shared }: { shared: SharedRenderPayload }) {
       <footer className="mt-auto border-t pt-6 text-sm text-muted-foreground">
         Made with{" "}
         <Link href={routes.home} className="font-medium text-foreground underline underline-offset-4">
-          Fitcheck
+          Nyoni Members
         </Link>{" "}
         — photograph your clothes, build outfits, see yourself wearing them.
       </footer>

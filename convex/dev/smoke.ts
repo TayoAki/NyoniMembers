@@ -146,6 +146,7 @@ export const render = internalMutation({
     for (const item of items) {
       if (!item) continue;
       if (item.category === "outerwear" && !slots.outerwear) slots.outerwear = item._id;
+      else if (item.category === "suit" && !slots.suit) slots.suit = item._id;
       else if (item.category === "top" && !slots.top) slots.top = item._id;
       else if (item.category === "bottom" && !slots.bottom) slots.bottom = item._id;
       else if (item.category === "dress" && !slots.dress) slots.dress = item._id;

@@ -241,7 +241,7 @@ test("creation checks thread ownership then binds actual Eve-created ID before r
   const response = await route.handler(
     new Request("http://localhost/eve/v1/session", {
       method: "POST",
-      headers: { "x-fitcheck-thread-id": "thread-a" },
+      headers: { "x-nyoni-thread-id": "thread-a" },
       body: JSON.stringify({ message: "hello" }),
     }),
     context,
@@ -262,7 +262,7 @@ test("missing identity, missing thread, and foreign thread never create a sessio
     const response = await route.handler(
       new Request("http://localhost/test", {
         method: "POST",
-        headers: threadId ? { "x-fitcheck-thread-id": threadId } : {},
+        headers: threadId ? { "x-nyoni-thread-id": threadId } : {},
         body: JSON.stringify({ message: "hello" }),
       }),
       context,
@@ -312,7 +312,7 @@ test("a failed ownership write never exposes a newly created session ID", async 
   const response = await route.handler(
     new Request("http://localhost/test", {
       method: "POST",
-      headers: { "x-fitcheck-thread-id": "thread-a" },
+      headers: { "x-nyoni-thread-id": "thread-a" },
       body: JSON.stringify({ message: "hello" }),
     }),
     context,

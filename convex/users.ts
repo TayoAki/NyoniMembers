@@ -77,7 +77,7 @@ export const updatePrefs = mutation({
   },
 });
 
-/** Finish onboarding once an avatar and an explicit wardrobe preference exist. */
+/** Finish onboarding once a photo exists, then dress the wardrobe with the house collection. */
 export const completeOnboarding = mutation({
   args: {},
   returns: v.null(),
@@ -89,10 +89,9 @@ export const completeOnboarding = mutation({
       .first();
     if (!avatar) throw appError("INVALID_INPUT", "Add at least one photo of yourself first.");
     if (!user.onboardedAt) {
-      if (user.prefs.presentation !== "masculine" && user.prefs.presentation !== "feminine") {
-        throw appError("INVALID_INPUT", "Choose Men’s wardrobe or Women’s wardrobe to finish setup.");
-      }
       await ctx.db.patch(user._id, { onboardedAt: Date.now() });
+      // The photos are fetched outside this transaction; the wardrobe fills in a moment later.
+      await ctx.scheduler.runAfter(0, internal.collection.seedMember, { userId: user._id });
     }
     return null;
   },

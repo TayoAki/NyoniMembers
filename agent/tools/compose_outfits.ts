@@ -16,6 +16,9 @@ const optionalItemId = itemId.nullish().describe("An owned item id, or null when
 const slots = z.object({
   outerwear: optionalItemId,
   top: optionalItemId,
+  suit: optionalItemId.describe(
+    "A matched suit (jacket and trousers) from get_wardrobe. It replaces bottom; pair it with a top (a shirt) and shoes.",
+  ),
   bottom: optionalItemId,
   dress: optionalItemId.describe("Usually null. Only set a dress when it replaces both top and bottom."),
   shoes: optionalItemId,
@@ -30,7 +33,7 @@ export default defineTool({
   description:
     "Create one to three outfit proposals, respecting the user's requested number, so they appear as cards. Every id must come " +
     "from get_wardrobe. All individual slots are optional: a top, bottom and shoes need no dress. " +
-    "Use null for unused slots and [] for no accessories. A dress replaces top and bottom. The result echoes " +
+    "Use null for unused slots and [] for no accessories. A dress replaces top and bottom; a suit replaces bottom and is worn over a top. The result echoes " +
     "each outfit with the items it resolved and a `problems` list — if an outfit has problems it " +
     "was not saved, so fix the picks and call this again before telling the user about it.",
   inputSchema: z.object({
@@ -69,6 +72,7 @@ export default defineTool({
           slots: {
             ...optionalSlot("outerwear", outfit.slots.outerwear),
             ...optionalSlot("top", outfit.slots.top),
+            ...optionalSlot("suit", outfit.slots.suit),
             ...optionalSlot("bottom", outfit.slots.bottom),
             ...optionalSlot("dress", outfit.slots.dress),
             ...optionalSlot("shoes", outfit.slots.shoes),
@@ -98,7 +102,7 @@ export default defineTool({
   },
 });
 
-function optionalSlot<K extends "outerwear" | "top" | "bottom" | "dress" | "shoes">(
+function optionalSlot<K extends "outerwear" | "top" | "suit" | "bottom" | "dress" | "shoes">(
   slot: K,
   value: string | null | undefined,
 ): Partial<Record<K, Id<"items">>> {

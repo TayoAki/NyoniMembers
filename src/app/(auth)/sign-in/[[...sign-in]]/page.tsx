@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your Fitcheck wardrobe.",
+  description: "Sign in to your Nyoni Members wardrobe.",
 };
 
 export default function SignInPage() {

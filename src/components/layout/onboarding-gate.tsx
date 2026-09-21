@@ -63,7 +63,7 @@ function AccountOnboardingGate({ children }: { children: ReactNode }) {
       <main className="mx-auto w-full max-w-lg px-4 py-12">
         <ErrorAlert
           title="We could not load your account"
-          message="Your session is signed in but your Fitcheck account has not finished setting up."
+          message="Your session is signed in but your Nyoni Members account has not finished setting up."
           onRetry={() => void retry()}
           retryLabel={retrying ? "Retrying…" : "Try again"}
         />
@@ -75,7 +75,7 @@ function AccountOnboardingGate({ children }: { children: ReactNode }) {
     return (
       <main className="mx-auto w-full max-w-[1520px] px-4 py-12 sm:px-8 lg:px-12">
         <p role="status" className="mb-6 text-sm text-muted-foreground">
-          {missingUser ? "Setting up your Fitcheck account…" : "Loading your account…"}
+          {missingUser ? "Setting up your Nyoni Members account…" : "Loading your account…"}
         </p>
         {onOnboarding ? <OnboardingSkeleton /> : <PageSkeleton />}
       </main>

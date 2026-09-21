@@ -23,11 +23,18 @@ const { completeOnboarding } = await import("../convex/users.ts");
 function fixture({ presentation = "neutral", onboardedAt, avatarOwner = "owner", subject = "owner-sub" } = {}) {
   const user = { _id: "owner", clerkId: "owner-sub", prefs: { presentation }, onboardedAt };
   const patches = [];
+  const scheduled = [];
   return {
     user,
     patches,
+    scheduled,
     ctx: {
       auth: { getUserIdentity: async () => (subject ? { subject } : null) },
+      scheduler: {
+        async runAfter(delay, fn, args) {
+          scheduled.push({ delay, fn, args });
+        },
+      },
       db: {
         query(table) {
           const filters = [];
@@ -57,15 +64,18 @@ function fixture({ presentation = "neutral", onboardedAt, avatarOwner = "owner",
 }
 const hasCode = (code) => (error) => error.data?.code === code;
 
-test("public onboarding completion rejects the default neutral preference without writing completion", async () => {
+test("a photo is all onboarding needs: the default preference completes and the collection seed is scheduled", async () => {
   const f = fixture();
-  await assert.rejects(completeOnboarding._handler(f.ctx, {}), hasCode("INVALID_INPUT"));
-  assert.equal(f.user.onboardedAt, undefined);
-  assert.deepEqual(f.patches, []);
+  assert.equal(await completeOnboarding._handler(f.ctx, {}), null);
+  assert.equal(typeof f.user.onboardedAt, "number");
+  assert.equal(f.patches.length, 1);
+  assert.equal(f.scheduled.length, 1);
+  assert.equal(f.scheduled[0].delay, 0);
+  assert.deepEqual(f.scheduled[0].args, { userId: "owner" });
 });
 
-test("both explicit wardrobe choices complete once and keep the same completion timestamp on retry", async () => {
-  for (const presentation of ["masculine", "feminine"]) {
+test("every presentation completes once, keeps its timestamp on retry and seeds the collection only once", async () => {
+  for (const presentation of ["masculine", "feminine", "neutral"]) {
     const f = fixture({ presentation });
     assert.equal(await completeOnboarding._handler(f.ctx, {}), null);
     assert.equal(typeof f.user.onboardedAt, "number");
@@ -73,6 +83,7 @@ test("both explicit wardrobe choices complete once and keep the same completion 
     await completeOnboarding._handler(f.ctx, {});
     assert.equal(f.user.onboardedAt, timestamp);
     assert.equal(f.patches.length, 1);
+    assert.equal(f.scheduled.length, 1);
   }
 });
 
@@ -82,6 +93,7 @@ test("already-onboarded neutral accounts stay compatible and are not rewritten",
   assert.equal(f.user.prefs.presentation, "neutral");
   assert.equal(f.user.onboardedAt, 123);
   assert.deepEqual(f.patches, []);
+  assert.deepEqual(f.scheduled, []);
 });
 
 test("wardrobe choice cannot bypass authentication or use another account's avatar", async () => {

@@ -8,6 +8,32 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+# Nyoni Members
+
+This repository is the private members app of **Nyoni Couture**, a bespoke menswear house (Charlotte,
+Atlanta, Houston), built on the Fitcheck wardrobe architecture with the author's permission. Read
+`docs/01-brand-brief.md` (voice, copy deck, membership tiers, catalogue), `docs/02-luxury-membership-research.md`
+and `docs/03-nyoni-members-app-plan.md` (feature map, data model, roadmap) before changing product
+behaviour. Everything below this section describes the codebase itself.
+
+What differs from the Fitcheck base so far:
+
+- **Suits are a first-class garment.** `category: "suit"` and the `suit` outfit slot (a matched jacket
+  and trousers) replace `bottom` and are worn over a `top`, under `outerwear`; see `convex/shared/wardrobe.ts`,
+  `convex/model/outfits.ts` (`validateSlots`) and `convex/ai/prompts.ts` (suit-aware fallbacks).
+- **Every member starts with the Nyoni collection.** `convex/shared/collection.ts` lists the pieces;
+  `convex/collection.ts` seeds them after onboarding and from the wardrobe button; items carry
+  `collectionKey`. Regenerate the list with `scripts/build-collection.mjs` from the WooCommerce export.
+- **Menswear only.** Onboarding no longer asks for a wardrobe; `prefs.presentation` defaults to `masculine`.
+- **Voice.** Member-facing copy follows the brand brief: US English, "concierge" not "stylist", "pieces"
+  and "looks", never "credits" in new copy where it can be avoided. The agent persona lives in
+  `agent/instructions.md`.
+- **Brand.** Bodoni Moda display (`font-display`), Manrope body, IBM Plex Mono captions; ivory / onyx
+  tokens with a brass ring in `src/app/globals.css`; the wordmark is `src/components/common/wordmark.tsx`.
+
+Still on the Fitcheck model until the membership phase: Clerk plans (`free`/`pro`/`plus`) and the
+credit meter. Do not build new member-facing features on credits; see the plan's tiers section.
+
 # Working in this repo
 
 Read `PLAN.md` first. It is the contract: routes, schema, function names, credit rules, ownership. If you need to deviate, say so in your final report.

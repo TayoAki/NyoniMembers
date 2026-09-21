@@ -20,7 +20,7 @@ export function OutfitCard({ outfit, className }: { outfit: Outfit; className?: 
           <OutfitComposition items={outfit.items} className="aspect-[2/3]" />
         )}
         <span className="absolute top-3 left-3 bg-background/85 px-2 py-1 font-mono text-[9px] tracking-[0.12em] uppercase">
-          {outfit.source === "agent" ? "Styled by Fitcheck" : "Your composition"}
+          {outfit.source === "agent" ? "Styled by the concierge" : "Your composition"}
         </span>
       </div>
       <div className="space-y-2 border-b border-foreground/15 py-4">
