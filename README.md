@@ -73,7 +73,7 @@ Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format:check`.
 
 The app lives on the URL Vercel assigns (`<project>.vercel.app`) until the house has a domain; Clerk stays on its development instance, which works on any hostname. Convex has two deployments: development `accomplished-lemur-843` and production `good-donkey-546` (US East). The Vercel build deploys the Convex functions to production itself (`vercel.json` runs `convex deploy --cmd …`), so no local CLI is needed.
 
-1. **Convex dashboard, production deployment (`good-donkey-546`)** → Settings → Deploy keys → generate a _production_ deploy key (used in step 2). Then Settings → Environment variables:
+1. **Convex production deployment (`good-donkey-546`)**: generate a _production_ deploy key in the dashboard (Settings → Deploy keys; also used in step 2), then set the variables below either in the dashboard (Settings → Environment variables) or in one command with `scripts/configure-convex.mjs`, which reads them from your shell and can deploy the functions with `--deploy`:
 
    | Variable                  | Value                                                                                      |
    | ------------------------- | ------------------------------------------------------------------------------------------ |
