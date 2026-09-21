@@ -63,3 +63,9 @@ research/nyoni/store/
 research/nyoni/*.response.json
 research/nyoni/store-page1.json
 research/nyoni/woo-products-page1.json
+
+# Expo app (circle/) build and tooling output
+circle/.expo/
+circle/dist/
+circle/ios/
+circle/android/

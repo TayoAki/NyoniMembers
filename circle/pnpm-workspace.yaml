@@ -1,0 +1,4 @@
+# Nyoni Circle installs on its own. This file stops pnpm walking up to the repository
+# root, which would add the Expo dependency tree to the web app's lockfile and to
+# every Vercel build of the live site.
+packages: []
