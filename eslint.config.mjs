@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     ".eve/**",
     ".output/**",
     ".convex/**",
+    // Nyoni Circle is a separate Expo program with its own lint config.
+    "circle/**",
   ]),
 ]);
 
