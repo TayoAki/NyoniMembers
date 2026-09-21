@@ -71,7 +71,7 @@ Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format:check`.
 
 ## Deploy (no custom domain yet)
 
-**Status, 21 September 2026.** Done on the production Convex deployment `good-donkey-546`: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_SECRET_KEY`, `AGENT_SERVICE_KEY` and `MAX_DAILY_SPEND_USD` are set (over the deployment's HTTP API; the CLI cannot be used from the build sandbox). Done in Clerk: the `convex` JWT template now carries the `public_metadata` claim. Still to do: an AI key on Convex (`AI_GATEWAY_API_KEY` or `OPENAI_API_KEY`), the Vercel import (which deploys the functions), then `SITE_URL` on Convex and the admin role on the first staff account.
+**Status, 21 September 2026.** Deployed: production is `https://nyoni-members-tradingtacos-gmailcoms-projects.vercel.app` (Vercel project `nyoni-members`, production branch `claude/gallant-wozniak-adxpmm`, every push builds and deploys Convex plus the app). On Convex production `good-donkey-546` all six variables are set (`CLERK_JWT_ISSUER_DOMAIN`, `CLERK_SECRET_KEY`, `AGENT_SERVICE_KEY`, `AI_GATEWAY_API_KEY`, `SITE_URL`, `MAX_DAILY_SPEND_USD`). In Clerk the `convex` JWT template carries the `public_metadata` claim. The starter wardrobe ships with 50 photographed pieces. Still to do: the admin role on the first staff account after it signs up, and a custom domain when the house has one.
 
 The app lives on the URL Vercel assigns (`<project>.vercel.app`) until the house has a domain; Clerk stays on its development instance, which works on any hostname. Convex has two deployments: development `accomplished-lemur-843` and production `good-donkey-546` (US East). The Vercel build deploys the Convex functions to production itself (`vercel.json` runs `convex deploy --cmd …`), so no local CLI is needed.
 
