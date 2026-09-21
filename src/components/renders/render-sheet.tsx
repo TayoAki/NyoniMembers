@@ -237,9 +237,9 @@ export function RenderSheet({ outfitId, open, onOpenChange, onStarted }: RenderS
               variant="outline"
               className="h-11 w-full rounded-none"
               nativeButton={false}
-              render={<Link href={`${routes.billing}#plans`} />}
+              render={<Link href={`${routes.membership}#concierge`} />}
             >
-              View plans
+              Ask your concierge
             </Button>
           ) : null}
         </SheetFooter>

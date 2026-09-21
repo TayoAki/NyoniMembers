@@ -11,7 +11,7 @@ import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useClerkPlan } from "@/hooks/use-clerk-plan";
 
-/** Topbar balance. Turns amber when low; click goes to billing. */
+/** Topbar preview balance. Turns amber when low; click goes to the membership page. */
 export function CreditBadge({ className }: { className?: string }) {
   const { balance, isLow } = useBalance();
   const { plan } = useClerkPlan();
@@ -21,9 +21,9 @@ export function CreditBadge({ className }: { className?: string }) {
       <TooltipTrigger
         render={
           <Link
-            href={routes.billing}
+            href={routes.membership}
             className="flex min-h-11 items-center"
-            aria-label={`${formatCredits(balance.total)} available. Open billing.`}
+            aria-label={`${formatCredits(balance.total)} available. Open your membership.`}
           />
         }
       >

@@ -212,7 +212,7 @@ export function AddClothes() {
       toast.error(error.message, {
         action:
           error.code === "INSUFFICIENT_CREDITS"
-            ? { label: "View plans", onClick: () => router.push(`${routes.billing}#plans`) }
+            ? { label: "Your membership", onClick: () => router.push(`${routes.membership}#concierge`) }
             : undefined,
       });
     } finally {

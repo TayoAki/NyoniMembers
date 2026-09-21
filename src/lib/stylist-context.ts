@@ -3,7 +3,7 @@ import type { ItemView, OutfitView } from "@convex/views";
 
 export const MAX_STYLIST_CONTEXT_ITEMS = 20;
 
-type PageKind = "wardrobe" | "outfits" | "outfit-draft" | "add" | "lookbook" | "settings" | "billing";
+type PageKind = "wardrobe" | "outfits" | "outfit-draft" | "add" | "lookbook" | "settings" | "membership";
 type Page = { kind: PageKind; path: string; label: string; description: string };
 export type StylistPageRoute =
   Page | { kind: "item"; path: string; itemId: string } | { kind: "outfit"; path: string; outfitId: string };
@@ -48,11 +48,11 @@ const PAGES: readonly Page[] = [
       "The user is viewing fitting photos, styling preferences, appearance or data settings. Account and photo data are not attached.",
   },
   {
-    kind: "billing",
-    path: "/billing",
-    label: "Plans and credits",
+    kind: "membership",
+    path: "/membership",
+    label: "Membership",
     description:
-      "The user is viewing plans and credits. No payment, subscription or balance data is attached; use verified tools for current values.",
+      "The user is viewing their membership: tier, benefits and how to reach the house. No payment or balance data is attached; use verified tools for current values.",
   },
 ];
 

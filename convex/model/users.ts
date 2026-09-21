@@ -4,6 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { appError } from "../lib/errors";
 import { dayKey, PLANS } from "../shared/credits";
+import { DEFAULT_MEMBERSHIP, type Membership } from "../shared/membership";
 import { ITEM_STATUSES } from "../shared/wardrobe";
 import { workflow } from "../workflows/manager";
 import { grantSignupBonus } from "./credits";
@@ -36,6 +37,43 @@ export async function getByClerkId(ctx: Ctx, clerkId: string): Promise<Doc<"user
 
 export async function getById(ctx: Ctx, userId: Id<"users">): Promise<Doc<"users"> | null> {
   return ctx.db.get(userId);
+}
+
+/** Exact match on the stored address; Clerk lowercases emails, so callers lowercase their input. */
+export async function getByEmail(ctx: Ctx, email: string): Promise<Doc<"users"> | null> {
+  return ctx.db
+    .query("users")
+    .withIndex("by_email", (q) => q.eq("email", email))
+    .first();
+}
+
+export function membershipOf(user: Doc<"users">): Membership {
+  return user.membership ?? { ...DEFAULT_MEMBERSHIP, updatedAt: user.createdAt };
+}
+
+export type MembershipInput = Omit<Membership, "updatedAt">;
+
+/** The only writer of `users.membership`. Dates are optional facts the house records, never inferred. */
+export async function setMembership(
+  ctx: MutationCtx,
+  target: Doc<"users">,
+  input: MembershipInput,
+  now: number = Date.now(),
+): Promise<Membership> {
+  if (input.since !== undefined && input.renewsAt !== undefined && input.renewsAt < input.since) {
+    throw appError("INVALID_INPUT", "The renewal date cannot be before the start date.");
+  }
+  const note = input.note?.trim();
+  const membership: Membership = {
+    tier: input.tier,
+    status: input.status,
+    ...(input.since !== undefined ? { since: input.since } : {}),
+    ...(input.renewsAt !== undefined ? { renewsAt: input.renewsAt } : {}),
+    ...(note ? { note } : {}),
+    updatedAt: now,
+  };
+  await ctx.db.patch(target._id, { membership });
+  return membership;
 }
 
 /** Create or refresh a user from their verified identity or an authoritative Clerk SDK read. */

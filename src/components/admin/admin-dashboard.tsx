@@ -34,6 +34,7 @@ import { UNIT_ECONOMICS } from "@convex/shared/credits";
 import { AdjustCreditsForm } from "./adjust-credits-form";
 import { AdminSkeleton, StatTilesSkeleton } from "./admin-skeleton";
 import { JobsTable } from "./jobs-table";
+import { MembershipForm } from "./membership-form";
 import { StatTile } from "./stat-tile";
 import { TopSpenders } from "./top-spenders";
 import { WindowToggle, type AdminWindow } from "./window-toggle";
@@ -72,6 +73,7 @@ export function AdminDashboard() {
       <OverviewSection days={days} />
       <JobsTable />
       <TopSpenders days={days} />
+      <MembershipForm />
       <AdjustCreditsForm />
     </div>
   );

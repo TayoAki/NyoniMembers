@@ -56,7 +56,7 @@ const outfit = () => ({
 });
 
 test("only explicit app route boundaries are admitted; new outfit is not mistaken for an ID", () => {
-  for (const path of ["/wardrobe", "/outfits", "/outfits/new", "/add", "/lookbook", "/settings", "/billing"])
+  for (const path of ["/wardrobe", "/outfits", "/outfits/new", "/add", "/lookbook", "/settings", "/membership"])
     assert.ok(getStylistPageRoute(path), path);
   assert.equal(getStylistPageRoute("/outfits/new").kind, "outfit-draft");
   assert.equal(getStylistPageRoute("/wardrobe/item_1/").itemId, "item_1");
@@ -72,7 +72,7 @@ test("only explicit app route boundaries are admitted; new outfit is not mistake
     "/stylist/thread_1",
     "/wardrobes",
     "/wardrobe/x/edit",
-    "/wardrobe/../billing",
+    "/wardrobe/../membership",
     "/wardrobe//",
     "/wardrobe/a%2Fb",
     "/add?batch=private",
@@ -120,7 +120,7 @@ test("outfit context preserves exact persisted slots and strips image URLs and t
 
 test("selected wardrobe snapshots deduplicate, cap attributes and disclose incomplete selections", () => {
   assert.equal(createStylistSelectionContext([]), null);
-  assert.equal(createStylistSelectionContext([item()], "/billing"), null);
+  assert.equal(createStylistSelectionContext([item()], "/membership"), null);
   const context = createStylistSelectionContext([
     item(),
     item(),
@@ -281,7 +281,7 @@ test("wardrobe loads only its owned list; account pages attach no account record
     ["outfit", "skip"],
     ["wardrobe", {}],
   ]);
-  for (const path of ["/settings", "/billing", "/add", "/lookbook", "/outfits/new"]) {
+  for (const path of ["/settings", "/membership", "/add", "/lookbook", "/outfits/new"]) {
     const result = runHook({ path, results: { item: { item: item() }, wardrobe: [item()] } });
     assert.equal(result.context.path, path);
     assert.equal(result.context.item, null);

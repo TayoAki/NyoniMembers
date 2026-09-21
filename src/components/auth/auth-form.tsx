@@ -6,7 +6,6 @@ import { shadcn } from "@clerk/ui/themes";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/lib/routes";
-import { PLANS } from "@convex/shared/credits";
 
 const appearance: Appearance = {
   theme: shadcn,
@@ -55,9 +54,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   return (
     <>
-      <p className="auth-eyebrow auth-form-eyebrow">
-        {signingUp ? `${PLANS.free.signupCredits} free credits. A fresh start.` : "Back to your wardrobe"}
-      </p>
+      <p className="auth-eyebrow auth-form-eyebrow">{signingUp ? "Create your member account" : "Welcome back"}</p>
       <ClerkLoading>
         <div className="auth-loading" role="status" aria-live="polite">
           <Spinner className="size-5" />

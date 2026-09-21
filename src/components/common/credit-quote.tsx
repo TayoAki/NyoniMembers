@@ -36,14 +36,14 @@ export function CreditQuote({ quote, label, className }: CreditQuoteProps) {
         ) : quote.reason === "daily_cap" ? (
           <span className="text-destructive">Daily allowance reached. Try fewer pieces or come back tomorrow.</span>
         ) : quote.reason === "feature_locked" ? (
-          <Link href={routes.billing} className="underline underline-offset-2">
-            Upgrade for this quality
+          <Link href={routes.membership} className="underline underline-offset-2">
+            Not included in your membership
           </Link>
         ) : (
           <span className="text-destructive">
             Short by {formatCredits(quote.shortfall)} ·{" "}
-            <Link href={`${routes.billing}#plans`} className="underline underline-offset-2">
-              View plans
+            <Link href={`${routes.membership}#concierge`} className="underline underline-offset-2">
+              Ask your concierge
             </Link>
           </span>
         )}

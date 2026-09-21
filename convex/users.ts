@@ -4,8 +4,15 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { getCurrentUser, requireUser } from "./lib/auth";
 import { appError } from "./lib/errors";
 import { getBalance } from "./model/credits";
-import { cancelActiveJobs, deleteUserRow, profileFromIdentity, purgeUserBatch, upsertFromProfile } from "./model/users";
-import { vFeature, vPlanId, vPrefs } from "./shared/validators";
+import {
+  cancelActiveJobs,
+  deleteUserRow,
+  membershipOf,
+  profileFromIdentity,
+  purgeUserBatch,
+  upsertFromProfile,
+} from "./model/users";
+import { vFeature, vMembership, vPlanId, vPrefs } from "./shared/validators";
 
 export const vBalance = v.object({
   plan: vPlanId,
@@ -28,6 +35,7 @@ export const vMe = v.object({
   onboardedAt: v.optional(v.number()),
   defaultAvatarId: v.optional(v.id("avatars")),
   prefs: vPrefs,
+  membership: vMembership,
   balance: vBalance,
   createdAt: v.number(),
 });
@@ -49,6 +57,7 @@ export const me = query({
       onboardedAt: user.onboardedAt,
       defaultAvatarId: user.defaultAvatarId,
       prefs: user.prefs,
+      membership: membershipOf(user),
       balance: getBalance(user),
       createdAt: user.createdAt,
     };

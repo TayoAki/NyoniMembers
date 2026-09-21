@@ -9,11 +9,12 @@ Built on the Fitcheck AI wardrobe architecture (Next.js 16, React 19, Convex, Cl
 Phase 1 of the plan is under way on this branch:
 
 - Rebrand: wordmark, Bodoni Moda / Manrope / IBM Plex Mono, ivory and onyx tokens with a brass accent, private sign-in front door, nav and copy in the house's voice, the concierge persona.
+- Membership as a house-set status: tiers, the Membership page with benefits and concierge contacts, and a staff form in Admin. Clerk Billing and its plans page are gone.
 - Suits as a first-class garment: a `suit` category and outfit slot for two-piece, three-piece and tuxedo, with suit-aware try-on prompts.
 - The Nyoni collection seeder: every member's wardrobe is filled automatically after onboarding (`convex/collection.ts`), and "Add the Nyoni collection" in the wardrobe restores it.
 - Menswear-only onboarding.
 
-Still to do from the plan: membership tiers replacing Clerk plans and credits, measurements, commissions and fittings, the staff console. Product photography is not in the repository yet; see "Collection images" below.
+Still to do from the plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. Product photography is not in the repository yet; see "Collection images" below.
 
 ## Documents
 
@@ -46,7 +47,24 @@ pnpm convex:dev      # terminal 1: database, functions, workflows
 pnpm dev             # terminal 2: Next.js plus the concierge agent
 ```
 
-Clerk needs its Convex JWT template (audience `convex`) and, until the membership phase lands, the Fitcheck billing plans `pro` and `plus`. The full environment reference is in `.env.example`.
+Clerk needs its Convex JWT template (audience `convex`). Clerk Billing is not used: membership is a status the house sets (see below). The full environment reference is in `.env.example`.
+
+### Clerk
+
+The project is linked to Clerk application `app_3Jcb7C100ZAiBxHsh4KSKz5tqP3`. From a machine with normal internet access:
+
+```bash
+npm install -g clerk          # or: pnpm install -g clerk
+clerk auth login              # completes in the browser
+clerk init --app app_3Jcb7C100ZAiBxHsh4KSKz5tqP3   # writes the publishable and secret keys to .env.local
+clerk doctor
+```
+
+The SDK, provider, proxy and sign-in/sign-up routes are already in place, so `clerk init` mainly supplies the keys. Then, in the Clerk dashboard, add the JWT template named `convex` (audience `convex`, and `public_metadata: "{{user.public_metadata}}"` for staff roles) and set `CLERK_JWT_ISSUER_DOMAIN` on the Convex deployment.
+
+### Membership status
+
+Memberships are sold by the house, not the app. A member's tier lives on their record (`users.membership`: Signature, Prestige, Circle Elite, or Client for everyone else) and is set by staff in Admin → Membership by looking the account up by email. Members see their tier, its benefits and the concierge contacts on the Membership page. A WooCommerce sync can replace the manual step later without changing the model.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format:check`.
 

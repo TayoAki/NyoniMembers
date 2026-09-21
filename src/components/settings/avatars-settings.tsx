@@ -235,9 +235,12 @@ export function AvatarsSettings() {
 
         {atLimit && plan ? (
           <p className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
-            All {pluralize(plan.maxAvatars, "photo")} on the {plan.name} plan are in use. Replace a photo above, or{" "}
-            <Link href={routes.billing} className="underline underline-offset-2 hover:text-foreground">
-              move to a bigger plan
+            All {pluralize(plan.maxAvatars, "photo")} are in use. Replace a photo above, or{" "}
+            <Link
+              href={`${routes.membership}#concierge`}
+              className="underline underline-offset-2 hover:text-foreground"
+            >
+              ask your concierge for more
             </Link>
             .
           </p>

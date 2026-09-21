@@ -8,6 +8,7 @@ import {
   vJobStatus,
   vJobStep,
   vJobType,
+  vMembership,
   vOutfitSlots,
   vPlanId,
   vPrefs,
@@ -25,6 +26,8 @@ export default defineSchema({
     name: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("admin")),
+    /** Set by the house (staff console or a later WooCommerce sync); absent means client. */
+    membership: v.optional(vMembership),
     plan: vPlanId,
     planPeriodEnd: v.optional(v.number()),
     billingCheckedAt: v.optional(v.number()),
@@ -38,6 +41,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_clerkId", ["clerkId"])
+    .index("by_email", ["email"])
     .index("by_createdAt", ["createdAt"]),
 
   avatars: defineTable({

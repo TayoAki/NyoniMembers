@@ -31,8 +31,14 @@ What differs from the Fitcheck base so far:
 - **Brand.** Bodoni Moda display (`font-display`), Manrope body, IBM Plex Mono captions; ivory / onyx
   tokens with a brass ring in `src/app/globals.css`; the wordmark is `src/components/common/wordmark.tsx`.
 
-Still on the Fitcheck model until the membership phase: Clerk plans (`free`/`pro`/`plus`) and the
-credit meter. Do not build new member-facing features on credits; see the plan's tiers section.
+- **Membership is a house-set status, never a Clerk plan.** `users.membership` (`convex/shared/membership.ts`:
+  client / signature / prestige / circle_elite, active or lapsed, optional dates) is written only by
+  `setMembership` in `convex/model/users.ts`, from the staff form in Admin (`admin.setMembershipTier`, lookup
+  by email). Clerk stays for authentication only; the `PricingTable` and plans page are gone and must not
+  come back. Facts about the house (concierge contacts, showrooms) live in `convex/shared/house.ts`.
+
+Still on the Fitcheck model until the allowance phase: the `plan` field, `free`/`pro`/`plus` constants and
+the credit meter behind previews. Do not build new member-facing features on credits; see the plan's tiers section.
 
 # Working in this repo
 

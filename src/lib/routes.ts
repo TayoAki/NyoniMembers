@@ -15,7 +15,7 @@ export const routes = {
   stylist: "/stylist",
   thread: (threadId: Id<"threads"> | string) => `/stylist/${threadId}`,
   lookbook: "/lookbook",
-  billing: "/billing",
+  membership: "/membership",
   settings: "/settings",
   admin: "/admin",
   share: (token: string) => `/share/${token}`,

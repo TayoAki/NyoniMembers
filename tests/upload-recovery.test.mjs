@@ -31,7 +31,7 @@ const componentModules = {
   "@/lib/errors": 'export function toClientError(error){return {code:"UNKNOWN",message:error.message}}',
   "@/lib/format":
     'export function formatCredits(n){return `${n} credits`};export function pluralize(n,word){return `${n} ${word}${n===1?"":"s"}`}',
-  "@/lib/routes": 'export const routes={add:"/add",wardrobe:"/wardrobe",settings:"/settings",billing:"/billing"}',
+  "@/lib/routes": 'export const routes={add:"/add",wardrobe:"/wardrobe",settings:"/settings",membership:"/membership"}',
   "@convex/shared/credits": "export const LIMITS={maxPhotosPerUpload:50};export const CREDIT_COSTS={extractItem:1}",
   "@convex/shared/collection": "export const COLLECTION=[]",
   "./drop-zone": 'export function DropZone(){};export function describeRejection(){return "Rejected"}',

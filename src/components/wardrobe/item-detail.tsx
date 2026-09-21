@@ -101,11 +101,11 @@ export function ItemDetail({ itemId }: { itemId: string }) {
             </p>
           ) : item.status === "needsCredits" ? (
             <p className="text-sm text-muted-foreground">
-              Extraction paused — you ran out of credits.{" "}
-              <Link href={`${routes.billing}#plans`} className="font-medium underline underline-offset-4">
-                View your plan
+              Cutting out paused — your preview allowance is used up.{" "}
+              <Link href={`${routes.membership}#concierge`} className="font-medium underline underline-offset-4">
+                Ask your concierge
               </Link>{" "}
-              and resume from Add clothes when credits are available.
+              and resume from Add pieces when previews are available.
             </p>
           ) : item.status === "failed" ? (
             <p className="text-sm text-destructive">Extraction failed. Try &ldquo;Re-extract&rdquo; to run it again.</p>

@@ -6,19 +6,12 @@ import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/common/wordmark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { routes } from "@/lib/routes";
+import { HOUSE, SHOWROOMS } from "@convex/shared/house";
 
 export const metadata: Metadata = {
   title: { absolute: "Nyoni Members" },
   description: "The private members app of Nyoni Couture. Sign in to your wardrobe, measurements and concierge.",
 };
-
-const MEMBERSHIP_URL = "https://nyonicouture.com/membership/";
-
-const SHOWROOMS = [
-  { city: "Charlotte", address: "325 N Graham St" },
-  { city: "Atlanta", address: "2955 Peachtree Rd" },
-  { city: "Houston", address: "2301 Yorktown St, Suite 105" },
-] as const;
 
 /** Private front door: members sign in; everyone else is pointed at the house for membership. */
 export default async function FrontDoor() {
@@ -49,21 +42,26 @@ export default async function FrontDoor() {
           >
             Sign in <ArrowUpRight className="size-4" aria-hidden="true" />
           </Link>
-          <a
-            href={MEMBERSHIP_URL}
+          <Link
+            href={routes.signUp}
             className="inline-flex h-12 items-center gap-2 border border-foreground/25 px-6 text-sm font-medium transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-4"
           >
-            Become a member
-          </a>
+            Create your account
+          </Link>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Signature, Prestige and Circle Elite members sign in with the email or phone the house has on file.
+        <p className="mt-4 max-w-xl text-xs leading-relaxed text-muted-foreground">
+          Signature, Prestige and Circle Elite members sign in with the email or phone the house has on file. Not a
+          member yet?{" "}
+          <a href={HOUSE.membershipUrl} className="underline underline-offset-4 hover:text-foreground">
+            Membership at nyonicouture.com
+          </a>
+          .
         </p>
       </main>
       <footer className="mx-auto w-full max-w-[1520px] border-t border-foreground/10 px-4 py-6 sm:px-8 lg:px-12">
         <ul className="flex flex-wrap gap-x-8 gap-y-2 font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">
           {SHOWROOMS.map((showroom) => (
-            <li key={showroom.city}>
+            <li key={showroom.id}>
               <span className="text-foreground">{showroom.city}</span> · {showroom.address}
             </li>
           ))}

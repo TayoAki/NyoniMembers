@@ -1,6 +1,7 @@
 import { v, type VLiteral, type VUnion } from "convex/values";
 import { FEATURES, PLAN_IDS, RENDER_QUALITIES } from "./credits";
 import { JOB_STATUSES, JOB_TYPES, STEP_STATUSES } from "./jobs";
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_TIERS } from "./membership";
 import { CATEGORIES, FITS, FORMALITY, ITEM_STATUSES, PRESENTATIONS, SEASONS } from "./wardrobe";
 
 type LiteralUnion<T extends readonly string[]> = VUnion<T[number], VLiteral<T[number]>[]>;
@@ -17,6 +18,9 @@ export const vFormality = literals(FORMALITY);
 export const vFit = literals(FITS);
 export const vPresentation = literals(PRESENTATIONS);
 export const vItemStatus = literals(ITEM_STATUSES);
+
+export const vMembershipTier = literals(MEMBERSHIP_TIERS);
+export const vMembershipStatus = literals(MEMBERSHIP_STATUSES);
 
 export const vPlanId = literals(PLAN_IDS);
 export const vFeature = literals(FEATURES);
@@ -49,6 +53,16 @@ export const vJobStep = v.object({
 });
 
 export const vReservation = v.object({ plan: v.number(), pack: v.number() });
+
+/** The house-set membership on a user; absent means "client" (see shared/membership.ts). */
+export const vMembership = v.object({
+  tier: vMembershipTier,
+  status: vMembershipStatus,
+  since: v.optional(v.number()),
+  renewsAt: v.optional(v.number()),
+  note: v.optional(v.string()),
+  updatedAt: v.number(),
+});
 
 export const vPrefs = v.object({
   presentation: vPresentation,

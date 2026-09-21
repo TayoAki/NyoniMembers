@@ -22,7 +22,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
 ];
 
 export const SECONDARY_NAV: readonly NavItem[] = [
-  { href: routes.billing, label: "Membership", icon: CreditCard },
+  { href: routes.membership, label: "Membership", icon: CreditCard },
   { href: routes.settings, label: "Settings", icon: Settings },
   { href: routes.admin, label: "Admin", icon: ShieldCheck, adminOnly: true },
 ];

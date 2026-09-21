@@ -1,7 +1,7 @@
 "use client";
 
 import { ClerkProvider, useAuth } from "@clerk/nextjs";
-import { dark } from "@clerk/ui/themes";
+import { dark, shadcn } from "@clerk/ui/themes";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ThemeProvider, useTheme } from "next-themes";
@@ -30,7 +30,7 @@ function ThemedClerkProvider({ children }: { children: ReactNode }) {
       signUpUrl={env.NEXT_PUBLIC_CLERK_SIGN_UP_URL}
       signInFallbackRedirectUrl={env.NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL}
       signUpFallbackRedirectUrl={env.NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL}
-      appearance={{ theme: resolvedTheme === "dark" ? dark : undefined }}
+      appearance={{ theme: resolvedTheme === "dark" ? [shadcn, dark] : shadcn }}
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <TooltipProvider delay={200}>

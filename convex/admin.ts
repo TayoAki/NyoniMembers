@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { toJobView, vJob } from "./jobs";
 import { requireAdmin } from "./lib/auth";
+import { getByEmail, membershipOf, setMembership } from "./model/users";
+import { vMembership, vMembershipStatus, vMembershipTier } from "./shared/validators";
 import { appError } from "./lib/errors";
 import {
   overview as adminOverview,
@@ -128,5 +130,53 @@ export const adjustCredits = mutation({
       `${note} (admin ${admin.email ?? admin.clerkId})`,
     );
     return null;
+  },
+});
+
+export const vMemberSummary = v.object({
+  _id: v.id("users"),
+  name: v.optional(v.string()),
+  email: v.optional(v.string()),
+  onboardedAt: v.optional(v.number()),
+  membership: vMembership,
+  createdAt: v.number(),
+});
+
+/** Staff lookup by the email on the account, for the membership form. */
+export const lookupMember = query({
+  args: { email: v.string() },
+  returns: v.union(vMemberSummary, v.null()),
+  handler: async (ctx, { email }) => {
+    await requireAdmin(ctx);
+    const user = await getByEmail(ctx, email.trim().toLowerCase());
+    if (!user) return null;
+    return {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      onboardedAt: user.onboardedAt,
+      membership: membershipOf(user),
+      createdAt: user.createdAt,
+    };
+  },
+});
+
+/** The house records a member's tier here until the WooCommerce sync takes over. */
+export const setMembershipTier = mutation({
+  args: {
+    userId: v.id("users"),
+    tier: vMembershipTier,
+    status: vMembershipStatus,
+    since: v.optional(v.number()),
+    renewsAt: v.optional(v.number()),
+    note: v.optional(v.string()),
+  },
+  returns: vMembership,
+  handler: async (ctx, { userId, ...input }) => {
+    const admin = await requireAdmin(ctx);
+    const target = await ctx.db.get(userId);
+    if (!target) throw appError("NOT_FOUND", "That member doesn't exist.");
+    const stamp = `set by ${admin.email ?? admin.clerkId}`;
+    return setMembership(ctx, target, { ...input, note: input.note ? `${input.note} (${stamp})` : stamp });
   },
 });
