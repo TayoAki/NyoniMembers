@@ -2,18 +2,21 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Switch, View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Card, NavRow, Row } from "@/components/ui/cards";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { Section } from "@/components/ui/state-block";
+import { DetailRow, OutlinePanel, ServiceRow } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
 import { Text } from "@/components/ui/text";
 import { member } from "@/lib/fixtures";
 import { DEMO_STATES, DEMO_STATE_LABELS, useSession } from "@/lib/session";
-import { space } from "@/lib/theme";
+import { ny, space } from "@/lib/theme";
 import { TIER_LABELS } from "@/lib/types";
-import { useColours } from "@/lib/use-theme";
+
+const NOTIFICATIONS = [
+  { key: "drops", label: "When a drop opens" },
+  { key: "previews", label: "When a preview is ready" },
+  { key: "fittings", label: "Before a fitting" },
+] as const;
 
 export default function Settings() {
-  const colours = useColours();
   const router = useRouter();
   const { member: current, tier, atelierSource, setDemoState, demoState } = useSession();
   const [notifications, setNotifications] = useState({ drops: true, previews: true, fittings: true });
@@ -31,14 +34,14 @@ export default function Settings() {
 
   return (
     <Screen>
-      <ScreenHeader eyebrow="Your studio" title="Settings" />
+      <PageHeading eyebrow="Your account" title="Settings" />
 
       <Section title="Account">
-        <Card>
-          <Row label="Name" value={current?.name ?? member.name} />
-          <Row label="Email" value={current?.email ?? member.email} />
-          <Row label="Membership" value={TIER_LABELS[tier]} />
-          <Row
+        <OutlinePanel>
+          <DetailRow label="Name" value={current?.name ?? member.name} />
+          <DetailRow label="Email" value={current?.email ?? member.email} />
+          <DetailRow label="Membership" value={TIER_LABELS[tier]} />
+          <DetailRow
             label="Atelier"
             value={
               atelierSource === "membership"
@@ -50,69 +53,64 @@ export default function Settings() {
                     : "Not active"
             }
           />
-        </Card>
+        </OutlinePanel>
       </Section>
 
       <Section title="Notifications">
-        <Card>
-          {(
-            [
-              ["drops", "When a drop opens"],
-              ["previews", "When a preview is ready"],
-              ["fittings", "Before a fitting"],
-            ] as const
-          ).map(([key, label]) => (
+        <OutlinePanel>
+          {NOTIFICATIONS.map((item) => (
             <View
-              key={key}
+              key={item.key}
               style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 44 }}
             >
-              <Text variant="body">{label}</Text>
+              <Text variant="body">{item.label}</Text>
               <Switch
-                value={notifications[key]}
-                onValueChange={(value) => setNotifications((prior) => ({ ...prior, [key]: value }))}
-                accessibilityLabel={label}
-                trackColor={{ true: colours.primary, false: colours.border }}
+                value={notifications[item.key]}
+                onValueChange={(value) => setNotifications((prior) => ({ ...prior, [item.key]: value }))}
+                accessibilityLabel={item.label}
+                trackColor={{ true: ny.gold, false: ny.line }}
               />
             </View>
           ))}
-        </Card>
+        </OutlinePanel>
       </Section>
 
       <Section title="Subscription">
-        <Card>
-          <Text variant="bodySmall" tone="muted">
-            Atelier is billed by the App Store. Manage or cancel it in your App Store settings; cancelling stops the
-            renewal and you keep Atelier until the period ends.
+        <OutlinePanel>
+          <Text variant="body" tone="muted">
+            Atelier is billed by the App Store. Manage or cancel it there; cancelling stops the renewal and you keep
+            Atelier until the period ends.
           </Text>
           <Button label="Manage Atelier" variant="secondary" onPress={() => router.push("/atelier")} />
-        </Card>
+        </OutlinePanel>
       </Section>
 
       <Section>
-        <NavRow label="Your clothier" onPress={() => router.push("/circle/clothier")} />
-        <NavRow label="Orders" onPress={() => router.push("/orders")} />
+        <ServiceRow label="Your clothier" onPress={() => router.push("/circle/clothier")} />
+        <ServiceRow label="Orders" onPress={() => router.push("/orders")} />
+        <ServiceRow label="The Circle" onPress={() => router.push("/circle")} />
       </Section>
 
-      <Section title="Preview build">
-        <Card>
-          <Text variant="bodySmall" tone="muted">
+      <Section title="Preview build" major>
+        <OutlinePanel>
+          <Text variant="caption" tone="muted">
             No backend is connected yet. Switch between the states a member can be in to review every screen.
           </Text>
           {DEMO_STATES.map((state) => (
             <Button
               key={state}
               label={DEMO_STATE_LABELS[state]}
-              variant={demoState === state ? "primary" : "ghost"}
+              variant={demoState === state ? "primary" : "secondary"}
               onPress={() => setDemoState(state)}
             />
           ))}
-        </Card>
+        </OutlinePanel>
       </Section>
 
       <Section>
         <Button label="Sign out" variant="secondary" onPress={() => setDemoState("signed-out")} />
-        <Button label="Delete your account" variant="danger" onPress={confirmDelete} />
-        <Text variant="bodySmall" tone="muted">
+        <Button label="Delete your account" variant="secondary" onPress={confirmDelete} />
+        <Text variant="caption" tone="muted">
           Deleting your account removes your wardrobe, looks and previews from the house. It does not cancel your
           membership or your App Store subscription.
         </Text>

@@ -1,19 +1,15 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, View } from "react-native";
-import { Button } from "@/components/ui/button";
-import { Card, ProductCard, Row } from "@/components/ui/cards";
-import { Photo } from "@/components/ui/photo";
-import { Screen } from "@/components/ui/screen";
-import { Section } from "@/components/ui/state-block";
+import { View } from "react-native";
+import { TextAction } from "@/components/ui/button";
+import { EditorialHero } from "@/components/ui/editorial";
+import { ImageWell } from "@/components/ui/product";
+import { Screen, Section } from "@/components/ui/screen";
 import { Text } from "@/components/ui/text";
-import { Wordmark } from "@/components/ui/wordmark";
-import { appointments, drops, looks, productById, showroomById, suitEntitlement } from "@/lib/fixtures";
+import { appointments, drops, showroomById, suitEntitlement } from "@/lib/fixtures";
 import { relativeDate } from "@/lib/format";
 import { useSession } from "@/lib/session";
-import { radius, ratio, space } from "@/lib/theme";
-import { TIER_LABELS } from "@/lib/types";
-import { useColours } from "@/lib/use-theme";
+import { radius, space } from "@/lib/theme";
+import { useGutter, useSurface } from "@/lib/use-theme";
 
 const SUIT_STATUS: Record<string, string> = {
   available: "Ready to begin",
@@ -22,136 +18,86 @@ const SUIT_STATUS: Record<string, string> = {
   delivered: "Delivered",
 };
 
-/** The editorial front page: who you are, what the house has for you, and what you left unfinished. */
+/**
+ * Home is one editorial image and one next action. The hero text sits in normal flow beneath the
+ * photograph rather than at fixed coordinates, so nothing collides when a line wraps or the type
+ * grows.
+ */
 export default function Home() {
-  const colours = useColours();
   const router = useRouter();
-  const { member, tier, hasAtelier, atelierSource, previewDaysLeft } = useSession();
   const drop = drops.find((entry) => entry.state === "available");
-  const appointment = appointments.find((entry) => entry.status === "confirmed");
-  const recentLook = looks[looks.length - 1];
 
   return (
-    <Screen>
+    <Screen gutter={false}>
+      {drop ? (
+        <EditorialHero
+          productId={drop.heroPieceId}
+          eyebrow="Welcome to the Circle"
+          title={"Style, on\nyour terms."}
+          caption="The private edit"
+          actionLabel="Discover the collection"
+          onAction={() => router.push({ pathname: "/drops/[dropId]", params: { dropId: drop.id } })}
+        />
+      ) : null}
+
+      <AnnualSuitCard />
+
+      <View style={{ paddingHorizontal: useGutter() }}>
+        <Section title="Where to begin">
+          <Text variant="body" tone="muted">
+            Ask the stylist what to wear, or open the wardrobe the house has already dressed for you.
+          </Text>
+          <TextAction label="Ask the Nyoni stylist" onPress={() => router.push("/stylist")} />
+        </Section>
+      </View>
+    </Screen>
+  );
+}
+
+/** A compact card: fabric thumbnail, serif title, status with a dot and words, and the booking link. */
+function AnnualSuitCard() {
+  const router = useRouter();
+  const surface = useSurface();
+  const gutter = useGutter();
+  const { atLeast } = useSession();
+  const appointment = appointments.find((entry) => entry.id === suitEntitlement.appointmentId);
+
+  if (!atLeast("signature")) return null;
+
+  return (
+    <View style={{ paddingHorizontal: gutter, paddingTop: space.x5 }}>
       <View
         style={{
-          paddingTop: space.xxl,
           flexDirection: "row",
+          gap: space.x4,
+          padding: space.x4,
+          borderRadius: radius.card,
+          backgroundColor: surface.well,
           alignItems: "center",
-          justifyContent: "space-between",
         }}
       >
-        <Wordmark size="sm" />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Your account"
-          onPress={() => router.push("/circle")}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.pill,
-            borderWidth: 1,
-            borderColor: colours.border,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text variant="eyebrow">{member?.initials ?? "—"}</Text>
-        </Pressable>
-      </View>
-
-      <View style={{ paddingTop: space.xxl, gap: space.md }}>
-        <Text variant="eyebrow" tone="primary">
-          Welcome to the Circle
-        </Text>
-        <Text variant="display">Style, on your terms.</Text>
-        <Text variant="bodySmall" tone="muted">
-          {TIER_LABELS[tier]} member
-          {atelierSource === "preview"
-            ? ` · Atelier preview, ${previewDaysLeft} days left`
-            : hasAtelier
-              ? " · Atelier included"
-              : ""}
-        </Text>
-      </View>
-
-      {drop ? (
-        <Section title="The private edit" eyebrow="Available now">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open the drop, ${drop.title}`}
-            onPress={() => router.push({ pathname: "/drops/[dropId]", params: { dropId: drop.id } })}
-            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, gap: space.md })}
-          >
-            <Photo productId={drop.heroPieceId} fallbackLabel={drop.title} aspect={ratio.hero} contentFit="cover" />
-            <View style={{ gap: space.xs }}>
-              <Text variant="heading">{drop.title}</Text>
-              <Text variant="bodySmall" tone="muted">
-                {drop.subtitle}
-              </Text>
-            </View>
-          </Pressable>
-        </Section>
-      ) : null}
-
-      <Section title="Your annual suit">
-        <Card>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-            <Ionicons name="ellipse" size={10} color={colours.primary} />
-            <Text variant="label">{SUIT_STATUS[suitEntitlement.status] ?? "Ready to begin"}</Text>
-          </View>
-          {appointment ? (
-            <Row
-              label={`${showroomById(appointment.showroomId)?.city ?? "Showroom"} fitting`}
-              value={relativeDate(appointment.requestedFor)}
+        <ImageWell productId="nyoni-grayson" label="Your cloth" isolated style={{ width: 64 }} />
+        <View style={{ flex: 1, gap: space.x1 }}>
+          <Text variant="section">Your annual suit</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: space.x2 }}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: surface.accent }}
             />
-          ) : null}
-          <Button
-            label={appointment ? "See the appointment" : "Book your fitting"}
-            variant="secondary"
+            <Text variant="caption" tone="muted">
+              {SUIT_STATUS[suitEntitlement.status] ?? "Ready to begin"}
+              {appointment
+                ? ` · ${showroomById(appointment.showroomId)?.city ?? ""} ${relativeDate(appointment.requestedFor)}`
+                : ""}
+            </Text>
+          </View>
+          <TextAction
+            label={appointment ? "See your fitting" : "Book your fitting"}
             onPress={() => router.push("/circle/suit")}
           />
-        </Card>
-      </Section>
-
-      {recentLook ? (
-        <Section title="Pick up where you left off">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open the look, ${recentLook.title}`}
-            onPress={() => router.push({ pathname: "/looks/[lookId]", params: { lookId: recentLook.id } })}
-            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-          >
-            <Card>
-              <Text variant="eyebrow" tone="muted">
-                {recentLook.occasion ?? "A look"}
-              </Text>
-              <Text variant="heading">{recentLook.title}</Text>
-              <Text variant="bodySmall" tone="muted">
-                Saved {relativeDate(recentLook.createdAt)}
-              </Text>
-            </Card>
-          </Pressable>
-        </Section>
-      ) : null}
-
-      {drop ? (
-        <Section
-          title="From the edit"
-          action={
-            <Text variant="eyebrow" tone="primary">
-              See all
-            </Text>
-          }
-        >
-          <View style={{ flexDirection: "row", gap: space.md }}>
-            {drop.productIds.slice(0, 2).map((id) => {
-              const product = productById(id);
-              return product ? <ProductCard key={id} product={product} style={{ flex: 1 }} /> : null;
-            })}
-          </View>
-        </Section>
-      ) : null}
-    </Screen>
+        </View>
+      </View>
+    </View>
   );
 }

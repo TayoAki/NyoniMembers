@@ -1,18 +1,17 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Card, ProductCard } from "@/components/ui/cards";
-import { Photo } from "@/components/ui/photo";
-import { Screen } from "@/components/ui/screen";
-import { EmptyBlock, Section } from "@/components/ui/state-block";
+import { EditorialCard } from "@/components/ui/editorial";
+import { gridItem, ProductCard, ProductGrid } from "@/components/ui/product";
+import { OutlinePanel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { EmptyState } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
 import { dropById, productById } from "@/lib/fixtures";
 import { longDate } from "@/lib/format";
 import { useSession } from "@/lib/session";
-import { ratio, space } from "@/lib/theme";
 import { TIER_LABELS, TIER_RANK } from "@/lib/types";
 
-/** The edit: a story, then the pieces. A tier-gated drop shows the story and withholds the pieces. */
+/** The edit: a story, then the pieces. A tier-gated edit shows the story and holds back the pieces. */
 export default function DropDetail() {
   const { dropId } = useLocalSearchParams<{ dropId: string }>();
   const router = useRouter();
@@ -22,7 +21,7 @@ export default function DropDetail() {
   if (!drop) {
     return (
       <Screen>
-        <EmptyBlock
+        <EmptyState
           title="That edit has closed"
           description="The house moves on quickly. Have a look at what is open now."
           actionLabel="Back to drops"
@@ -32,49 +31,49 @@ export default function DropDetail() {
     );
   }
 
-  const locked = TIER_RANK[tier] < TIER_RANK[drop.minTier];
-  const notYetOpen = drop.state === "coming";
+  const early = TIER_RANK[tier] < TIER_RANK[drop.minTier];
 
   return (
     <Screen>
-      <Photo productId={drop.heroPieceId} fallbackLabel={drop.title} aspect={ratio.hero} contentFit="cover" />
+      <EditorialCard
+        productId={drop.heroPieceId}
+        title={drop.title}
+        actionLabel={drop.state === "coming" ? "Coming soon" : "The edit"}
+        onPress={() => {}}
+      />
 
-      <View style={{ paddingTop: space.xl, gap: space.md }}>
-        <Text variant="eyebrow" tone="primary">
-          {notYetOpen && drop.opensAt ? `Opens ${longDate(drop.opensAt)}` : "Available now"}
-        </Text>
-        <Text variant="title">{drop.title}</Text>
-        <Text variant="body" tone="muted">
-          {drop.story}
-        </Text>
-      </View>
+      <PageHeading
+        eyebrow={drop.state === "coming" && drop.opensAt ? `Opens ${longDate(drop.opensAt)}` : "Available now"}
+        title={drop.title}
+        subtitle={drop.story}
+      />
 
-      {locked ? (
+      {early ? (
         <Section>
-          <Card>
-            <Text variant="eyebrow" tone="primary">
+          <OutlinePanel>
+            <Text variant="eyebrow" tone="accent">
               {TIER_LABELS[drop.minTier]} and above
             </Text>
-            <Text variant="subheading">This edit opens to {TIER_LABELS[drop.minTier]} members first.</Text>
-            <Text variant="bodySmall" tone="muted">
-              Your clothier can hold a size for you before it opens to the house, or talk through whether moving up a
-              tier is worth it for how you actually dress.
+            <Text variant="section">This edit opens to {TIER_LABELS[drop.minTier]} members first.</Text>
+            <Text variant="body" tone="muted">
+              Your clothier can hold a size before it opens to the house, or talk through whether moving up a tier is
+              worth it for how you actually dress.
             </Text>
             <Button
               label="Speak to your clothier"
               variant="secondary"
               onPress={() => router.push("/circle/clothier")}
             />
-          </Card>
+          </OutlinePanel>
         </Section>
       ) : (
         <Section title="The pieces">
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.md }}>
+          <ProductGrid>
             {drop.productIds.map((id) => {
               const product = productById(id);
-              return product ? <ProductCard key={id} product={product} style={{ width: "47%", flexGrow: 1 }} /> : null;
+              return product ? <ProductCard key={id} product={product} memberAccess style={gridItem} /> : null;
             })}
-          </View>
+          </ProductGrid>
         </Section>
       )}
     </Screen>

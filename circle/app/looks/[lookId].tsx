@@ -1,16 +1,16 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/cards";
-import { Photo } from "@/components/ui/photo";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { EmptyBlock, Section } from "@/components/ui/state-block";
+import { ImageWell } from "@/components/ui/product";
+import { OutlinePanel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { EmptyState } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
 import { lookById, pieceById, productById } from "@/lib/fixtures";
 import { money, relativeDate } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { space } from "@/lib/theme";
-import { SLOTS, SLOT_LABELS } from "@/lib/types";
+import { SLOT_LABELS, SLOTS } from "@/lib/types";
 
 /** A saved look, and the thing that makes it commercial: which pieces are not yours yet. */
 export default function LookDetail() {
@@ -22,7 +22,7 @@ export default function LookDetail() {
   if (!look) {
     return (
       <Screen>
-        <EmptyBlock
+        <EmptyState
           title="That look is gone"
           description="It may have been deleted, or a piece in it was removed from your wardrobe."
           actionLabel="Back to your wardrobe"
@@ -43,39 +43,41 @@ export default function LookDetail() {
     <Screen
       footer={
         <Button
-          label={hasAtelier ? "Preview it on you" : "Preview it with Atelier"}
-          size="lg"
-          onPress={() => router.push("/try-on")}
+          label={hasAtelier ? "Try this look" : "Preview it with Atelier"}
+          onPress={() => router.push(hasAtelier ? "/try-on" : "/atelier")}
         />
       }
     >
-      <ScreenHeader
+      <PageHeading
         eyebrow={`${look.occasion ?? "A look"} · saved ${relativeDate(look.createdAt)}`}
         title={look.title}
-        description={look.source === "concierge" ? "Put together by your concierge." : undefined}
+        subtitle={look.source === "stylist" ? "Put together by the Nyoni stylist." : undefined}
       />
 
-      <View style={{ gap: space.md }}>
+      <View style={{ gap: space.x3 }}>
         {rows.map(({ slot, piece }) =>
           piece ? (
             <Pressable
               key={piece.id}
-              accessibilityRole="button"
+              accessibilityRole="link"
               accessibilityLabel={`${SLOT_LABELS[slot]}, ${piece.name}`}
               onPress={() => router.push({ pathname: "/wardrobe/[pieceId]", params: { pieceId: piece.id } })}
               style={({ pressed }) => ({
                 flexDirection: "row",
                 alignItems: "center",
-                gap: space.md,
+                gap: space.x3,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Photo productId={piece.productId} fallbackLabel={piece.name} style={{ width: 64 }} />
-              <View style={{ flex: 1 }}>
+              <ImageWell productId={piece.productId} label={piece.name} isolated style={{ width: 64 }} />
+              <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="eyebrow" tone="muted">
                   {SLOT_LABELS[slot]}
                 </Text>
-                <Text variant="label">{piece.name}</Text>
+                <Text variant="productTitle">{piece.name}</Text>
+                <Text variant="eyebrow" tone={piece.source === "owned" ? "muted" : "accent"}>
+                  {piece.source === "owned" ? "You own" : "Nyoni"}
+                </Text>
               </View>
             </Pressable>
           ) : null,
@@ -84,9 +86,10 @@ export default function LookDetail() {
 
       {missing.length > 0 ? (
         <Section title="Shop the missing pieces">
-          <Card>
-            <Text variant="bodySmall" tone="muted">
-              {missing.length} of these are house pieces you do not own yet, {money(missingTotal)} in total.
+          <OutlinePanel>
+            <Text variant="body" tone="muted">
+              {missing.length} of these are house pieces you do not own yet, {money(missingTotal)} in total. Only the
+              unowned pieces are included.
             </Text>
             {missing.map(({ piece }) => {
               const product = piece?.productId ? productById(piece.productId) : undefined;
@@ -99,7 +102,7 @@ export default function LookDetail() {
                 />
               ) : null;
             })}
-          </Card>
+          </OutlinePanel>
         </Section>
       ) : null}
 

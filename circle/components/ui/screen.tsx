@@ -1,96 +1,137 @@
 import type { ReactNode } from "react";
 import { ScrollView, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { space } from "@/lib/theme";
-import { useColours } from "@/lib/use-theme";
+import { space, surfaces, type SurfaceTone } from "@/lib/theme";
+import { SurfaceProvider, useGutter, useSurface } from "@/lib/use-theme";
 import { Text } from "./text";
 
 /**
- * Every screen sits inside this: the house background, the 16pt side gutter, and safe areas honoured
- * at the bottom so a tab bar or a home indicator never covers the last row of content.
+ * A page. It owns the surface tone, the side gutter and the space the bottom navigation needs, so
+ * no screen has to reserve that itself and no last action ends up under the bar.
  */
 export function Screen({
   children,
+  tone = "light",
   scroll = true,
   gutter = true,
-  style,
   footer,
+  style,
 }: {
   children: ReactNode;
+  tone?: SurfaceTone;
   scroll?: boolean;
-  /** Off for full-bleed screens such as the fitting room, which manage their own padding. */
+  /** Off for full-bleed pages such as the home hero, which pad their own content. */
   gutter?: boolean;
-  style?: ViewStyle;
-  /** Pinned above the safe area, for a single primary action such as Checkout. */
+  /** Pinned above the safe area for one primary action. */
   footer?: ReactNode;
+  style?: ViewStyle;
 }) {
-  const colours = useColours();
   const insets = useSafeAreaInsets();
-  const padding: ViewStyle = { paddingHorizontal: gutter ? space.gutter : 0 };
-  const bottomInset = Math.max(insets.bottom, space.lg);
+  const gutterWidth = useGutter();
+  const surface = surfaces[tone];
+  const padding: ViewStyle = { paddingHorizontal: gutter ? gutterWidth : 0 };
+  const bottom = Math.max(insets.bottom, space.x4);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colours.background }}>
-      {scroll ? (
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={[padding, { paddingBottom: space.xxxl + bottomInset }, style]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[{ flex: 1 }, padding, style]}>{children}</View>
-      )}
-      {footer ? (
-        <View
-          style={{
-            paddingHorizontal: space.gutter,
-            paddingTop: space.lg,
-            paddingBottom: bottomInset,
-            borderTopWidth: 1,
-            borderTopColor: colours.border,
-            backgroundColor: colours.background,
-          }}
-        >
-          {footer}
-        </View>
+    <SurfaceProvider tone={tone}>
+      <View style={{ flex: 1, backgroundColor: surface.background }}>
+        {scroll ? (
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={[padding, { paddingBottom: space.x10 + bottom }, style]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={[{ flex: 1 }, padding, style]}>{children}</View>
+        )}
+
+        {footer ? (
+          <View
+            style={{
+              paddingHorizontal: gutterWidth,
+              paddingTop: space.x4,
+              paddingBottom: bottom,
+              borderTopWidth: 1,
+              borderTopColor: surface.line,
+              backgroundColor: surface.background,
+            }}
+          >
+            {footer}
+          </View>
+        ) : null}
+      </View>
+    </SurfaceProvider>
+  );
+}
+
+/** One H1 per screen: a serif title, an optional subtitle, an optional action beside it. */
+export function PageHeading({
+  title,
+  subtitle,
+  eyebrow,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <View style={{ paddingTop: space.x6, paddingBottom: space.x5, gap: space.x2 }}>
+      {eyebrow ? (
+        <Text variant="eyebrow" tone="accent">
+          {eyebrow}
+        </Text>
+      ) : null}
+      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: space.x4 }}>
+        <Text variant="pageTitle" accessibilityRole="header" style={{ flex: 1 }}>
+          {title}
+        </Text>
+        {action}
+      </View>
+      {subtitle ? (
+        <Text variant="body" tone="muted">
+          {subtitle}
+        </Text>
       ) : null}
     </View>
   );
 }
 
-/** The page title block: a mono eyebrow, a Bodoni title, and an optional line of prose. */
-export function ScreenHeader({
-  eyebrow,
+/** A titled block. 24–32pt above it; 40 between major stories, which callers pass as `major`. */
+export function Section({
   title,
-  description,
   action,
+  children,
+  major = false,
 }: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
+  title?: string;
   action?: ReactNode;
+  children: ReactNode;
+  major?: boolean;
 }) {
   return (
-    <View style={{ paddingTop: space.xl, paddingBottom: space.lg, gap: space.sm }}>
-      {eyebrow ? (
-        <Text variant="eyebrow" tone="muted">
-          {eyebrow}
-        </Text>
+    <View style={{ gap: space.x4, paddingTop: major ? space.x10 : space.x6 }}>
+      {title || action ? (
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.x3 }}>
+          {title ? (
+            <Text variant="section" accessibilityRole="header" style={{ flex: 1 }}>
+              {title}
+            </Text>
+          ) : null}
+          {action}
+        </View>
       ) : null}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: space.lg }}>
-        <Text variant="title" style={{ flex: 1 }}>
-          {title}
-        </Text>
-        {action}
-      </View>
-      {description ? (
-        <Text variant="bodySmall" tone="muted">
-          {description}
-        </Text>
-      ) : null}
+      {children}
     </View>
   );
+}
+
+/** A hairline rule. Decorative only: control boundaries use `controlLine`. */
+export function Divider() {
+  const surface = useSurface();
+  return <View style={{ height: 1, backgroundColor: surface.line }} />;
 }

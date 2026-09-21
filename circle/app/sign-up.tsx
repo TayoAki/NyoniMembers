@@ -2,67 +2,64 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { TextInput, View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/cards";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
+import { Panel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
 import { Text } from "@/components/ui/text";
 import { useSession } from "@/lib/session";
-import { radius, space } from "@/lib/theme";
-import { useColours } from "@/lib/use-theme";
+import { fontFamily, radius, space } from "@/lib/theme";
+import { useSurface } from "@/lib/use-theme";
 
-/** Membership is reviewed by the house, so this collects an application rather than opening an account. */
+const FIELDS = [
+  { key: "name", label: "Full name", complete: "name" },
+  { key: "email", label: "Email", complete: "email" },
+  { key: "city", label: "Nearest city", complete: "off" },
+] as const;
+
+/** Membership is reviewed by the house, so this takes an application rather than opening an account. */
 export default function SignUp() {
-  const colours = useColours();
+  const surface = useSurface();
   const router = useRouter();
   const { setDemoState } = useSession();
   const [fields, setFields] = useState({ name: "", email: "", city: "" });
 
-  const inputStyle = {
-    minHeight: 52,
-    paddingHorizontal: space.lg,
-    borderWidth: 1,
-    borderColor: colours.border,
-    borderRadius: radius.md,
-    color: colours.foreground,
-    fontFamily: "Manrope_400Regular",
-    fontSize: 16,
-  } as const;
-
   return (
     <Screen>
-      <ScreenHeader
+      <PageHeading
         eyebrow="Apply"
         title="Join the Circle"
-        description="Membership is reviewed by the house. Tell us who you are and your nearest showroom will be in touch."
+        subtitle="Membership is reviewed by the house. Tell us who you are and your nearest showroom will be in touch."
       />
 
-      <View style={{ gap: space.lg }}>
-        {(
-          [
-            ["Full name", "name", "name"],
-            ["Email", "email", "email"],
-            ["Nearest city", "city", "off"],
-          ] as const
-        ).map(([label, key, complete]) => (
-          <View key={key} style={{ gap: space.sm }}>
+      <View style={{ gap: space.x5 }}>
+        {FIELDS.map((field) => (
+          <View key={field.key} style={{ gap: space.x2 }}>
             <Text variant="eyebrow" tone="muted">
-              {label}
+              {field.label}
             </Text>
             <TextInput
-              value={fields[key]}
-              onChangeText={(value) => setFields((prior) => ({ ...prior, [key]: value }))}
-              placeholderTextColor={colours.muted}
-              autoCapitalize={key === "email" ? "none" : "words"}
-              autoComplete={complete}
-              keyboardType={key === "email" ? "email-address" : "default"}
-              accessibilityLabel={label}
-              style={inputStyle}
+              value={fields[field.key]}
+              onChangeText={(value) => setFields((prior) => ({ ...prior, [field.key]: value }))}
+              placeholderTextColor={surface.muted}
+              autoCapitalize={field.key === "email" ? "none" : "words"}
+              autoComplete={field.complete}
+              keyboardType={field.key === "email" ? "email-address" : "default"}
+              accessibilityLabel={field.label}
+              style={{
+                minHeight: 52,
+                paddingHorizontal: space.x4,
+                borderWidth: 1,
+                borderColor: surface.controlLine,
+                borderRadius: radius.sm,
+                color: surface.text,
+                fontFamily: fontFamily.ui,
+                fontSize: 16,
+              }}
             />
           </View>
         ))}
 
         <Button
           label="Send my application"
-          size="lg"
           onPress={() => {
             setDemoState("preview");
             router.replace("/onboarding/photo");
@@ -70,15 +67,14 @@ export default function SignUp() {
         />
       </View>
 
-      <Card style={{ marginTop: space.xl }}>
-        <Text variant="eyebrow" tone="primary">
-          What happens next
-        </Text>
-        <Text variant="bodySmall" tone="muted">
-          A clothier reads every application. If the house opens an account for you, your wardrobe arrives already
-          dressed in the Nyoni capsule, and your first fourteen days include everything Atelier unlocks.
-        </Text>
-      </Card>
+      <Section title="What happens next">
+        <Panel>
+          <Text variant="body" tone="muted">
+            A clothier reads every application. If the house opens an account for you, your wardrobe arrives already
+            dressed in the Nyoni capsule, and your first fourteen days include everything Atelier unlocks.
+          </Text>
+        </Panel>
+      </Section>
     </Screen>
   );
 }

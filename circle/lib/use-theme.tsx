@@ -1,27 +1,29 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useColorScheme } from "react-native";
-import { palettes, type ColourScheme, type Palette } from "./theme";
-
-type ThemeValue = { scheme: ColourScheme; colours: Palette };
-
-const ThemeContext = createContext<ThemeValue | null>(null);
+import { createContext, useContext, type ReactNode } from "react";
+import { useWindowDimensions } from "react-native";
+import { chrome, surfaces, type Surface, type SurfaceTone } from "./theme";
 
 /**
- * Dark is the house default, so an unknown system preference resolves to dark rather than light.
+ * The app is not light-or-dark by system preference. It is an ivory app with ink chrome and one
+ * dark page, so a component asks which surface it is sitting on rather than which theme is active.
+ * `Surface` sets that for its subtree; the header, the navigation and the membership page set it
+ * to dark, everything else inherits light.
  */
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const system = useColorScheme();
-  const scheme: ColourScheme = system === "light" ? "light" : "dark";
-  const value = useMemo<ThemeValue>(() => ({ scheme, colours: palettes[scheme] }), [scheme]);
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+const SurfaceContext = createContext<SurfaceTone>("light");
+
+export function SurfaceProvider({ tone, children }: { tone: SurfaceTone; children: ReactNode }) {
+  return <SurfaceContext.Provider value={tone}>{children}</SurfaceContext.Provider>;
 }
 
-export function useTheme(): ThemeValue {
-  const value = useContext(ThemeContext);
-  if (!value) throw new Error("useTheme must be used inside ThemeProvider.");
-  return value;
+export function useSurfaceTone(): SurfaceTone {
+  return useContext(SurfaceContext);
 }
 
-export function useColours(): Palette {
-  return useTheme().colours;
+export function useSurface(): Surface {
+  return surfaces[useContext(SurfaceContext)];
+}
+
+/** 16pt of side gutter on the narrowest phones, 20pt from 375 upward. */
+export function useGutter(): number {
+  const { width } = useWindowDimensions();
+  return width >= 375 ? chrome.gutterWide : chrome.gutterNarrow;
 }

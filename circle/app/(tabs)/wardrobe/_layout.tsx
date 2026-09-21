@@ -1,23 +1,14 @@
 import { Stack } from "expo-router";
-import { useColours } from "@/lib/use-theme";
+import { BrandHeader } from "@/components/ui/brand-header";
+import { ny } from "@/lib/theme";
 
-export default function WardrobeLayout() {
-  const colours = useColours();
+export default function Layout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colours.background },
-        headerTintColor: colours.foreground,
-        headerTitleStyle: { fontFamily: "Manrope_600SemiBold", fontSize: 16 },
-        headerShadowVisible: false,
-        headerBackButtonDisplayMode: "minimal",
-        contentStyle: { backgroundColor: colours.background },
+        header: ({ back }) => <BrandHeader canGoBack={Boolean(back)} />,
+        contentStyle: { backgroundColor: ny.ivory },
       }}
-    >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="[pieceId]" options={{ title: "" }} />
-      <Stack.Screen name="add" options={{ title: "Add a piece" }} />
-      <Stack.Screen name="analytics" options={{ title: "Your wardrobe" }} />
-    </Stack>
+    />
   );
 }

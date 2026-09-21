@@ -1,27 +1,32 @@
+import { useRouter } from "expo-router";
 import { View } from "react-native";
-import { Card, Row } from "@/components/ui/cards";
-import { LockedBlock } from "@/components/ui/locked-block";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { Section } from "@/components/ui/state-block";
+import { DetailRow, OutlinePanel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { LockedState } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
-import { pieces, wears } from "@/lib/fixtures";
+import { atelier, pieces, wears } from "@/lib/fixtures";
 import { money, pluralize } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { radius, space } from "@/lib/theme";
 import { CATEGORIES, CATEGORY_LABELS } from "@/lib/types";
-import { useColours } from "@/lib/use-theme";
+import { useSurface } from "@/lib/use-theme";
 
-/** Atelier's dashboard. Every number here is derived from the wardrobe, not invented. */
+/** Atelier's dashboard. Every number is derived from the wardrobe, never invented. */
 export default function Analytics() {
-  const colours = useColours();
+  const router = useRouter();
+  const surface = useSurface();
   const { hasAtelier } = useSession();
 
   if (!hasAtelier) {
     return (
       <Screen>
-        <LockedBlock
-          title="Your wardrobe, measured"
+        <PageHeading eyebrow="Atelier" title="Your wardrobe, measured" />
+        <LockedState
+          title="Wardrobe analytics"
           description="What you actually reach for, what each piece costs you per wear, and where the gaps are."
+          priceLine={`${money(atelier.annualUsd)} a year. Included with Signature membership and above.`}
+          actionLabel="See what Atelier includes"
+          onAction={() => router.push("/atelier")}
         />
       </Screen>
     );
@@ -39,78 +44,77 @@ export default function Analytics() {
 
   return (
     <Screen>
-      <ScreenHeader eyebrow="Atelier" title="Your wardrobe" description="What you own, and what you actually wear." />
+      <PageHeading eyebrow="Atelier" title="Your wardrobe" subtitle="What you own, and what you actually wear." />
 
-      <View style={{ flexDirection: "row", gap: space.md }}>
+      <View style={{ flexDirection: "row", gap: space.x3 }}>
         <Stat label="Pieces" value={String(pieces.length)} />
         <Stat label="Wears logged" value={String(totalWorn)} />
         <Stat label="Invested" value={money(invested)} />
       </View>
 
       <Section title="What it is made of">
-        <Card>
+        <OutlinePanel>
           {byCategory.map((entry) => (
-            <View key={entry.category} style={{ gap: space.xs }}>
-              <Row label={CATEGORY_LABELS[entry.category]} value={pluralize(entry.count, "piece")} />
-              <View style={{ height: 4, borderRadius: radius.sm, backgroundColor: colours.border }}>
+            <View key={entry.category} style={{ gap: space.x1 }}>
+              <DetailRow label={CATEGORY_LABELS[entry.category]} value={pluralize(entry.count, "piece")} />
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={{ height: 4, borderRadius: 2, backgroundColor: surface.line }}
+              >
                 <View
                   style={{
                     height: 4,
-                    borderRadius: radius.sm,
+                    borderRadius: 2,
                     width: `${(entry.count / largest) * 100}%`,
-                    backgroundColor: colours.primary,
+                    backgroundColor: surface.accentText,
                   }}
                 />
               </View>
             </View>
           ))}
-        </Card>
+        </OutlinePanel>
       </Section>
 
       <Section title="What you reach for">
-        <Card>
+        <OutlinePanel>
           {mostWorn.map((piece) => (
-            <Row key={piece.id} label={piece.name} value={pluralize(piece.wearCount, "wear")} />
+            <DetailRow key={piece.id} label={piece.name} value={pluralize(piece.wearCount, "wear")} />
           ))}
-        </Card>
+        </OutlinePanel>
       </Section>
 
       <Section title="Sitting unworn">
-        <Card>
-          <Text variant="bodySmall" tone="muted">
-            {unworn.length === 0
-              ? "Everything in your wardrobe has been worn at least once."
-              : `${pluralize(unworn.length, "piece")} has never been worn. Ask the concierge to build a look around one.`}
-          </Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          {unworn.length === 0
+            ? "Everything in your wardrobe has been worn at least once."
+            : `${pluralize(unworn.length, "piece")} has never been worn. Ask the stylist to build a look around one.`}
+        </Text>
       </Section>
 
       <Section title="Recently worn">
-        <Card>
-          <Row label="Logged wears" value={pluralize(wears.length, "entry", "entries")} />
-          <Text variant="bodySmall" tone="muted">
-            Track a look with a mirror selfie and it lands here, next to the preview you made before you bought it.
-          </Text>
-        </Card>
+        <Text variant="body" tone="muted">
+          {pluralize(wears.length, "entry", "entries")} logged. Track a look with a mirror selfie and it lands here,
+          next to the preview you made before you bought it.
+        </Text>
       </Section>
     </Screen>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
-  const colours = useColours();
+  const surface = useSurface();
   return (
     <View
       style={{
         flex: 1,
-        padding: space.lg,
-        gap: space.xs,
-        borderWidth: 1,
-        borderColor: colours.border,
-        borderRadius: radius.lg,
+        padding: space.x4,
+        gap: space.x1,
+        borderRadius: radius.card,
+        backgroundColor: surface.well,
       }}
     >
-      <Text variant="heading">{value}</Text>
+      <Text variant="section">{value}</Text>
       <Text variant="eyebrow" tone="muted">
         {label}
       </Text>

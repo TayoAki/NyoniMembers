@@ -134,7 +134,7 @@ export const looks: Look[] = [
       shoes: ["piece_nyoni-oxford"],
       accessories: ["piece_nyoni-brittan-2"],
     },
-    source: "concierge",
+    source: "stylist",
     createdAt: now - 5 * DAY,
   },
   {
@@ -306,13 +306,13 @@ export const wears: Wear[] = [
 
 export const conversations: Conversation[] = [
   {
-    id: "conv_wedding",
+    id: "chat_wedding",
     title: "A black-tie wedding in October",
     lastMessageAt: now - 5 * DAY,
     preview: "Midnight tailoring, a crisp white shirt and your black oxfords.",
   },
   {
-    id: "conv_travel",
+    id: "chat_travel",
     title: "Three days in New York",
     lastMessageAt: now - 21 * DAY,
     preview: "One suit, two shirts, the grey overcoat. Everything else follows from those.",
@@ -320,7 +320,7 @@ export const conversations: Conversation[] = [
 ];
 
 export const messagesByConversation: Record<string, Message[]> = {
-  conv_wedding: [
+  chat_wedding: [
     {
       id: "m1",
       role: "member",
@@ -329,7 +329,7 @@ export const messagesByConversation: Record<string, Message[]> = {
     },
     {
       id: "m2",
-      role: "concierge",
+      role: "advisor",
       body: "Then the Sovereign double-breasted tuxedo, which does the work without raising its voice. The classic tuxedo shirt underneath, the Brittan silk bow, and your black oxfords. I would leave the pocket square out entirely.",
       at: now - 5 * DAY - 3500_000,
       proposedLook: {
@@ -342,7 +342,7 @@ export const messagesByConversation: Record<string, Message[]> = {
           shoes: ["piece_nyoni-oxford"],
           accessories: ["piece_nyoni-brittan-2"],
         },
-        source: "concierge",
+        source: "stylist",
         createdAt: now - 5 * DAY,
       },
     },
@@ -354,12 +354,12 @@ export const messagesByConversation: Record<string, Message[]> = {
     },
     {
       id: "m4",
-      role: "concierge",
+      role: "advisor",
       body: "You can. A preview shows you how the look reads, not how it will fit. Your clothier settles the fit at the showroom, and you have a fitting booked already.",
       at: now - 5 * DAY - 3300_000,
     },
   ],
-  conv_travel: [
+  chat_travel: [
     {
       id: "m5",
       role: "member",
@@ -368,7 +368,7 @@ export const messagesByConversation: Record<string, Message[]> = {
     },
     {
       id: "m6",
-      role: "concierge",
+      role: "advisor",
       body: "The charcoal three piece carries the meeting and one dinner. The navy turtleneck under the blazer takes the second. Grey overcoat over everything, the penny loafers for the day, oxfords for the evening.",
       at: now - 21 * DAY + 60_000,
     },

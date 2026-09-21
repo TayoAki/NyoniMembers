@@ -2,31 +2,29 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Photo } from "@/components/ui/photo";
-import { Screen } from "@/components/ui/screen";
-import { EmptyBlock, Section } from "@/components/ui/state-block";
+import { ImageWell } from "@/components/ui/product";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { EmptyState } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
-import { lookById, lookPieceIds, pieceById, previewById, productById } from "@/lib/fixtures";
+import { BeforeAfterControl, PreviewStage } from "@/components/try-on/preview-stage";
+import { lookById, lookPieceIds, pieceById, previewById } from "@/lib/fixtures";
 import { longDate } from "@/lib/format";
-import { radius, space } from "@/lib/theme";
-import { useColours } from "@/lib/use-theme";
+import { space } from "@/lib/theme";
 
-/** A finished preview: the toggle, the honest caveat, and the two things worth doing next. */
 export default function PreviewDetail() {
   const { previewId } = useLocalSearchParams<{ previewId: string }>();
   const router = useRouter();
-  const colours = useColours();
-  const [showing, setShowing] = useState<"preview" | "original">("preview");
+  const [showing, setShowing] = useState<"original" | "preview">("preview");
   const preview = previewById(previewId);
   const look = preview?.lookId ? lookById(preview.lookId) : undefined;
 
   if (!preview) {
     return (
       <Screen>
-        <EmptyBlock
+        <EmptyState
           title="That preview is gone"
           description="It may have been removed from your fitting room."
-          actionLabel="Back to try-on"
+          actionLabel="Back to the fitting room"
           onAction={() => router.replace("/try-on")}
         />
       </Screen>
@@ -42,68 +40,30 @@ export default function PreviewDetail() {
   return (
     <Screen
       footer={
-        <View style={{ gap: space.sm }}>
-          <Button label="Book a fitting" size="lg" onPress={() => router.push("/circle/appointments")} />
-          <Text variant="bodySmall" tone="muted" center>
+        <View style={{ gap: space.x2 }}>
+          <Button label="Book a fitting" onPress={() => router.push("/circle/appointments")} />
+          <Text variant="caption" tone="muted" center>
             This is how the look reads. Your clothier confirms the fit.
           </Text>
         </View>
       }
     >
-      <View style={{ paddingTop: space.lg }}>
-        <Photo productId={preview.posterPieceId} fallbackLabel="Preview" aspect={3 / 4} contentFit="contain" />
-      </View>
+      <PageHeading eyebrow={longDate(preview.createdAt)} title={look?.title ?? "Your preview"} />
 
-      <View style={{ alignItems: "center", paddingTop: space.md }}>
-        <Text variant="eyebrow" tone="muted">
-          Illustrative preview
-        </Text>
-      </View>
+      <PreviewStage state="ready" productId={preview.posterPieceId} label={look?.title ?? "this look"} />
 
-      <View
-        style={{
-          flexDirection: "row",
-          alignSelf: "center",
-          marginTop: space.md,
-          padding: 4,
-          borderRadius: radius.pill,
-          borderWidth: 1,
-          borderColor: colours.border,
-        }}
-      >
-        {(["original", "preview"] as const).map((mode) => {
-          const active = showing === mode;
-          return (
-            <Pressable
-              key={mode}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
-              onPress={() => setShowing(mode)}
-              style={{
-                minHeight: 40,
-                minWidth: 108,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: radius.pill,
-                backgroundColor: active ? colours.foreground : "transparent",
-              }}
-            >
-              <Text variant="label" tone={active ? "onPrimary" : "muted"}>
-                {mode === "original" ? "Original" : "Preview"}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Section>
+        <BeforeAfterControl value={showing} onChange={setShowing} />
+      </Section>
 
-      <Section title={look?.title ?? "This look"} eyebrow={longDate(preview.createdAt)}>
-        <View style={{ gap: space.sm }}>
+      <Section title="In this look">
+        <View style={{ gap: space.x3 }}>
           {pieces.map((piece) =>
             piece ? (
               <Pressable
                 key={piece.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${piece.name}`}
+                accessibilityRole="link"
+                accessibilityLabel={`${piece.name}, ${piece.productId ? "shop this piece" : "your own"}`}
                 onPress={() =>
                   piece.productId
                     ? router.push({ pathname: "/product/[productId]", params: { productId: piece.productId } })
@@ -112,15 +72,15 @@ export default function PreviewDetail() {
                 style={({ pressed }) => ({
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: space.md,
+                  gap: space.x3,
                   opacity: pressed ? 0.7 : 1,
                 })}
               >
-                <Photo productId={piece.productId} fallbackLabel={piece.name} style={{ width: 56 }} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="label">{piece.name}</Text>
-                  <Text variant="eyebrow" tone="muted">
-                    {piece.productId ? "Shop this piece" : "Your own"}
+                <ImageWell productId={piece.productId} label={piece.name} isolated style={{ width: 52 }} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="productTitle">{piece.name}</Text>
+                  <Text variant="eyebrow" tone={piece.productId ? "accent" : "muted"}>
+                    {piece.productId ? "Nyoni" : "You own"}
                   </Text>
                 </View>
               </Pressable>
@@ -130,8 +90,7 @@ export default function PreviewDetail() {
       </Section>
 
       <Section>
-        <Button label="Save to your lookbook" variant="secondary" onPress={() => router.back()} />
-        <Button label="Share this look" variant="ghost" onPress={() => router.back()} />
+        <Button label="Save look" variant="secondary" onPress={() => router.back()} />
       </Section>
     </Screen>
   );

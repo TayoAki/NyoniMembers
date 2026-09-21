@@ -1,34 +1,36 @@
+import * as WebBrowser from "expo-web-browser";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import * as WebBrowser from "expo-web-browser";
 import { View } from "react-native";
-import { Button } from "@/components/ui/button";
-import { Card, Row } from "@/components/ui/cards";
-import { Photo } from "@/components/ui/photo";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { EmptyBlock, Section } from "@/components/ui/state-block";
+import { Button, TextAction } from "@/components/ui/button";
+import { ImageWell } from "@/components/ui/product";
+import { DetailRow, OutlinePanel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { EmptyState, InlineNotice } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
 import { bag, productById } from "@/lib/fixtures";
-import { money } from "@/lib/format";
+import { money, pluralize } from "@/lib/format";
 import { space } from "@/lib/theme";
 
 /**
- * The bag hands off to the house's own checkout. That is not a shortcut: Apple requires payment for
- * physical goods to happen outside in-app purchase, so the screen says where the member is going
- * before it sends them there.
+ * The bag hands off to the house's own checkout, because Apple requires payment for physical goods
+ * to happen outside in-app purchase. The screen says where the member is going before it sends them.
  */
 export default function Bag() {
   const router = useRouter();
   const [opening, setOpening] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const lines = bag.map((line) => ({ line, product: productById(line.productId) })).filter((entry) => entry.product);
   const subtotal = lines.reduce((sum, entry) => sum + (entry.product?.priceUsd ?? 0) * entry.line.qty, 0);
 
   async function checkout() {
     setOpening(true);
+    setFailed(false);
     try {
-      // M4 replaces this with the order-pay URL Convex gets back from WooCommerce.
       await WebBrowser.openBrowserAsync("https://nyonicouture.com/checkout/");
+    } catch {
+      setFailed(true);
     } finally {
       setOpening(false);
     }
@@ -37,7 +39,7 @@ export default function Bag() {
   if (lines.length === 0) {
     return (
       <Screen>
-        <EmptyBlock
+        <EmptyState
           title="Your bag is empty"
           description="Everything the house has open right now is in Drops."
           actionLabel="See the drops"
@@ -50,27 +52,37 @@ export default function Bag() {
   return (
     <Screen
       footer={
-        <View style={{ gap: space.sm }}>
-          <Button label="Checkout on nyonicouture.com" size="lg" pending={opening} onPress={() => void checkout()} />
-          <Text variant="bodySmall" tone="muted" center>
-            The house takes payment on its own site. Your order appears here once it is placed.
+        <View style={{ gap: space.x2 }}>
+          <Button label="Checkout on nyonicouture.com" pending={opening} onPress={() => void checkout()} />
+          <Text variant="caption" tone="muted" center>
+            Opening the house's checkout is not a completed order. Your order appears here once it is placed.
           </Text>
         </View>
       }
     >
-      <ScreenHeader eyebrow="Your bag" title={`${lines.length} to consider`} />
+      <PageHeading title="Your bag" subtitle={`${pluralize(lines.length, "piece")} to consider.`} />
 
-      <View style={{ gap: space.lg }}>
+      {failed ? (
+        <InlineNotice
+          tone="error"
+          title="The checkout would not open"
+          description="Your bag is untouched. Try again, or open nyonicouture.com in your browser."
+          actionLabel="Try again"
+          onAction={() => void checkout()}
+        />
+      ) : null}
+
+      <View style={{ gap: space.x5, paddingTop: space.x4 }}>
         {lines.map(({ line, product }) =>
           product ? (
-            <View key={`${line.productId}-${line.size}`} style={{ flexDirection: "row", gap: space.md }}>
-              <Photo productId={product.id} fallbackLabel={product.name} style={{ width: 72 }} />
-              <View style={{ flex: 1, gap: space.xs }}>
-                <Text variant="label">{product.name}</Text>
+            <View key={`${line.productId}-${line.size}`} style={{ flexDirection: "row", gap: space.x3 }}>
+              <ImageWell productId={product.id} label={product.name} isolated style={{ width: 76 }} />
+              <View style={{ flex: 1, gap: space.x1 }}>
+                <Text variant="productTitle">{product.name}</Text>
                 <Text variant="eyebrow" tone="muted">
                   Size {line.size} · {line.qty > 1 ? `${line.qty} of them` : "one"}
                 </Text>
-                <Text variant="price">{money(product.priceUsd * line.qty)}</Text>
+                <Text variant="button">{money(product.priceUsd * line.qty)}</Text>
               </View>
             </View>
           ) : null,
@@ -78,14 +90,14 @@ export default function Bag() {
       </View>
 
       <Section title="Total">
-        <Card>
-          <Row label="Subtotal" value={money(subtotal)} />
-          <Row label="Shipping and tax" value="Calculated at checkout" />
-        </Card>
+        <OutlinePanel>
+          <DetailRow label="Subtotal" value={money(subtotal)} />
+          <DetailRow label="Shipping and tax" value="Calculated at checkout" />
+        </OutlinePanel>
       </Section>
 
       <Section>
-        <Button label="See your orders" variant="ghost" onPress={() => router.push("/orders")} />
+        <TextAction label="See your orders" onPress={() => router.push("/orders")} />
       </Section>
     </Screen>
   );

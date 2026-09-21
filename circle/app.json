@@ -7,7 +7,7 @@
     "scheme": "nyonicircle",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "backgroundColor": "#080808",
+    "backgroundColor": "#F5F2EB",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.nyonicouture.circle"
@@ -16,7 +16,7 @@
       "package": "com.nyonicouture.circle",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "backgroundColor": "#080808"
+        "backgroundColor": "#0C0C0B"
       }
     },
     "plugins": [
@@ -30,9 +30,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#080808",
+          "backgroundColor": "#0C0C0B",
           "dark": {
-            "backgroundColor": "#080808"
+            "backgroundColor": "#0C0C0B"
           },
           "resizeMode": "contain"
         }

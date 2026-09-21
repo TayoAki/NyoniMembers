@@ -1,24 +1,28 @@
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
 import { Button } from "@/components/ui/button";
-import { Photo } from "@/components/ui/photo";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { ErrorBlock } from "@/components/ui/state-block";
+import { ImageWell } from "@/components/ui/product";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { InlineNotice } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
 import { space } from "@/lib/theme";
 
-/**
- * The portrait every preview is built from. Guidance matters more than the camera here: a bad photo
- * is the single biggest cause of a preview a member does not believe.
- */
+const GUIDANCE = [
+  "Stand back far enough to be in frame from head to shoes.",
+  "Face the camera, arms relaxed at your sides.",
+  "Even daylight, a plain wall behind you.",
+  "Close-fitting clothes, so the tailoring sits where it should.",
+];
+
+/** The portrait every preview is built from. Guidance matters more here than the camera does. */
 export default function OnboardingPhoto() {
   const router = useRouter();
-  const [uri, setUri] = useState<string | null>(null);
+  const [chosen, setChosen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function choose(from: "camera" | "library") {
+  async function pick(from: "camera" | "library") {
     setError(null);
     const permission =
       from === "camera"
@@ -39,59 +43,53 @@ export default function OnboardingPhoto() {
         ? await ImagePicker.launchCameraAsync({ quality: 0.9 })
         : await ImagePicker.launchImageLibraryAsync({ quality: 0.9, mediaTypes: ["images"] });
 
-    if (result.canceled) return;
-    setUri(result.assets[0]?.uri ?? null);
+    if (!result.canceled) setChosen(true);
   }
 
   return (
     <Screen
       footer={
         <Button
-          label={uri ? "Use this photo" : "Continue without a photo"}
-          size="lg"
-          variant={uri ? "primary" : "secondary"}
+          label={chosen ? "Use this photo" : "Continue without a photo"}
+          variant={chosen ? "primary" : "secondary"}
           onPress={() => router.push("/onboarding/preferences")}
         />
       }
     >
-      <ScreenHeader
+      <PageHeading
         eyebrow="Step 1 of 3"
         title="A photo of you"
-        description="Previews are built from this. You can replace it whenever you like."
+        subtitle="Previews are built from this. You can replace it whenever you like."
       />
 
-      <View style={{ gap: space.lg }}>
-        {uri ? (
-          <Photo productId={undefined} fallbackLabel="Your portrait" />
-        ) : (
-          <Photo productId="nyoni-cascata-2" fallbackLabel="Example" />
-        )}
+      <ImageWell productId={chosen ? undefined : "nyoni-cascata-2"} label="Your portrait" isolated />
 
-        <View style={{ gap: space.sm }}>
-          <Text variant="subheading">What works best</Text>
-          {[
-            "Stand back far enough to be in frame from head to shoes.",
-            "Face the camera, arms relaxed at your sides.",
-            "Even daylight, a plain wall behind you.",
-            "Close-fitting clothes, so the tailoring sits where it should.",
-          ].map((line) => (
-            <Text key={line} variant="bodySmall" tone="muted">
+      <Section title="What works best">
+        <View style={{ gap: space.x2 }}>
+          {GUIDANCE.map((line) => (
+            <Text key={line} variant="body" tone="muted">
               · {line}
             </Text>
           ))}
         </View>
+      </Section>
 
-        {error ? <ErrorBlock title="Permission needed" description={error} /> : null}
+      {error ? (
+        <Section>
+          <InlineNotice tone="error" title="Permission needed" description={error} />
+        </Section>
+      ) : null}
 
-        <View style={{ gap: space.md }}>
-          <Button label="Take a photo" onPress={() => void choose("camera")} />
-          <Button label="Choose from your library" variant="secondary" onPress={() => void choose("library")} />
-        </View>
+      <Section>
+        <Button label="Take a photo" onPress={() => void pick("camera")} />
+        <Button label="Choose from your library" variant="secondary" onPress={() => void pick("library")} />
+      </Section>
 
-        <Text variant="bodySmall" tone="muted">
+      <Section>
+        <Text variant="caption" tone="muted">
           A preview shows how a look reads on you. Your clothier confirms the fit at the showroom.
         </Text>
-      </View>
+      </Section>
     </Screen>
   );
 }

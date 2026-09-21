@@ -1,23 +1,23 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/cards";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { Section } from "@/components/ui/state-block";
+import { Button, TextAction } from "@/components/ui/button";
+import { OutlinePanel, Panel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
 import { Text } from "@/components/ui/text";
 import { atelier } from "@/lib/fixtures";
 import { money, pluralize } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { radius, space } from "@/lib/theme";
-import { useColours } from "@/lib/use-theme";
+import { useSurface } from "@/lib/use-theme";
 
 /**
- * The paywall, which is a screen rather than a modal afterthought. Price, period, what renews and
- * how to restore are all legible before anyone taps buy. M7 replaces the buttons with RevenueCat.
+ * The paywall, as a screen rather than a modal afterthought. Price, period, what renews and how to
+ * restore are all legible before anyone taps buy, which the App Store requires and a member is owed
+ * anyway.
  */
 export default function Atelier() {
-  const colours = useColours();
+  const surface = useSurface();
   const router = useRouter();
   const { hasAtelier, atelierSource, previewDaysLeft, setDemoState } = useSession();
   const [plan, setPlan] = useState<"annual" | "monthly">("annual");
@@ -25,10 +25,10 @@ export default function Atelier() {
   if (hasAtelier) {
     return (
       <Screen>
-        <ScreenHeader
+        <PageHeading
           eyebrow="Atelier"
           title="You already have it"
-          description={
+          subtitle={
             atelierSource === "membership"
               ? "Atelier is included with your membership, at no extra cost."
               : atelierSource === "preview"
@@ -36,24 +36,27 @@ export default function Atelier() {
                 : "Your subscription is active."
           }
         />
+
         <Section title="What it unlocks">
-          <Card>
+          <Panel>
             {atelier.features.map((feature) => (
-              <Text key={feature} variant="bodySmall">
+              <Text key={feature} variant="body">
                 · {feature}
               </Text>
             ))}
-          </Card>
+          </Panel>
         </Section>
+
         {atelierSource === "subscription" ? (
           <Section>
-            <Button label="Manage your subscription" variant="secondary" onPress={() => router.back()} />
-            <Text variant="bodySmall" tone="muted">
-              Subscriptions are billed by the App Store and managed there. Cancelling stops the renewal and you keep
-              Atelier until the period ends.
+            <Text variant="body" tone="muted">
+              Atelier is billed by the App Store and managed there. Cancelling stops the renewal, and you keep it until
+              the period ends.
             </Text>
+            <Button label="Manage in the App Store" variant="secondary" onPress={() => router.back()} />
           </Section>
         ) : null}
+
         {atelierSource === "preview" ? (
           <Section>
             <Button label="Subscribe now" onPress={() => setDemoState("atelier")} />
@@ -68,36 +71,35 @@ export default function Atelier() {
   return (
     <Screen
       footer={
-        <View style={{ gap: space.sm }}>
+        <View style={{ gap: space.x2 }}>
           <Button
             label={`Subscribe · ${money(price)} ${plan === "annual" ? "a year" : "a month"}`}
-            size="lg"
             onPress={() => setDemoState("atelier")}
           />
-          <Text variant="bodySmall" tone="muted" center>
+          <Text variant="caption" tone="muted" center>
             Renews automatically until you cancel. Manage or cancel any time in your App Store settings.
           </Text>
         </View>
       }
     >
-      <ScreenHeader
+      <PageHeading
         eyebrow="Atelier"
         title="See it on you, before you buy it"
-        description="Everything the house can tell you about your own wardrobe, and the fitting room that shows a look on your photo."
+        subtitle="Everything the house can tell you about your own wardrobe, and the fitting room that puts a look on your photo."
       />
 
       <Section title="What you get">
-        <Card>
+        <Panel>
           {atelier.features.map((feature) => (
-            <Text key={feature} variant="bodySmall">
+            <Text key={feature} variant="body">
               · {feature}
             </Text>
           ))}
-        </Card>
+        </Panel>
       </Section>
 
       <Section title="Choose a plan">
-        <View style={{ gap: space.md }}>
+        <View accessibilityRole="radiogroup" accessibilityLabel="Choose a plan" style={{ gap: space.x3 }}>
           {(
             [
               ["annual", `${money(atelier.annualUsd)} a year`, `Works out at ${money(atelier.annualUsd / 12)} a month`],
@@ -113,17 +115,15 @@ export default function Atelier() {
                 accessibilityLabel={`${title}. ${detail}`}
                 onPress={() => setPlan(key)}
                 style={{
-                  padding: space.lg,
-                  gap: space.xs,
-                  borderRadius: radius.lg,
-                  borderWidth: 1,
-                  borderColor: active ? colours.primary : colours.border,
+                  padding: space.x4,
+                  gap: space.x1,
+                  borderRadius: radius.card,
+                  borderWidth: active ? 2 : 1,
+                  borderColor: active ? surface.text : surface.controlLine,
                 }}
               >
-                <Text variant="subheading" tone={active ? "primary" : "default"}>
-                  {title}
-                </Text>
-                <Text variant="bodySmall" tone="muted">
+                <Text variant="section">{title}</Text>
+                <Text variant="caption" tone="muted">
                   {detail}
                 </Text>
               </Pressable>
@@ -133,17 +133,17 @@ export default function Atelier() {
       </Section>
 
       <Section title="Already a member?">
-        <Card>
-          <Text variant="bodySmall" tone="muted">
+        <OutlinePanel>
+          <Text variant="body" tone="muted">
             Atelier is included with Signature, Prestige and Circle Elite membership. If you hold one, sign in with the
             email the house has on file and it opens on its own.
           </Text>
-          <Button label="About membership" variant="ghost" onPress={() => router.push("/circle")} />
-        </Card>
+          <TextAction label="About membership" onPress={() => router.push("/circle")} />
+        </OutlinePanel>
       </Section>
 
       <Section>
-        <Button label="Restore a purchase" variant="ghost" onPress={() => setDemoState("atelier")} />
+        <TextAction label="Restore a purchase" arrow={false} onPress={() => setDemoState("atelier")} />
       </Section>
     </Screen>
   );

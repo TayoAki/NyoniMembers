@@ -1,33 +1,31 @@
 import { Text as RNText, type TextProps as RNTextProps } from "react-native";
-import { useColours } from "@/lib/use-theme";
 import { typography, type TypeVariant } from "@/lib/theme";
+import { useSurface } from "@/lib/use-theme";
 
-type Tone = "default" | "muted" | "primary" | "onPrimary" | "danger" | "success" | "warning";
+type Tone = "default" | "muted" | "accent" | "inverse" | "success" | "error";
 
 export type TextProps = RNTextProps & {
   variant?: TypeVariant;
   tone?: Tone;
-  /** Centre a single line without a wrapper view. */
   center?: boolean;
 };
 
 /**
- * The only text component. Variants carry the house type scale so no screen hand-picks a font size,
- * and Dynamic Type is left switched on so the layout has to survive the accessibility sizes.
+ * The only text component. Variants carry the whole type scale so no screen picks a size, and
+ * `tone` resolves against the surface the text is sitting on rather than a global theme.
  */
 export function Text({ variant = "body", tone = "default", center, style, ...rest }: TextProps) {
-  const colours = useColours();
-  const toneColour = {
-    default: colours.foreground,
-    muted: colours.muted,
-    primary: colours.primary,
-    onPrimary: colours.onPrimary,
-    danger: colours.danger,
-    success: colours.success,
-    warning: colours.warning,
+  const surface = useSurface();
+  const colour = {
+    default: surface.text,
+    muted: surface.muted,
+    accent: surface.accentText,
+    inverse: surface.background,
+    success: surface.success,
+    error: surface.error,
   }[tone];
 
   return (
-    <RNText {...rest} style={[typography[variant], { color: toneColour }, center && { textAlign: "center" }, style]} />
+    <RNText {...rest} style={[typography[variant], { color: colour }, center && { textAlign: "center" }, style]} />
   );
 }

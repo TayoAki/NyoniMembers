@@ -1,13 +1,26 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BrandHeader } from "@/components/ui/brand-header";
+import { Icon, type IconName } from "@/components/ui/icons";
 import { useSession } from "@/lib/session";
-import { space } from "@/lib/theme";
-import { useColours } from "@/lib/use-theme";
+import { chrome, ny, space } from "@/lib/theme";
 
-/** Five tabs, the shape of the product: find something, style it, see it, ask, keep it. */
+/**
+ * Five destinations in the order the style guide fixes them. Membership is not among them: it opens
+ * from the header profile control, so no bottom destination is falsely selected on that page.
+ *
+ * The active destination is gold and carries a short underline, so selection is never colour alone.
+ */
+const DESTINATIONS: { name: string; title: string; icon: IconName }[] = [
+  { name: "index", title: "Home", icon: "home" },
+  { name: "drops", title: "Drops", icon: "drops" },
+  { name: "try-on", title: "Try-on", icon: "tryOn" },
+  { name: "stylist", title: "Stylist", icon: "stylist" },
+  { name: "wardrobe", title: "Wardrobe", icon: "wardrobe" },
+];
+
 export default function TabsLayout() {
-  const colours = useColours();
   const insets = useSafeAreaInsets();
   const { isSignedIn } = useSession();
 
@@ -16,63 +29,45 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colours.primary,
-        tabBarInactiveTintColor: colours.muted,
-        tabBarShowLabel: true,
-        tabBarLabelPosition: "below-icon",
+        header: () => <BrandHeader />,
+        sceneStyle: { backgroundColor: ny.ivory },
+        tabBarActiveTintColor: ny.gold,
+        tabBarInactiveTintColor: ny.ivory,
         tabBarStyle: {
-          backgroundColor: colours.background,
-          borderTopColor: colours.border,
-          // The label sits under the icon, so the bar needs room for both plus the home indicator.
-          height: 64 + insets.bottom,
-          paddingTop: space.sm,
-          paddingBottom: insets.bottom + space.xs,
+          backgroundColor: ny.ink,
+          borderTopColor: ny.darkLine,
+          height: chrome.navHeight + insets.bottom,
+          paddingTop: space.x2,
+          paddingBottom: insets.bottom + space.x1,
         },
-        tabBarIconStyle: { marginTop: 0 },
-        tabBarLabelStyle: {
-          fontFamily: "IBMPlexMono_400Regular",
-          fontSize: 10,
-          lineHeight: 14,
-          letterSpacing: 0.6,
-        },
+        tabBarLabelStyle: { fontFamily: "Manrope_500Medium", fontSize: 12, lineHeight: 14 },
+        tabBarItemStyle: { paddingVertical: 0 },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="drops"
-        options={{
-          title: "Drops",
-          tabBarIcon: ({ color, size }) => <Ionicons name="diamond-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="try-on"
-        options={{
-          title: "Try-on",
-          tabBarIcon: ({ color, size }) => <Ionicons name="scan-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="concierge"
-        options={{
-          title: "Concierge",
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble-outline" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="wardrobe"
-        options={{
-          title: "Wardrobe",
-          tabBarIcon: ({ color, size }) => <Ionicons name="shirt-outline" size={size} color={color} />,
-        }}
-      />
+      {DESTINATIONS.map((destination) => (
+        <Tabs.Screen
+          key={destination.name}
+          name={destination.name}
+          options={{
+            title: destination.title,
+            // Home has no nested stack, so the tab navigator renders its header; the others
+            // render it from their own stack so a pushed screen keeps the same bar.
+            headerShown: destination.name === "index",
+            tabBarIcon: ({ color, focused }) => (
+              <View style={{ alignItems: "center", gap: space.x1 }}>
+                <Icon name={destination.icon} size={24} colour={color} />
+                <View
+                  style={{
+                    width: 28,
+                    height: 2,
+                    backgroundColor: focused ? ny.gold : "transparent",
+                  }}
+                />
+              </View>
+            ),
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

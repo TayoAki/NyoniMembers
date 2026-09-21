@@ -73,7 +73,7 @@ export type Look = {
   title: string;
   occasion?: string;
   slots: Partial<Record<Slot, string[]>>;
-  source: "member" | "concierge";
+  source: "member" | "stylist";
   createdAt: number;
 };
 
@@ -142,7 +142,7 @@ export const TIER_CLOTH: Record<MembershipTier, string> = {
 };
 
 export const TIER_BENEFITS: Record<MembershipTier, readonly string[]> = {
-  client: ["The Nyoni capsule in your wardrobe", "Looks and styling from your concierge", "Book a consultation"],
+  client: ["The Nyoni capsule in your wardrobe", "Looks and styling from the Nyoni stylist", "Book a consultation"],
   signature: [
     "A made-to-measure suit each year in signature Nyoni Fabric",
     "Priority booking and fittings",
@@ -195,9 +195,9 @@ export type Conversation = { id: string; title: string; lastMessageAt: number; p
 
 export type Message = {
   id: string;
-  role: "member" | "concierge";
+  role: "member" | "advisor";
   body: string;
   at: number;
-  /** A look the concierge put together, offered for the member to save. */
+  /** A look the stylist put together, offered for the member to save. */
   proposedLook?: Look;
 };

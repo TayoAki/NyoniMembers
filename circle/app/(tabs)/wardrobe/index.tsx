@@ -1,129 +1,132 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { Link } from "expo-router";
 import { Pressable, View } from "react-native";
-import { Button } from "@/components/ui/button";
-import { Card, PieceCard } from "@/components/ui/cards";
-import { LockedBlock } from "@/components/ui/locked-block";
-import { Photo } from "@/components/ui/photo";
-import { Screen, ScreenHeader } from "@/components/ui/screen";
-import { EmptyBlock, Section } from "@/components/ui/state-block";
+import { Button, TextAction } from "@/components/ui/button";
+import { gridItem, ImageWell, ProductGrid } from "@/components/ui/product";
+import { OutlinePanel } from "@/components/ui/rows";
+import { PageHeading, Screen, Section } from "@/components/ui/screen";
+import { EmptyState, LockedState } from "@/components/ui/states";
+import { ContentTabs, FilterChips } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/text";
-import { boards, looks, pieces, productById } from "@/lib/fixtures";
-import { pluralize, relativeDate } from "@/lib/format";
+import { atelier, bag, looks, pieces, productById } from "@/lib/fixtures";
+import { money, pluralize, relativeDate } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { space } from "@/lib/theme";
 import { CATEGORIES, CATEGORY_LABELS, type Category } from "@/lib/types";
-import { useColours } from "@/lib/use-theme";
 
-type Tab = "owned" | "looks" | "boards";
+type Tab = "owned" | "looks" | "shop";
 
-/** Three views of the same wardrobe: what you have, what you have built, what you are saving for. */
+/**
+ * Owned pieces and things saved to buy are separate states, always. A piece does not become owned
+ * because it was viewed, tried on or saved.
+ */
 export default function Wardrobe() {
   const router = useRouter();
-  const colours = useColours();
   const { hasAtelier } = useSession();
   const [tab, setTab] = useState<Tab>("owned");
   const [category, setCategory] = useState<Category | "all">("all");
 
-  const shown = category === "all" ? pieces : pieces.filter((piece) => piece.category === category);
+  const owned = category === "all" ? pieces : pieces.filter((piece) => piece.category === category);
+  const saved = bag.map((line) => productById(line.productId)).filter(Boolean);
 
   return (
-    <Screen>
-      <ScreenHeader
-        eyebrow="Collected with intention"
+    <Screen
+      footer={
+        tab === "owned" ? <Button label="Style my wardrobe" onPress={() => router.push("/stylist")} /> : undefined
+      }
+    >
+      <PageHeading
         title="Your wardrobe"
-        description={`${pluralize(pieces.length, "piece")}, including the Nyoni capsule.`}
-        action={<Button label="Add" full={false} onPress={() => router.push("/wardrobe/add")} />}
+        subtitle="Collected with intention."
+        action={<TextAction label="Add a piece" arrow={false} onPress={() => router.push("/wardrobe/add")} />}
       />
 
-      <View style={{ flexDirection: "row", gap: space.xl, paddingBottom: space.lg }}>
-        {(
-          [
-            ["owned", "Owned"],
-            ["looks", "Saved looks"],
-            ["boards", "Boards"],
-          ] as const
-        ).map(([key, label]) => (
-          <Pressable
-            key={key}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === key }}
-            onPress={() => setTab(key)}
-            style={{
-              minHeight: 44,
-              justifyContent: "center",
-              borderBottomWidth: 2,
-              borderBottomColor: tab === key ? colours.primary : "transparent",
-            }}
-          >
-            <Text variant="label" tone={tab === key ? "default" : "muted"}>
-              {label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <ContentTabs
+        label="Wardrobe views"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: "owned", label: "Owned" },
+          { value: "looks", label: "Saved looks" },
+          { value: "shop", label: "Saved to shop" },
+        ]}
+      />
 
       {tab === "owned" ? (
         <>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, paddingBottom: space.lg }}>
-            {(["all", ...CATEGORIES] as const).map((value) => {
-              const active = category === value;
-              return (
-                <Pressable
-                  key={value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setCategory(value)}
-                  style={{
-                    minHeight: 36,
-                    justifyContent: "center",
-                    paddingHorizontal: space.md,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: active ? colours.primary : colours.border,
-                  }}
-                >
-                  <Text variant="eyebrow" tone={active ? "primary" : "muted"}>
-                    {value === "all" ? "Everything" : CATEGORY_LABELS[value]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {shown.length === 0 ? (
-            <EmptyBlock
-              title="Nothing in this category yet"
-              description="Photograph a garment you own, or shop the house."
-              actionLabel="Add a piece"
-              onAction={() => router.push("/wardrobe/add")}
+          <Section>
+            <FilterChips
+              label="Filter by category"
+              value={category}
+              onChange={setCategory}
+              options={[
+                { value: "all" as const, label: "Everything" },
+                ...CATEGORIES.map((value) => ({ value, label: CATEGORY_LABELS[value] })),
+              ]}
             />
+          </Section>
+
+          {owned.length === 0 ? (
+            <Section>
+              <EmptyState
+                title="Nothing here yet"
+                description="Photograph a garment you already own, or shop the house."
+                actionLabel="Add a piece"
+                onAction={() => router.push("/wardrobe/add")}
+              />
+            </Section>
           ) : (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.md }}>
-              {shown.map((piece) => (
-                <PieceCard key={piece.id} piece={piece} style={{ width: "47%", flexGrow: 1 }} />
-              ))}
-            </View>
+            <Section>
+              <ProductGrid>
+                {owned.map((piece) => (
+                  <Link
+                    key={piece.id}
+                    href={{ pathname: "/wardrobe/[pieceId]", params: { pieceId: piece.id } }}
+                    asChild
+                  >
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel={`${piece.name}, ${piece.source === "owned" ? "your own" : "from the house"}`}
+                      style={({ pressed }) => [gridItem, { gap: space.x2, opacity: pressed ? 0.86 : 1 }]}
+                    >
+                      <ImageWell productId={piece.productId} label={piece.name} isolated />
+                      <View style={{ gap: 2 }}>
+                        <Text variant="productTitle" numberOfLines={2}>
+                          {piece.name}
+                        </Text>
+                        <Text variant="eyebrow" tone="muted">
+                          {piece.source === "owned" ? "You own" : "Nyoni"}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </Link>
+                ))}
+              </ProductGrid>
+            </Section>
           )}
 
-          <Section title="How you are wearing it">
+          <Section title="How you are wearing it" major>
             {hasAtelier ? (
-              <Card>
-                <Text variant="bodySmall" tone="muted">
-                  Your analytics show what you actually reach for, what each piece costs you per wear, and where the
-                  gaps are.
+              <>
+                <Text variant="body" tone="muted">
+                  {pluralize(pieces.length, "piece")} in the wardrobe. Your analytics show what you reach for and what
+                  each piece costs you per wear.
                 </Text>
                 <Button
                   label="Open your analytics"
                   variant="secondary"
                   onPress={() => router.push("/wardrobe/analytics")}
                 />
-              </Card>
+              </>
             ) : (
-              <LockedBlock
+              <LockedState
                 compact
                 title="Wardrobe analytics"
-                description="See what you actually wear, what each piece costs per wear, and what is missing."
+                description="What you actually wear, what each piece costs per wear, and where the gaps are."
+                priceLine={`${money(atelier.annualUsd)} a year. Included with Signature membership and above.`}
+                actionLabel="See what Atelier includes"
+                onAction={() => router.push("/atelier")}
               />
             )}
           </Section>
@@ -131,60 +134,71 @@ export default function Wardrobe() {
       ) : null}
 
       {tab === "looks" ? (
-        <View style={{ gap: space.md }}>
-          <Button label="Build a look" onPress={() => router.push("/looks/new")} />
-          {looks.map((look) => (
-            <Pressable
-              key={look.id}
-              accessibilityRole="button"
-              accessibilityLabel={look.title}
-              onPress={() => router.push({ pathname: "/looks/[lookId]", params: { lookId: look.id } })}
-              style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
-            >
-              <Card>
-                <Text variant="eyebrow" tone="muted">
-                  {look.occasion ?? "A look"} · saved {relativeDate(look.createdAt)}
-                </Text>
-                <Text variant="subheading">{look.title}</Text>
-                {look.source === "concierge" ? (
-                  <Text variant="eyebrow" tone="primary">
-                    Styled by the concierge
+        <Section>
+          {looks.length === 0 ? (
+            <EmptyState
+              title="Your next look starts here."
+              description="Build one from what you own, or ask the stylist."
+              actionLabel="Build a look"
+              onAction={() => router.push("/looks/new")}
+            />
+          ) : (
+            <View style={{ gap: space.x3 }}>
+              {looks.map((look) => (
+                <OutlinePanel key={look.id}>
+                  <Text variant="eyebrow" tone="muted">
+                    {look.occasion ?? "A look"} · saved {relativeDate(look.createdAt)}
                   </Text>
-                ) : null}
-              </Card>
-            </Pressable>
-          ))}
-        </View>
+                  <Text variant="section">{look.title}</Text>
+                  {look.source === "stylist" ? (
+                    <Text variant="eyebrow" tone="accent">
+                      Styled for you
+                    </Text>
+                  ) : null}
+                  <TextAction
+                    label="Open this look"
+                    onPress={() => router.push({ pathname: "/looks/[lookId]", params: { lookId: look.id } })}
+                  />
+                </OutlinePanel>
+              ))}
+            </View>
+          )}
+        </Section>
       ) : null}
 
-      {tab === "boards" ? (
-        hasAtelier ? (
-          <View style={{ gap: space.xl }}>
-            {boards.map((board) => (
-              <View key={board.id} style={{ gap: space.md }}>
-                <Text variant="heading">{board.title}</Text>
-                <View style={{ flexDirection: "row", gap: space.md }}>
-                  {board.pieceIds.map((id) => {
-                    const product = productById(id);
-                    return (
-                      <View key={id} style={{ flex: 1, gap: space.sm }}>
-                        <Photo productId={id} fallbackLabel={product?.name ?? "Piece"} />
-                        <Text variant="eyebrow" tone="muted" numberOfLines={1}>
-                          {product?.name ?? ""}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <LockedBlock
-            title="Inspiration boards"
-            description="Keep the references that shape what you commission next, alongside the pieces you already own."
-          />
-        )
+      {tab === "shop" ? (
+        <Section>
+          {saved.length === 0 ? (
+            <EmptyState
+              title="Nothing saved to buy"
+              description="Pieces you save from a drop or a look are kept here until you decide."
+              actionLabel="See the drops"
+              onAction={() => router.push("/drops")}
+            />
+          ) : (
+            <>
+              <Text variant="body" tone="muted">
+                Saved to buy. Nothing here is yours until an order is placed.
+              </Text>
+              <ProductGrid>
+                {saved.map((product) =>
+                  product ? (
+                    <View key={product.id} style={[gridItem, { gap: space.x2 }]}>
+                      <ImageWell productId={product.id} label={product.name} isolated />
+                      <Text variant="productTitle" numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <Text variant="caption" tone="muted">
+                        {money(product.priceUsd)}
+                      </Text>
+                    </View>
+                  ) : null,
+                )}
+              </ProductGrid>
+              <Button label="Open your bag" variant="secondary" onPress={() => router.push("/bag")} />
+            </>
+          )}
+        </Section>
       ) : null}
     </Screen>
   );

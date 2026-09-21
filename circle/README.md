@@ -47,15 +47,36 @@ you subscribed, your Circle membership includes it, or your preview is still run
 screen asks it and nothing else decides. When M7 lands, the fixture is replaced by a Convex query
 and the screens do not change.
 
-## Layout
+## The design system
+
+It implements [`docs/06-frontend-style-guide.md`](../docs/06-frontend-style-guide.md). Four things
+about it are worth knowing before changing a screen.
+
+**The app is light with ink chrome.** Ivory pages carry the clothes; the header and the bottom
+navigation are near-black; membership is the one dark page. There is no system light-or-dark
+switch. A component asks `useSurface()` which surface it is sitting on, and `<Screen tone="dark">`
+changes that for its subtree.
+
+**Controls are square.** Three points of rounding on buttons and images, eight on inset cards,
+sixteen on chat bubbles. The before/after switch and the chat composer are the only pills.
+
+**Gold is for selection, membership and one special action.** Never small text on ivory, where it
+sits at 1.74:1; `accentText` resolves to the darker gold ink there and to champagne on dark.
+
+**Two faces.** Bodoni Moda for headings, Manrope for everything read as a task. The guide's Georgia
+and Arial placeholders are not used, because the house's own faces are verified and available.
 
 ```
-app/            Expo Router routes, mirroring §8 of the plan
-components/ui/  the design system: Text, Button, Screen, Photo, cards, state blocks
-lib/theme.ts    colours, type scale, spacing, ratios, all from the brand brief
-lib/session.tsx who the member is and what they may reach
-lib/fixtures.ts the fictional world
-assets/         the capsule photography
+app/                 Expo Router routes, mirroring §8 of the style guide
+components/ui/       Text, Button, Screen, BrandHeader, product, tabs, rows, states, editorial
+components/stylist/  advisor badge, chat, outfit board
+components/try-on/   preview stage, before/after control
+components/circle/   membership card, clothier card
+lib/theme.ts         the tokens: colours, surfaces, type scale, spacing, radii, ratios
+lib/use-theme.tsx    which surface a component is on, and the responsive gutter
+lib/session.tsx      who the member is and what they may reach
+lib/fixtures.ts      the fictional world
+assets/              the capsule photography
 ```
 
 ## Checks

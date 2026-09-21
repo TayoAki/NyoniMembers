@@ -1,80 +1,117 @@
 import { ActivityIndicator, Pressable, View, type PressableProps, type ViewStyle } from "react-native";
-import { hitSize, radius, space } from "@/lib/theme";
-import { useColours } from "@/lib/use-theme";
+import { chrome, ny, radius, space } from "@/lib/theme";
+import { useSurface } from "@/lib/use-theme";
+import { Icon } from "./icons";
 import { Text } from "./text";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger";
-type Size = "md" | "lg";
+/**
+ * Four fills and one link, per the style guide. Controls are square: 3pt of rounding, not a pill.
+ * Nothing here is smaller than 48pt high, and a disabled button keeps its width so a pending state
+ * never shifts the layout under a thumb.
+ */
+export type ButtonVariant = "primary" | "secondary" | "ivory" | "gold";
 
 export type ButtonProps = Omit<PressableProps, "children" | "style"> & {
   label: string;
-  variant?: Variant;
-  size?: Size;
-  /** Shows a spinner in place of the label and blocks presses. */
+  variant?: ButtonVariant;
   pending?: boolean;
   full?: boolean;
-  icon?: React.ReactNode;
   style?: ViewStyle;
 };
 
 export function Button({
   label,
   variant = "primary",
-  size = "md",
   pending = false,
   full = true,
-  icon,
   disabled,
   style,
   ...rest
 }: ButtonProps) {
-  const colours = useColours();
-  const isDisabled = disabled || pending;
+  const surface = useSurface();
+  const busy = disabled || pending;
 
-  const surface: Record<Variant, { background: string; border: string; tone: "default" | "onPrimary" | "danger" }> = {
-    primary: { background: colours.primary, border: colours.primary, tone: "onPrimary" },
-    secondary: { background: "transparent", border: colours.borderStrong, tone: "default" },
-    ghost: { background: "transparent", border: "transparent", tone: "default" },
-    danger: { background: "transparent", border: colours.danger, tone: "danger" },
+  const fills: Record<ButtonVariant, { background: string; border: string; label: string }> = {
+    primary: { background: surface.text, border: surface.text, label: surface.background },
+    secondary: { background: "transparent", border: surface.text, label: surface.text },
+    ivory: { background: ny.ivory, border: ny.ivory, label: ny.ink },
+    gold: { background: ny.gold, border: ny.gold, label: ny.ink },
   };
-  const { background, border, tone } = surface[variant];
+  const fill = fills[variant];
 
   return (
     <Pressable
       {...rest}
-      disabled={isDisabled}
+      disabled={busy}
       accessibilityRole="button"
-      accessibilityState={{ disabled: isDisabled, busy: pending }}
       accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(busy), busy: pending }}
       style={({ pressed }) => [
         {
-          minHeight: size === "lg" ? 56 : hitSize.min,
+          minHeight: chrome.buttonHeight,
           alignSelf: full ? "stretch" : "flex-start",
-          paddingHorizontal: space.xl,
-          paddingVertical: size === "lg" ? space.lg : space.md,
-          borderRadius: radius.pill,
+          paddingHorizontal: space.x5,
+          paddingVertical: space.x3,
+          borderRadius: radius.sm,
           borderWidth: 1,
-          borderColor: border,
-          backgroundColor: background,
+          borderColor: fill.border,
+          backgroundColor: fill.background,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
-          gap: space.sm,
-          opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
+          gap: space.x2,
+          opacity: busy ? 0.5 : pressed ? 0.86 : 1,
         },
         style,
       ]}
     >
       {pending ? (
-        <ActivityIndicator color={variant === "primary" ? colours.onPrimary : colours.foreground} />
+        <ActivityIndicator color={fill.label} />
       ) : (
-        <>
-          {icon ? <View>{icon}</View> : null}
-          <Text variant="label" tone={tone}>
-            {label}
-          </Text>
-        </>
+        <Text variant="button" style={{ color: fill.label }}>
+          {label}
+        </Text>
       )}
+    </Pressable>
+  );
+}
+
+/** An underlined label with an optional arrow. Used for navigation, never for a state change. */
+export function TextAction({
+  label,
+  onPress,
+  arrow = true,
+  tone = "default",
+}: {
+  label: string;
+  onPress: () => void;
+  arrow?: boolean;
+  tone?: "default" | "accent" | "inverse";
+}) {
+  const surface = useSurface();
+  const colour = tone === "accent" ? surface.accentText : tone === "inverse" ? surface.background : surface.text;
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        minHeight: chrome.tapTarget,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: space.x2,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Text variant="button" style={{ color: colour, textDecorationLine: "underline" }}>
+        {label}
+      </Text>
+      {arrow ? (
+        <View style={{ marginTop: 1 }}>
+          <Icon name="arrow" size={16} colour={colour} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
