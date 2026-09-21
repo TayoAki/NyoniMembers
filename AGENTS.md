@@ -39,6 +39,8 @@ What differs from the Fitcheck base so far:
 
 Still on the Fitcheck model until the allowance phase: the `plan` field, `free`/`pro`/`plus` constants and
 the credit meter behind previews. Do not build new member-facing features on credits; see the plan's tiers section.
+Billing is switched off on the Clerk instance: `subscriptions.refresh` treats Clerk's `billing_not_enabled` answer as "no
+subscription" (plan `free`) and only other failures surface as errors.
 
 # Working in this repo
 

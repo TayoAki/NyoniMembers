@@ -1,6 +1,7 @@
 "use node";
 
-import { createClerkClient } from "@clerk/backend";
+import { createClerkClient, type BillingSubscription } from "@clerk/backend";
+import { isClerkAPIResponseError } from "@clerk/backend/errors";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action, internalAction, type ActionCtx } from "./_generated/server";
@@ -40,17 +41,28 @@ export const refreshForJob = internalAction({
   },
 });
 
+/**
+ * Membership is set by the house, so billing stays switched off on the Clerk instance and Clerk
+ * answers every subscription read with `billing_not_enabled`. That is "no subscription", not an outage.
+ */
+function isBillingDisabled(error: unknown): boolean {
+  return isClerkAPIResponseError(error) && error.errors.some((item) => item.code === "billing_not_enabled");
+}
+
 async function refreshUserSubscription(ctx: ActionCtx, clerkUserId: string): Promise<void> {
   const readStartedAt = Date.now();
   const clerk = createClerkClient({ secretKey: requireEnv("CLERK_SECRET_KEY") });
-  let subscription;
+  let subscription: BillingSubscription | null;
   try {
     subscription = await clerk.billing.getUserBillingSubscription(clerkUserId);
-  } catch {
-    throw appError("UPSTREAM_FAILED", "Clerk could not confirm your subscription. Please try again.");
+  } catch (error) {
+    if (!isBillingDisabled(error)) {
+      throw appError("UPSTREAM_FAILED", "Clerk could not confirm your subscription. Please try again.");
+    }
+    subscription = null;
   }
   const now = Date.now();
-  const current = subscription.subscriptionItems
+  const current = (subscription?.subscriptionItems ?? [])
     .filter((item) => {
       const slug = item.plan?.slug;
       return (
