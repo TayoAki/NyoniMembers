@@ -17,7 +17,9 @@ and `docs/03-nyoni-members-app-plan.md` (feature map, data model, roadmap) befor
 behaviour. `docs/05-mobile-app-plan.md` is the master plan for **Nyoni Circle**, a new Expo app built from scratch in
 `circle/` on its own Convex deployment; the five `mobile-*` skills in `.claude/skills/` run its milestones. It
 is not a port: only `convex/ai/*` (the tuned image prompts and model calls) and the `agent/` persona carry
-over. This web app and its backend are frozen while Circle is built. Everything below this section describes the codebase itself.
+over. It sells two separate things: **the Circle** (physical membership, bought on WooCommerce, never via
+in-app purchase) and **Atelier** (the digital app subscription, sold through Apple, Google and Stripe via
+RevenueCat, mirroring Indyx Insider). This web app and its backend are frozen while Circle is built. Everything below this section describes the codebase itself.
 
 What differs from the Fitcheck base so far:
 
