@@ -1,7 +1,7 @@
-Product photography for the Nyoni collection goes here, one file per collection key
-(for example nyoni-armada-suit.webp). Populate it with:
+Product photography for the Nyoni collection, one WebP per collection key, pulled from the store
+through Jetpack's image CDN and resized to 1400px:
 
-node scripts/capture-nyoni.mjs --no-firecrawl
-node scripts/build-collection.mjs --download
+  NODE_USE_ENV_PROXY=1 node scripts/fetch-collection-images.mjs   # after build-collection.mjs (remote URLs)
+  node scripts/build-collection.mjs --local                        # points the collection at these files
 
-Until these files exist the seeder skips the pieces and reports them as awaiting photos.
+The seeder resolves /collection/<key>.webp against SITE_URL.

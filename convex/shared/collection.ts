@@ -20,7 +20,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-amethyst-royale-floral-shawl-lapel-tuxedo",
     productUrl: "https://nyonicouture.com/product/three-piece-suit/amethyst-royale-floral-shawl-lapel-tuxedo/",
     priceUsd: 695,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/09/original-1.png",
+    image: "/collection/nyoni-amethyst-royale-floral-shawl-lapel-tuxedo.webp",
     attributes: {
       name: "Amethyst Royale Floral Shawl Lapel Tuxedo",
       category: "suit",
@@ -40,7 +40,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-sable-black-spread-collar-shirt",
     productUrl: "https://nyonicouture.com/product/dress-shirts/nyoni-sable-black-spread-collar-shirt/",
     priceUsd: 129,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/09/original.png",
+    image: "/collection/nyoni-sable-black-spread-collar-shirt.webp",
     attributes: {
       name: "Sable Black Spread Collar Shirt",
       category: "top",
@@ -59,7 +59,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-midnight-navy-wool-cargo-pant",
     productUrl: "https://nyonicouture.com/product/trousers/nyoni-midnight-navy-wool-cargo-pant/",
     priceUsd: 195,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/08/original-9.png",
+    image: "/collection/nyoni-midnight-navy-wool-cargo-pant.webp",
     attributes: {
       name: "Midnight Navy Wool Cargo Pant",
       category: "bottom",
@@ -78,7 +78,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-zanele-neck-tie",
     productUrl: "https://nyonicouture.com/product/accessories/neck-tie/nyoni-zanele-neck-tie/",
     priceUsd: 75,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/08/original-73.jpeg",
+    image: "/collection/nyoni-zanele-neck-tie.webp",
     attributes: {
       name: "Zanele Neck-tie",
       category: "accessory",
@@ -97,7 +97,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-dante-neck-tie",
     productUrl: "https://nyonicouture.com/product/accessories/neck-tie/nyoni-dante-neck-tie/",
     priceUsd: 75,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/08/original-71.jpeg",
+    image: "/collection/nyoni-dante-neck-tie.webp",
     attributes: {
       name: "Dante Neck Tie",
       category: "accessory",
@@ -116,7 +116,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-custom-suits-2",
     productUrl: "https://nyonicouture.com/product/suits/nyoni-custom-suits-2/",
     priceUsd: 1195,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/08/original-53.jpeg",
+    image: "/collection/nyoni-custom-suits-2.webp",
     attributes: {
       name: "Custom Suits",
       category: "suit",
@@ -135,7 +135,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-mens-jardin-bloom-floral-dress-shirt-slim-fit",
     productUrl: "https://nyonicouture.com/product/casual-shirts/mens-jardin-bloom-floral-dress-shirt-slim-fit/",
     priceUsd: 129.99,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-33.png",
+    image: "/collection/nyoni-mens-jardin-bloom-floral-dress-shirt-slim-fit.webp",
     attributes: {
       name: "Men’s Jardin Bloom Floral Dress Shirt – Slim Fit",
       category: "top",
@@ -154,7 +154,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     productUrl:
       "https://nyonicouture.com/product/traditional-wear/nyoni-black-luxury-beaded-senator-set-with-shoulder-button-detail/",
     priceUsd: 695,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-32.png",
+    image: "/collection/nyoni-black-luxury-beaded-senator-set-with-shoulder-button-detail.webp",
     attributes: {
       name: "Black Luxury Beaded Senator Set with Shoulder Button Detail",
       category: "suit",
@@ -174,7 +174,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-sand-beige-luxury-pleated-senator-set",
     productUrl: "https://nyonicouture.com/product/traditional-wear/nyoni-sand-beige-luxury-pleated-senator-set/",
     priceUsd: 695,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-31.png",
+    image: "/collection/nyoni-sand-beige-luxury-pleated-senator-set.webp",
     attributes: {
       name: "Sand Beige Luxury Pleated Senator Set",
       category: "suit",
@@ -194,7 +194,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-midnight-glen-plaid-pant",
     productUrl: "https://nyonicouture.com/product/trousers/nyoni-midnight-glen-plaid-pant/",
     priceUsd: 195,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-12.png",
+    image: "/collection/nyoni-midnight-glen-plaid-pant.webp",
     attributes: {
       name: "Midnight Glen Plaid Pant",
       category: "bottom",
@@ -213,7 +213,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-walnut-tweed-pant",
     productUrl: "https://nyonicouture.com/product/trousers/nyoni-walnut-tweed-pant/",
     priceUsd: 195,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-11.png",
+    image: "/collection/nyoni-walnut-tweed-pant.webp",
     attributes: {
       name: "Walnut Tweed Pant",
       category: "bottom",
@@ -233,7 +233,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     productUrl:
       "https://nyonicouture.com/product/double-breasted/nyoni-black-tinny-stripes-double-breasted-peak-lapel-suit/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-12.jpeg",
+    image: "/collection/nyoni-black-tinny-stripes-double-breasted-peak-lapel-suit.webp",
     attributes: {
       name: "– Black Tinny Stripes Double Breasted Peak Lapel Suit",
       category: "suit",
@@ -253,7 +253,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-khaki-double-breasted-peak-lapel-suit",
     productUrl: "https://nyonicouture.com/product/double-breasted/nyoni-khaki-double-breasted-peak-lapel-suit/",
     priceUsd: 1095,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-11.jpeg",
+    image: "/collection/nyoni-khaki-double-breasted-peak-lapel-suit.webp",
     attributes: {
       name: "– Khaki Double Breasted Peak Lapel Suit",
       category: "suit",
@@ -273,7 +273,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-camouflage-db-tuxedo",
     productUrl: "https://nyonicouture.com/product/double-breasted/nyoni-camouflage-db-tuxedo/",
     priceUsd: 995,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-6.jpeg",
+    image: "/collection/nyoni-camouflage-db-tuxedo.webp",
     attributes: {
       name: "Camouflage DB Tuxedo",
       category: "suit",
@@ -293,7 +293,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-sahara-wool-linen-blend-suit",
     productUrl: "https://nyonicouture.com/product/two-piece/nyoni-sahara-wool-linen-blend-suit/",
     priceUsd: 695,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-5.jpeg",
+    image: "/collection/nyoni-sahara-wool-linen-blend-suit.webp",
     attributes: {
       name: "Sahara Wool-Linen Blend Suit",
       category: "suit",
@@ -313,7 +313,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-imperial-noir-black-double-breasted-tuxedo",
     productUrl: "https://nyonicouture.com/product/tuxedo/nyoni-imperial-noir-black-double-breasted-tuxedo/",
     priceUsd: 795,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-4.jpeg",
+    image: "/collection/nyoni-imperial-noir-black-double-breasted-tuxedo.webp",
     attributes: {
       name: "– Imperial Noir Black Double-Breasted Tuxedo",
       category: "suit",
@@ -333,7 +333,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-the-kensington-grey-windowpane-suit",
     productUrl: "https://nyonicouture.com/product/two-piece/the-kensington-grey-windowpane-suit/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-2.jpeg",
+    image: "/collection/nyoni-the-kensington-grey-windowpane-suit.webp",
     attributes: {
       name: "The Kensington Grey Windowpane Suit",
       category: "suit",
@@ -353,7 +353,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-the-noir-regent-peak-lapel-suit",
     productUrl: "https://nyonicouture.com/product/two-piece/the-noir-regent-peak-lapel-suit/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original-1.jpeg",
+    image: "/collection/nyoni-the-noir-regent-peak-lapel-suit.webp",
     attributes: {
       name: "The Noir Regent Peak Lapel Suit",
       category: "suit",
@@ -373,7 +373,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-the-monaco-peak-lapel-suit",
     productUrl: "https://nyonicouture.com/product/two-piece/the-monaco-peak-lapel-suit/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/07/original.jpeg",
+    image: "/collection/nyoni-the-monaco-peak-lapel-suit.webp",
     attributes: {
       name: "The Monaco Peak Lapel Suit",
       category: "suit",
@@ -393,7 +393,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-gekko-neck-tie-nyoni-couture",
     productUrl: "https://nyonicouture.com/product/accessories/neck-tie/gekko-neck-tie-nyoni-couture/",
     priceUsd: 75,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/04/original-3.jpeg",
+    image: "/collection/nyoni-gekko-neck-tie-nyoni-couture.webp",
     attributes: {
       name: "Gekko Neck-tie – Nyoni Couture",
       category: "accessory",
@@ -412,7 +412,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-inpore-blazer",
     productUrl: "https://nyonicouture.com/product/blazers/inpore-blazer/",
     priceUsd: 495,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/04/original.jpeg",
+    image: "/collection/nyoni-inpore-blazer.webp",
     attributes: {
       name: "Blue Green Windowpane Inpore Blazer",
       category: "outerwear",
@@ -432,7 +432,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-signature-white-sweatsuit",
     productUrl: "https://nyonicouture.com/product/sweatsuit/nyoni-signature-white-sweatsuit/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/03/original-9-scaled.jpeg",
+    image: "/collection/nyoni-signature-white-sweatsuit.webp",
     attributes: {
       name: "Ivory Mock-Neck Sweatsuit",
       category: "top",
@@ -451,7 +451,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-noir-double-breasted-tux",
     productUrl: "https://nyonicouture.com/product/tuxedo/nyoni-noir-double-breasted-tux/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/03/original-8.jpeg",
+    image: "/collection/nyoni-noir-double-breasted-tux.webp",
     attributes: {
       name: "– Onyx Jacquard Satin Peak DB Tuxedo",
       category: "suit",
@@ -471,7 +471,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-charcoal-3-piece-suit",
     productUrl: "https://nyonicouture.com/product/three-piece-suit/nyoni-charcoal-3-piece-suit/",
     priceUsd: 805,
-    image: "https://nyonicouture.com/wp-content/uploads/2026/01/original-1.jpeg",
+    image: "/collection/nyoni-charcoal-3-piece-suit.webp",
     attributes: {
       name: "Grey Graphite Three Piece Suit",
       category: "suit",
@@ -491,7 +491,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-purple-overcoat",
     productUrl: "https://nyonicouture.com/product/winter-coat/nyoni-purple-overcoat/",
     priceUsd: 795,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/12/original-8.jpeg",
+    image: "/collection/nyoni-purple-overcoat.webp",
     attributes: {
       name: "Purple Black Satin Peak DB Cashmere Overcoat",
       category: "outerwear",
@@ -510,7 +510,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-green-ink",
     productUrl: "https://nyonicouture.com/product/winter-coat/nyoni-green-ink/",
     priceUsd: 795,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/12/original-6.jpeg",
+    image: "/collection/nyoni-green-ink.webp",
     attributes: {
       name: "Forest Floral Embroidered DB Cashmere Overcoat",
       category: "outerwear",
@@ -529,7 +529,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-navy-turtleneck",
     productUrl: "https://nyonicouture.com/product/sweater/nyoni-navy-turtleneck/",
     priceUsd: 89,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/12/original-5.jpeg",
+    image: "/collection/nyoni-navy-turtleneck.webp",
     attributes: {
       name: "Navy Turtleneck",
       category: "top",
@@ -548,7 +548,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-botanical-black-shirt",
     productUrl: "https://nyonicouture.com/product/casual-shirts/nyoni-botanical-black-shirt/",
     priceUsd: 129.99,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/11/original-23.jpeg",
+    image: "/collection/nyoni-botanical-black-shirt.webp",
     attributes: {
       name: "Botanical Black Shirt",
       category: "top",
@@ -567,7 +567,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-regal-blue-2-button-barrel-button-shirt",
     productUrl: "https://nyonicouture.com/product/dress-shirts/nyoni-regal-blue-2-button-barrel-button-shirt/",
     priceUsd: 89,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/11/original-16.jpeg",
+    image: "/collection/nyoni-regal-blue-2-button-barrel-button-shirt.webp",
     attributes: {
       name: "Regal Blue Shirt",
       category: "top",
@@ -585,7 +585,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-exquisite",
     productUrl: "https://nyonicouture.com/product/accessories/bow-tie/exquisite/",
     priceUsd: 69,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/09/original.jpg",
+    image: "/collection/nyoni-exquisite.webp",
     attributes: {
       name: "Exquisite",
       category: "accessory",
@@ -603,7 +603,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-wawak",
     productUrl: "https://nyonicouture.com/product/dress-shirts/wawak/",
     priceUsd: 95,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/08/original-30.jpeg",
+    image: "/collection/nyoni-wawak.webp",
     attributes: {
       name: "Capri Striped Cutaway Collar Shirt",
       category: "top",
@@ -621,7 +621,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-brittan-2",
     productUrl: "https://nyonicouture.com/product/accessories/bow-tie/brittan-2/",
     priceUsd: 69,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/08/original-36.png",
+    image: "/collection/nyoni-brittan-2.webp",
     attributes: {
       name: "Brittan",
       category: "accessory",
@@ -639,7 +639,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-belagio-2",
     productUrl: "https://nyonicouture.com/product/accessories/pocket-squares/belagio-2/",
     priceUsd: 69,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/08/original-29.jpeg",
+    image: "/collection/nyoni-belagio-2.webp",
     attributes: {
       name: "Belagio",
       category: "accessory",
@@ -657,7 +657,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-faye",
     productUrl: "https://nyonicouture.com/product/accessories/pocket-squares/faye/",
     priceUsd: 69,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/08/original-27.jpeg",
+    image: "/collection/nyoni-faye.webp",
     attributes: {
       name: "Faye",
       category: "accessory",
@@ -675,7 +675,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-fioren-3",
     productUrl: "https://nyonicouture.com/product/accessories/pocket-squares/fioren-3/",
     priceUsd: 69,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/08/original-25.jpeg",
+    image: "/collection/nyoni-fioren-3.webp",
     attributes: {
       name: "Fioren",
       category: "accessory",
@@ -693,7 +693,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-waleed",
     productUrl: "https://nyonicouture.com/product/three-piece-suit/waleed/",
     priceUsd: 795,
-    image: "https://nyonicouture.com/wp-content/uploads/2025/01/original-15-scaled.jpeg",
+    image: "/collection/nyoni-waleed.webp",
     attributes: {
       name: "Waleed",
       category: "suit",
@@ -712,7 +712,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-mandisa",
     productUrl: "https://nyonicouture.com/product/blazers/mandisa/",
     priceUsd: 995,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/11/original-8.jpeg",
+    image: "/collection/nyoni-mandisa.webp",
     attributes: {
       name: "Mandisa Double Breasted Blazer",
       category: "outerwear",
@@ -731,7 +731,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-vicenzo",
     productUrl: "https://nyonicouture.com/product/blazers/vicenzo/",
     priceUsd: 895,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/11/original-9.jpeg",
+    image: "/collection/nyoni-vicenzo.webp",
     attributes: {
       name: "Vicenzo Blazer",
       category: "outerwear",
@@ -750,7 +750,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-morice-blazer",
     productUrl: "https://nyonicouture.com/product/blazers/morice-blazer/",
     priceUsd: 1095,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/11/original-12.png",
+    image: "/collection/nyoni-morice-blazer.webp",
     attributes: {
       name: "Morice Blazer",
       category: "outerwear",
@@ -769,7 +769,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-kenzie",
     productUrl: "https://nyonicouture.com/product/accessories/vest/kenzie/",
     priceUsd: 186,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/07/original-15.jpeg",
+    image: "/collection/nyoni-kenzie.webp",
     attributes: {
       name: "Kenzie",
       category: "top",
@@ -787,7 +787,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-kingdom",
     productUrl: "https://nyonicouture.com/product/scarves/kingdom/",
     priceUsd: 95,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/07/original-54.png",
+    image: "/collection/nyoni-kingdom.webp",
     attributes: {
       name: "Kingdom Scarf",
       category: "accessory",
@@ -805,7 +805,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-wristlet",
     productUrl: "https://nyonicouture.com/product/accessories/leather-goods/wristlet/",
     priceUsd: 195,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/06/original-2.png",
+    image: "/collection/nyoni-wristlet.webp",
     attributes: {
       name: "Wristlet",
       category: "bag",
@@ -823,7 +823,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-waist-pouch",
     productUrl: "https://nyonicouture.com/product/accessories/leather-goods/nyoni-waist-pouch/",
     priceUsd: 135,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/04/original-33.jpeg",
+    image: "/collection/nyoni-waist-pouch.webp",
     attributes: {
       name: "Waist Pouch",
       category: "bag",
@@ -841,7 +841,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-elna-blu",
     productUrl: "https://nyonicouture.com/product/dress-shirts/elna-blu/",
     priceUsd: 149,
-    image: "https://nyonicouture.com/wp-content/uploads/2024/03/original-3.png",
+    image: "/collection/nyoni-elna-blu.webp",
     attributes: {
       name: "Elna Blue Spread Collar Shirt",
       category: "top",
@@ -860,7 +860,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-antwerp-wing-tip",
     productUrl: "https://nyonicouture.com/product/boots/antwerp-wing-tip/",
     priceUsd: 495,
-    image: "https://nyonicouture.com/wp-content/uploads/2022/06/original-46.png",
+    image: "/collection/nyoni-antwerp-wing-tip.webp",
     attributes: {
       name: "ANTWERP WING-TIP",
       category: "shoes",
@@ -879,7 +879,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-roma-wing-tip",
     productUrl: "https://nyonicouture.com/product/boots/roma-wing-tip/",
     priceUsd: 495,
-    image: "https://nyonicouture.com/wp-content/uploads/2022/06/original-551.jpeg",
+    image: "/collection/nyoni-roma-wing-tip.webp",
     attributes: {
       name: "ROMA WING-TIP",
       category: "shoes",
@@ -898,7 +898,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-montpellier-kiltie-loafer",
     productUrl: "https://nyonicouture.com/product/loafers/montpellier-kiltie-loafer/",
     priceUsd: 485,
-    image: "https://nyonicouture.com/wp-content/uploads/2022/06/original-44.png",
+    image: "/collection/nyoni-montpellier-kiltie-loafer.webp",
     attributes: {
       name: "Montpellier Kiltie Loafer",
       category: "shoes",
@@ -917,7 +917,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-milano-penny-loafer",
     productUrl: "https://nyonicouture.com/product/loafers/milano-penny-loafer/",
     priceUsd: 475,
-    image: "https://nyonicouture.com/wp-content/uploads/2022/06/original-43.png",
+    image: "/collection/nyoni-milano-penny-loafer.webp",
     attributes: {
       name: "Milano Penny Loafer",
       category: "shoes",
@@ -936,7 +936,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-madrid-monk-strap",
     productUrl: "https://nyonicouture.com/product/dress-shoes/madrid-monk-strap/",
     priceUsd: 625,
-    image: "https://nyonicouture.com/wp-content/uploads/2022/06/original-38.png",
+    image: "/collection/nyoni-madrid-monk-strap.webp",
     attributes: {
       name: "Madrid Monk Strap",
       category: "shoes",
@@ -954,7 +954,7 @@ export const COLLECTION: readonly CollectionPiece[] = [
     key: "nyoni-oxford",
     productUrl: "https://nyonicouture.com/product/dress-shoes/oxford/",
     priceUsd: 525,
-    image: "https://nyonicouture.com/wp-content/uploads/2022/06/original-37.png",
+    image: "/collection/nyoni-oxford.webp",
     attributes: {
       name: "Oxford",
       category: "shoes",
