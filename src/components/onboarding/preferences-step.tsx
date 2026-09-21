@@ -47,7 +47,7 @@ export function PreferencesStep({
         prefs: { presentation: "masculine", fit, avoidColours, ...(city ? { homeCity: city } : {}) },
       });
       await completeOnboarding({});
-      toast.success("You're all set. The Nyoni collection is on its way to your wardrobe.");
+      toast.success("You're all set. The Nyoni capsule is on its way to your wardrobe.");
       router.replace(routes.wardrobe);
     } catch (caught) {
       setError(reportError(caught).message);

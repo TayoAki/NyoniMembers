@@ -32,8 +32,8 @@ export default async function FrontDoor() {
           Your wardrobe. Your measurements. <em className="font-normal italic">Your concierge.</em>
         </h1>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Every member starts with the Nyoni collection in their wardrobe. Build a look, preview it on your own photo,
-          and ask the concierge what to wear.
+          Every member starts with the Nyoni capsule: twenty-two pieces that dress a boardroom, a wedding and a
+          black-tie dinner. Build a look, preview it on your own photo, and ask the concierge what to wear.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <Link

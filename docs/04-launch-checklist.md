@@ -40,8 +40,8 @@ Three places. The CLI writes the first two Convex values; everything else is ent
 Data and assets:
 
 - [x] **Catalogue export**: done through Firecrawl (the store's bot challenge blocks plain requests): 775 products, 595 with photos, in `research/nyoni/woo-products.json`.
-- [x] **Product photos**: 50 pieces pulled through Jetpack's image CDN into `public/collection/` as 1400px WebP (`scripts/fetch-collection-images.mjs`); the collection points at them.
-- [ ] **The default wardrobe**: all in-stock pieces (up to 60, the script default) or a curated capsule by slug.
+- [x] **Product photos**: one 1400px WebP per capsule piece, pulled through Jetpack's image CDN into `public/collection/` (`scripts/fetch-collection-images.mjs`); the capsule points at them.
+- [x] **The default wardrobe**: the Nyoni capsule, twenty-two pieces curated by slug in the `CAPSULE` list in `scripts/build-collection.mjs`. The house changes what members start with by editing that list and regenerating.
 - [x] **Brand assets**: palette, type, sizes and logo URL captured from the live site (`research/nyoni/branding.json`, screenshots in `research/nyoni/pages/`); the app tokens now use them. Still wanted: hero photography with rights.
 - [x] **Membership facts**: The Nyoni Circle, US$549 / 749 / 949 a year, one made-to-measure suit each year in a rising Nyoni Fabric grade, privileges per tier, prorated upgrades. In `convex/shared/membership.ts` and the brand brief.
 - [ ] **The cutter's measurement sheet**: the exact fields the house records, for the measurements phase.

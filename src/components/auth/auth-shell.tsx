@@ -40,7 +40,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
             </h2>
           </div>
           <div className="auth-editorial-footer">
-            <p>Every member starts with the Nyoni collection.</p>
+            <p>Every member starts with the Nyoni capsule.</p>
             <span>Charlotte · Atlanta · Houston</span>
           </div>
         </aside>

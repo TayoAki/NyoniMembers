@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 /**
  * Turn the WooCommerce export from scripts/capture-nyoni.mjs into convex/shared/collection.ts, the
- * list of Nyoni pieces every member's wardrobe starts with.
+ * Nyoni capsule every member's wardrobe starts with.
  *
  *   node scripts/build-collection.mjs                 # remote image URLs (the seeder fetches from the store)
  *   node scripts/build-collection.mjs --download      # also save each image to public/collection/<key>.<ext>
  *   node scripts/build-collection.mjs --local         # use images already present in public/collection/ (no network)
- *   node scripts/build-collection.mjs --limit 40      # cap the number of pieces (default 50)
  *
  * The store's bot challenge blocks plain downloads; scripts/fetch-collection-images.mjs pulls the
- * photos through Firecrawl's browser into public/collection/, after which --local wires them up.
+ * photos through Jetpack's image CDN into public/collection/, after which --local wires them up.
  *
- * Reads research/nyoni/woo-products.json. Category slugs map onto the app's wardrobe categories;
- * colours are read from the product name; everything else is a sensible default the concierge can
- * correct. Cloth-only "bespoke clothing" products, services and sale bundles are left out.
+ * The capsule is curated, not filtered: CAPSULE below names each piece by its WooCommerce slug, so
+ * the house chooses what every member starts with and this script only carries the product's real
+ * name, price, link, photo and description across. Season, formality and fit are defaults the
+ * concierge can correct. Three overrides exist for the places the store's own data is thin: `colour`
+ * (several product names carry no colour word at all), `name` (a bare "Kenzie" does not say what the
+ * piece is) and `note` (a house line where the product has no description worth showing a member).
  */
 
 import { existsSync } from "node:fs";
@@ -23,45 +25,68 @@ import path from "node:path";
 const args = process.argv.slice(2);
 const download = args.includes("--download");
 const local = args.includes("--local");
-const limitIndex = args.indexOf("--limit");
-const limit = limitIndex >= 0 ? Number(args[limitIndex + 1]) : 50;
 
-/** A balanced starter wardrobe rather than the newest fifty ties: caps per garment type (by subcategory). */
-const TYPE_CAPS = {
-  "two-piece suit": 4,
-  "three-piece suit": 3,
-  "double-breasted suit": 2,
-  tuxedo: 3,
-  suit: 1,
-  "traditional set": 2,
-  blazer: 4,
-  overcoat: 2,
-  sweatsuit: 1,
-  sweater: 1,
-  "short set": 0,
-  "dress shirt": 4,
-  shirt: 2,
-  waistcoat: 1,
-  "dress trousers": 3,
-  loafers: 2,
-  "dress shoes": 2,
-  boots: 2,
-  sneakers: 1,
-  "neck tie": 3,
-  "bow tie": 2,
-  "pocket square": 3,
-  cufflinks: 1,
-  belt: 1,
-  scarf: 1,
-  socks: 0,
-  "collar bar": 0,
-  "tie pin": 0,
-  "lapel pin": 0,
-  "leather bag": 2,
-  hat: 1,
-};
-/** Products that are not a wearable piece: WooCommerce variation rows and generic listings. */
-const SKIP_NAMES = /^(variation #|custom suits?\b|rush fee)/i;
+/**
+ * The Nyoni capsule: twenty-two pieces chosen from the catalogue so a member can dress a boardroom,
+ * a wedding, a black-tie dinner and a Saturday before owning anything of their own. Four suits in
+ * the house neutrals plus a tuxedo; one odd jacket and one overcoat to layer; three trousers that
+ * take any of those jackets; shirts in white, blue and black with a turtleneck and a waistcoat for
+ * separates; three pairs of shoes; and the four accessories that finish a look. Grow it
+ * deliberately: a capsule stops working the moment it becomes a catalogue again.
+ */
+const CAPSULE = [
+  { group: "Tailoring", slug: "cascata-2" },
+  { group: "Tailoring", slug: "grayson" },
+  { group: "Tailoring", slug: "kijivu-suit" },
+  { group: "Tailoring", slug: "isabella-bleu-pin-suit" },
+  { group: "Tailoring", slug: "opel-black-tux", name: "Sovereign Black Double-Breasted Tuxedo", colour: "black" },
+  { group: "Layers", slug: "cobalt-blazer-2", colour: "grey" },
+  { group: "Layers", slug: "grey-overcoat" },
+  { group: "Trousers", slug: "nyoni-classic-side-adjuster-dress-pants", colour: "black" },
+  { group: "Trousers", slug: "nyoni-midnight-glen-plaid-pant", colour: "navy" },
+  { group: "Trousers", slug: "nyoni-taupe-flat-front-tailored-dress-pants", colour: "taupe" },
+  { group: "Shirts and knitwear", slug: "cavalera-formal", colour: "white" },
+  { group: "Shirts and knitwear", slug: "elna-blu" },
+  { group: "Shirts and knitwear", slug: "nyoni-sable-black-spread-collar-shirt" },
+  { group: "Shirts and knitwear", slug: "nyoni-navy-turtleneck" },
+  {
+    group: "Shirts and knitwear",
+    slug: "kenzie",
+    note: "A navy wool waistcoat for separates: over the blue shirt with grey or taupe trousers, or under the blazer when the evening turns formal.",
+    name: "Kenzie Waistcoat",
+    colour: "navy",
+  },
+  {
+    group: "Shoes",
+    slug: "oxford",
+    note: "The black cap-toe oxford, the one shoe that answers every suit in the capsule and carries black tie when the evening calls for it.",
+    colour: "black",
+  },
+  { group: "Shoes", slug: "monaco-cap-toe", name: "Monaco Cap-Toe Boot", colour: "black" },
+  { group: "Shoes", slug: "florence-ii-penny-loafer", colour: "burgundy" },
+  {
+    group: "Accessories",
+    slug: "obinna",
+    note: "A handcrafted Milano silk tie, teal ground with a grey bar stripe: the pattern that sits comfortably against navy, charcoal and grey.",
+    name: "Obina Stripe Neck-tie",
+    colour: "teal",
+  },
+  { group: "Accessories", slug: "granito-2", colour: "blue" },
+  {
+    group: "Accessories",
+    slug: "brittan-2",
+    note: "The black silk self-tie bow. Black tie asks for one thing, and this is it.",
+    name: "Brittan Silk Bow Tie",
+    colour: "black",
+  },
+  {
+    group: "Accessories",
+    slug: "silvano-2",
+    note: "A navy silk pocket square with a fine white print, made in Italy. Restrained enough for the boardroom, finished enough for a wedding.",
+    name: "Silvano Pocket Square",
+    colour: "navy",
+  },
+];
 
 const SOURCE = path.resolve("research/nyoni/woo-products.json");
 const TARGET = path.resolve("convex/shared/collection.ts");
@@ -103,8 +128,6 @@ const CATEGORY_MAP = [
   ["leather-goods", ["bag", "leather bag", "smart-casual", ["spring", "summer", "autumn", "winter"]]],
 ];
 
-const SKIP_CATEGORIES = new Set(["bespoke-clothing", "uncategorized", "labor-day-sale", "measurement"]);
-
 /** Colour words that appear in Nyoni product names, with a representative hex for the swatch. */
 const COLOURS = [
   ["onyx", "black", "#141414"],
@@ -138,6 +161,8 @@ const COLOURS = [
   ["green", "green", "#2F5D46"],
   ["yellow", "yellow", "#E0B42A"],
   ["beige", "beige", "#CDB58F"],
+  ["taupe", "taupe", "#B3A492"],
+  ["teal", "teal", "#1F6F73"],
   ["brown", "brown", "#5A3A24"],
   ["white", "white", "#F7F5F0"],
   ["ivory", "ivory", "#F4EFE6"],
@@ -167,8 +192,8 @@ function classify(product) {
   return null;
 }
 
-function colourOf(text) {
-  const lower = text.toLowerCase();
+function colourOf(text, override) {
+  const lower = (override ?? text).toLowerCase();
   const found = COLOURS.filter(([word]) => lower.includes(word));
   if (found.length === 0) return { primary: "unknown", secondary: [], hex: [] };
   const [, primary, hex] = found[0];
@@ -188,13 +213,22 @@ function firstMatch(text, words, fallback) {
   return words.find((word) => lower.includes(word)) ?? fallback;
 }
 
-/** Store names carry stray dashes and the house prefix; the wardrobe shows the piece's own name. */
-function cleanName(name) {
+/**
+ * Store names carry the house prefix, stray dashes, a trailing " – Nyoni Couture" and the odd
+ * shouted caps; the wardrobe shows the piece's own name. A CAPSULE entry can override it outright
+ * where the store's name (a bare "Kenzie") does not say what the piece is.
+ */
+function cleanName(name, override) {
+  if (override) return override;
   return name
-    .replace(/^[\s\u2013\u2014-]+/, "")
     .replace(/^Nyoni\s+/i, "")
+    .replace(/^[\s\u2013\u2014-]+/, "")
+    .replace(/[\s\u2013\u2014-]+Nyoni Couture\s*$/i, "")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .replace(/\b[A-Z][A-Z-]+\b/g, (word) =>
+      /^[IVXL]+$/.test(word) ? word : word.charAt(0) + word.slice(1).toLowerCase(),
+    );
 }
 
 function keyFor(product) {
@@ -211,22 +245,23 @@ function tsString(value) {
 
 async function main() {
   const products = JSON.parse(await readFile(SOURCE, "utf8"));
+  const bySlug = new Map(products.map((product) => [product.slug, product]));
   const localFiles = local && existsSync(PUBLIC_DIR) ? await readdir(PUBLIC_DIR) : [];
   const pieces = [];
-  const perCategory = {};
-  for (const product of products) {
-    if (!product.inStock || product.categories.some((slug) => SKIP_CATEGORIES.has(slug))) continue;
+  for (const entry of CAPSULE) {
+    const product = bySlug.get(entry.slug);
+    if (!product) throw new Error(`${entry.slug} is not in the export; re-run scripts/capture-nyoni.mjs.`);
+    if (!product.inStock) throw new Error(`${entry.slug} is out of stock; choose another piece for the capsule.`);
     const mapping = classify(product);
-    if (!mapping || !product.images?.[0]?.src) continue;
+    if (!mapping) throw new Error(`${entry.slug} has no wardrobe category: ${product.categories.join(", ")}.`);
+    if (!product.images?.[0]?.src) throw new Error(`${entry.slug} has no product photo.`);
     const [category, subcategory, formality, season] = mapping;
-    if (SKIP_NAMES.test(product.name.trim())) continue;
-    if ((perCategory[subcategory] ?? 0) >= (TYPE_CAPS[subcategory] ?? 2)) continue;
     const text = `${product.name} ${product.shortDescription ?? ""} ${product.description ?? ""}`;
     const key = keyFor(product);
     let image = product.images[0].src;
     if (local) {
       const file = localFiles.find((name) => name.startsWith(`${key}.`));
-      if (!file) continue;
+      if (!file) throw new Error(`No photo in public/collection for ${key}; run scripts/fetch-collection-images.mjs.`);
       image = `/collection/${file}`;
     }
     if (download) {
@@ -240,32 +275,32 @@ async function main() {
     }
     pieces.push({
       key,
+      group: entry.group,
       productUrl: product.permalink,
       priceUsd: product.priceUsd,
       image,
       attributes: {
-        name: cleanName(product.name),
+        name: cleanName(product.name, entry.name),
         category,
         subcategory,
-        colours: colourOf(product.name),
+        colours: colourOf(product.name, entry.colour),
         pattern: firstMatch(text, PATTERNS, "solid").replace("glenn plaid", "glen plaid"),
         material: firstMatch(text, MATERIALS, category === "shoes" ? "leather" : "wool"),
         season,
         formality,
         fit: category === "suit" || subcategory === "blazer" ? "slim" : undefined,
         brand: "Nyoni Couture",
-        description: (product.shortDescription || product.description || product.name).slice(0, 240),
+        description: (entry.note || product.shortDescription || product.description || product.name).slice(0, 240),
       },
     });
-    perCategory[subcategory] = (perCategory[subcategory] ?? 0) + 1;
-    if (pieces.length >= limit) break;
   }
 
   const body = pieces
-    .map((piece) => {
+    .map((piece, index) => {
       const a = piece.attributes;
       const optional = [a.fit ? `      fit: ${tsString(a.fit)},` : null].filter(Boolean);
-      return `  {
+      const heading = piece.group === pieces[index - 1]?.group ? "" : `${index === 0 ? "" : "\n"}  // ${piece.group}\n`;
+      return `${heading}  {
     key: ${tsString(piece.key)},
     productUrl: ${tsString(piece.productUrl)},${piece.priceUsd !== undefined ? `\n    priceUsd: ${piece.priceUsd},` : ""}
     image: ${tsString(piece.image)},
@@ -289,10 +324,12 @@ ${optional.length ? optional.join("\n") + "\n" : ""}      brand: ${tsString(a.br
 import type { vItemAttributes } from "./validators";
 
 /**
- * The Nyoni Couture pieces every member's wardrobe starts with. GENERATED by scripts/build-collection.mjs
- * from research/nyoni/woo-products.json on ${new Date().toISOString().slice(0, 10)}; edit the script or the
- * export, not this file. \`key\` is stable across syncs (it is what \`items.collectionKey\` stores); a piece
- * whose image cannot be fetched is skipped by the seeder rather than failing the whole seed.
+ * The Nyoni capsule: the ${pieces.length} pieces every member's wardrobe starts with, enough to dress a
+ * boardroom, a wedding, a black-tie dinner and a Saturday. GENERATED by scripts/build-collection.mjs
+ * from research/nyoni/woo-products.json on ${new Date().toISOString().slice(0, 10)}; choose the pieces in that
+ * script's CAPSULE list, not here. \`key\` is stable across syncs (it is what \`items.collectionKey\` stores);
+ * a piece whose image cannot be fetched is skipped by the seeder rather than failing the whole seed, and a
+ * member's item whose key has left the capsule is retired on their next seed.
  */
 export type CollectionPiece = {
   key: string;
@@ -312,7 +349,7 @@ export function collectionPiece(key: string): CollectionPiece | undefined {
 `;
   await writeFile(TARGET, file);
   console.log(
-    `Wrote ${pieces.length} pieces to ${path.relative(process.cwd(), TARGET)}${download ? ` and images to ${path.relative(process.cwd(), PUBLIC_DIR)}` : ""}.`,
+    `Wrote the ${pieces.length}-piece capsule to ${path.relative(process.cwd(), TARGET)}${download ? ` and images to ${path.relative(process.cwd(), PUBLIC_DIR)}` : ""}.`,
   );
   console.log("Run `pnpm format` then `pnpm typecheck`; the seeder picks the new pieces up on the next seed.");
 }

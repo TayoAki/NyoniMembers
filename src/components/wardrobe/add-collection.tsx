@@ -10,7 +10,7 @@ import { reportError } from "@/lib/errors";
 import { pluralize } from "@/lib/format";
 import { api } from "@convex/_generated/api";
 
-/** Adds (or restores) the house collection to the member's wardrobe. Free, idempotent, additive. */
+/** Adds (or restores) the house capsule in the member's wardrobe. Free, idempotent, additive. */
 export function AddCollection({ onSeeded }: { onSeeded: () => void }) {
   const seed = useAction(api.collection.seed);
   const { isAuthenticated } = useConvexAuth();
@@ -22,13 +22,16 @@ export function AddCollection({ onSeeded }: { onSeeded: () => void }) {
       const { added, removed, skipped } = await seed({});
       onSeeded();
       const awaiting = skipped > 0 ? ` ${pluralize(skipped, "piece")} still awaiting photos.` : "";
+      const retired = removed > 0 ? ` ${pluralize(removed, "piece")} retired from the capsule.` : "";
       if (added === 0 && removed === 0) {
-        toast.success(`The Nyoni collection is already in your wardrobe.${awaiting}`);
+        toast.success(`The Nyoni capsule is already in your wardrobe.${awaiting}`);
+      } else if (added === 0) {
+        toast.success(`Your wardrobe is up to date.${retired}${awaiting}`);
       } else {
-        toast.success(`${pluralize(added, "Nyoni piece")} added to your wardrobe.${awaiting}`);
+        toast.success(`${pluralize(added, "Nyoni piece")} added to your wardrobe.${retired}${awaiting}`);
       }
     } catch (error) {
-      reportError(error, "Could not add the collection. Try again.");
+      reportError(error, "Could not add the capsule. Try again.");
     } finally {
       setPending(false);
     }
@@ -42,7 +45,7 @@ export function AddCollection({ onSeeded }: { onSeeded: () => void }) {
       onClick={() => void handleSeed()}
     >
       {pending ? <Spinner data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
-      {pending ? "Adding the collection…" : "Add the Nyoni collection"}
+      {pending ? "Adding the capsule…" : "Add the Nyoni capsule"}
     </Button>
   );
 }

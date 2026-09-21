@@ -9,9 +9,10 @@ import { collectionDiff, reconcileCollectionItems, type CollectionFile } from ".
 import { COLLECTION } from "./shared/collection";
 
 /**
- * Every member's wardrobe starts with the Nyoni collection (`shared/collection.ts`). Seeding runs
- * automatically after onboarding and again from the wardrobe's "Add the Nyoni collection" button,
- * which also restores pieces a member removed. It never charges credits.
+ * Every member's wardrobe starts with the Nyoni capsule (`shared/collection.ts`). Seeding runs
+ * automatically after onboarding and again from the wardrobe's "Add the Nyoni capsule" button,
+ * which also restores pieces a member removed and retires pieces the house has taken out of the
+ * capsule. It never charges credits.
  */
 
 const vSeedResult = v.object({ added: v.number(), removed: v.number(), skipped: v.number() });

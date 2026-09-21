@@ -21,9 +21,14 @@ What differs from the Fitcheck base so far:
 - **Suits are a first-class garment.** `category: "suit"` and the `suit` outfit slot (a matched jacket
   and trousers) replace `bottom` and are worn over a `top`, under `outerwear`; see `convex/shared/wardrobe.ts`,
   `convex/model/outfits.ts` (`validateSlots`) and `convex/ai/prompts.ts` (suit-aware fallbacks).
-- **Every member starts with the Nyoni collection.** `convex/shared/collection.ts` lists the pieces;
-  `convex/collection.ts` seeds them after onboarding and from the wardrobe button; items carry
-  `collectionKey`. Regenerate the list with `scripts/build-collection.mjs` from the WooCommerce export.
+- **Every member starts with the Nyoni capsule.** Twenty-two curated pieces, not the catalogue:
+  `convex/shared/collection.ts` lists them and `convex/collection.ts` seeds them after onboarding and from
+  the wardrobe button; items carry `collectionKey`, and one whose key has left the capsule is retired on
+  the member's next seed. Choose the pieces in the `CAPSULE` list in `scripts/build-collection.mjs` (by
+  WooCommerce slug, with optional `name`, `colour` and `note` overrides), then regenerate:
+  `node scripts/build-collection.mjs`, `NODE_USE_ENV_PROXY=1 node scripts/fetch-collection-images.mjs`,
+  `node scripts/build-collection.mjs --local`. "Capsule" is the member-facing word; `collection` stays the
+  name in code and in the schema.
 - **Menswear only.** Onboarding no longer asks for a wardrobe; `prefs.presentation` defaults to `masculine`.
 - **Voice.** Member-facing copy follows the brand brief: US English, "concierge" not "stylist", "pieces"
   and "looks", never "credits" in new copy where it can be avoided. The agent persona lives in

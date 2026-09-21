@@ -1,6 +1,6 @@
 # Nyoni Members
 
-The private members app for [Nyoni Couture](https://nyonicouture.com), the bespoke menswear house founded by Nyonisela Sioh in Charlotte, NC, with showrooms in Atlanta and Houston. Every member's wardrobe starts with the Nyoni collection, so they can build a look, preview it on their own photo and ask the concierge what to wear before they have photographed a single garment of their own. Measurements, commissions, fittings and the membership allowance follow in the next phases.
+The private members app for [Nyoni Couture](https://nyonicouture.com), the bespoke menswear house founded by Nyonisela Sioh in Charlotte, NC, with showrooms in Atlanta and Houston. Every member's wardrobe starts with the Nyoni capsule, so they can build a look, preview it on their own photo and ask the concierge what to wear before they have photographed a single garment of their own. Measurements, commissions, fittings and the membership allowance follow in the next phases.
 
 Built on the Fitcheck AI wardrobe architecture (Next.js 16, React 19, Convex, Clerk, Vercel Eve, OpenAI), imported with the author's permission at commit `174105f`.
 
@@ -11,10 +11,10 @@ Phase 1 of the plan is under way on this branch:
 - Rebrand: wordmark, Bodoni Moda / Manrope / IBM Plex Mono, ivory and onyx tokens with a brass accent, private sign-in front door, nav and copy in the house's voice, the concierge persona.
 - Membership as a house-set status: tiers, the Membership page with benefits and concierge contacts, and a staff form in Admin. Clerk Billing and its plans page are gone.
 - Suits as a first-class garment: a `suit` category and outfit slot for two-piece, three-piece and tuxedo, with suit-aware try-on prompts.
-- The Nyoni collection seeder: every member's wardrobe is filled automatically after onboarding (`convex/collection.ts`), and "Add the Nyoni collection" in the wardrobe restores it.
+- The Nyoni capsule: twenty-two curated pieces (four suits and a tuxedo, a blazer and an overcoat, three trousers, shirts and knitwear, three pairs of shoes, four accessories) seeded into every wardrobe after onboarding (`convex/collection.ts`); "Add the Nyoni capsule" in the wardrobe restores it.
 - Menswear-only onboarding.
 
-Still to do from the plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; product photography is being pulled the same way.
+Still to do from the plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; the capsule's photography was pulled the same way.
 
 ## Documents
 

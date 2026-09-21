@@ -10,7 +10,7 @@ const bodoni = Bodoni_Moda({ variable: "--font-display-face", subsets: ["latin"]
 export const metadata: Metadata = {
   title: { default: "Nyoni Members", template: "%s · Nyoni Members" },
   description:
-    "The private members app of Nyoni Couture: your wardrobe, your measurements, your concierge. Build a look from the collection and see it on you.",
+    "The private members app of Nyoni Couture: your wardrobe, your measurements, your concierge. Build a look from the house capsule and see it on you.",
 };
 
 export const viewport: Viewport = {
