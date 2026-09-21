@@ -71,6 +71,8 @@ Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format:check`.
 
 ## Deploy (no custom domain yet)
 
+**Status, 21 September 2026.** Done on the production Convex deployment `good-donkey-546`: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_SECRET_KEY`, `AGENT_SERVICE_KEY` and `MAX_DAILY_SPEND_USD` are set (over the deployment's HTTP API; the CLI cannot be used from the build sandbox). Done in Clerk: the `convex` JWT template now carries the `public_metadata` claim. Still to do: an AI key on Convex (`AI_GATEWAY_API_KEY` or `OPENAI_API_KEY`), the Vercel import (which deploys the functions), then `SITE_URL` on Convex and the admin role on the first staff account.
+
 The app lives on the URL Vercel assigns (`<project>.vercel.app`) until the house has a domain; Clerk stays on its development instance, which works on any hostname. Convex has two deployments: development `accomplished-lemur-843` and production `good-donkey-546` (US East). The Vercel build deploys the Convex functions to production itself (`vercel.json` runs `convex deploy --cmd …`), so no local CLI is needed.
 
 1. **Convex production deployment (`good-donkey-546`)**: generate a _production_ deploy key in the dashboard (Settings → Deploy keys; also used in step 2), then set the variables below either in the dashboard (Settings → Environment variables) or in one command with `scripts/configure-convex.mjs`, which reads them from your shell and can deploy the functions with `--deploy`:
