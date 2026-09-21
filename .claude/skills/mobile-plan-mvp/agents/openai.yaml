@@ -1,0 +1,13 @@
+interface:
+  display_name: Mobile MVP Planning
+  short_description: Turn app ideas into a focused build plan
+  default_prompt: Use $mobile-plan-mvp to scope the first release of my app.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

@@ -1,0 +1,14 @@
+interface:
+  display_name: Mobile Feature Build and Verify
+  short_description: Implement features with focused evidence loops
+  default_prompt: Use $mobile-build-verify to apply this workflow to my fitness creator
+    app.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

@@ -1,0 +1,14 @@
+interface:
+  display_name: Mobile Sign-In and Access
+  short_description: Build and verify accounts, roles, and sessions
+  default_prompt: Use $mobile-auth-access to apply this workflow to my fitness creator
+    app.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

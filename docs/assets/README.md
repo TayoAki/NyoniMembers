@@ -16,3 +16,11 @@ The desktop and phone-sized images are browser viewport captures, not photograph
 | [render-complete-mobile.jpg](render-complete-mobile.jpg) | Local development | 375 × 812        | Captured during the same audit. QA try-on batch completed, with the selected image and alternate thumbnails.                                                                                               |
 
 The six reused audit captures were made during the 16–17 September 2026 app audit. The original local captures used `.png` names, but their actual encoded format is JPEG. The copies here use `.jpg` extensions to match the unchanged bytes. No compositing, retouching, or new image generation was performed for these README assets.
+
+## Design concepts
+
+`mobile-concept.webp` is not a screenshot. It is a design concept for **Nyoni Circle**, the Expo mobile
+app planned in `docs/05-mobile-app-plan.md`, supplied by the house on 21 September 2026. It shows six
+proposed screens with illustrative products and fictional member details, and is a reference for tone
+and layout only. It is not a running app, not a source of measurements or final copy, and the people
+and prices shown in it are not real members or confirmed offers.

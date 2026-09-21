@@ -14,7 +14,9 @@ This repository is the private members app of **Nyoni Couture**, a bespoke mensw
 Atlanta, Houston), built on the Fitcheck wardrobe architecture with the author's permission. Read
 `docs/01-brand-brief.md` (voice, copy deck, membership tiers, catalogue), `docs/02-luxury-membership-research.md`
 and `docs/03-nyoni-members-app-plan.md` (feature map, data model, roadmap) before changing product
-behaviour. Everything below this section describes the codebase itself.
+behaviour. `docs/05-mobile-app-plan.md` is the master plan for **Nyoni Circle**, the Expo mobile app that
+becomes the member's front door; the five `mobile-*` skills in `.claude/skills/` run its phases. Convex, the
+AI pipeline and the agent are shared by both clients, so backend changes must keep working for mobile. Everything below this section describes the codebase itself.
 
 What differs from the Fitcheck base so far:
 

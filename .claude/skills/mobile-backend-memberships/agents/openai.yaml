@@ -1,0 +1,14 @@
+interface:
+  display_name: Mobile Backend and Memberships
+  short_description: Connect real data, paid access, and device tests
+  default_prompt: Use $mobile-backend-memberships to apply this workflow to my fitness
+    creator app.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
