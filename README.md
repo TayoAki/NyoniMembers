@@ -18,13 +18,14 @@ Still to do from the plan: tier-based preview allowances replacing the credit me
 
 ## Documents
 
-| File                                                                             | What it is                                                                                                 |
-| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [docs/01-brand-brief.md](docs/01-brand-brief.md)                                 | Brand brief: house, voice and copy deck, services, membership programme, catalogue, visual direction       |
-| [docs/02-luxury-membership-research.md](docs/02-luxury-membership-research.md)   | How luxury membership, clienteling, measurement tracking and the bespoke commission lifecycle work         |
-| [docs/03-nyoni-members-app-plan.md](docs/03-nyoni-members-app-plan.md)           | Concept, feature map, tiers and entitlements, data model, routes, design system, content pipeline, roadmap |
-| [research/nyoni/catalogue-snapshot.json](research/nyoni/catalogue-snapshot.json) | The store's products and price bands as indexed on 21 Sep 2026                                             |
-| [AGENTS.md](AGENTS.md) and [DESIGN.md](DESIGN.md)                                | Working rules and design direction for anyone (or any agent) changing the code                             |
+| File                                                                             | What it is                                                                                                                            |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/01-brand-brief.md](docs/01-brand-brief.md)                                 | Brand brief: house, voice and copy deck, services, membership programme, catalogue, visual direction                                  |
+| [docs/02-luxury-membership-research.md](docs/02-luxury-membership-research.md)   | How luxury membership, clienteling, measurement tracking and the bespoke commission lifecycle work                                    |
+| [docs/03-nyoni-members-app-plan.md](docs/03-nyoni-members-app-plan.md)           | Concept, feature map, tiers and entitlements, data model, routes, design system, content pipeline, roadmap                            |
+| [docs/04-launch-checklist.md](docs/04-launch-checklist.md)                       | Everything needed to run, deploy and fill the app: accounts, environment variables, data from the house, hosting, order of operations |
+| [research/nyoni/catalogue-snapshot.json](research/nyoni/catalogue-snapshot.json) | The store's products and price bands as indexed on 21 Sep 2026                                                                        |
+| [AGENTS.md](AGENTS.md) and [DESIGN.md](DESIGN.md)                                | Working rules and design direction for anyone (or any agent) changing the code                                                        |
 
 ## Run it locally
 
