@@ -46,7 +46,7 @@ export function OutfitsList() {
   return (
     <div className="@container space-y-8">
       <PageHeader
-        eyebrow="The collection"
+        eyebrow="The outfit studio"
         title="Outfits"
         description="Your clothes, brought together. Save a look and see it on you."
         actions={
