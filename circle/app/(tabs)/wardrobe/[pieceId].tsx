@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { ImageWell } from "@/components/ui/product";
 import { DetailRow, OutlinePanel } from "@/components/ui/rows";
 import { PageHeading, Screen, Section } from "@/components/ui/screen";
-import { EmptyState } from "@/components/ui/states";
-import { pieceById, productById } from "@/lib/fixtures";
+import { EmptyState, LoadingState } from "@/components/ui/states";
+import { productById } from "@/lib/fixtures";
 import { costPerWear, longDate, money, pluralize } from "@/lib/format";
+import { useWardrobePiece } from "@/lib/wardrobe";
 
 const SOURCE_LABELS = {
   owned: "Photographed by you",
@@ -16,7 +17,15 @@ const SOURCE_LABELS = {
 export default function PieceDetail() {
   const { pieceId } = useLocalSearchParams<{ pieceId: string }>();
   const router = useRouter();
-  const piece = pieceById(pieceId);
+  const { piece, isLoading } = useWardrobePiece(pieceId);
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <LoadingState label="Opening the piece" />
+      </Screen>
+    );
+  }
 
   if (!piece) {
     return (
@@ -31,11 +40,12 @@ export default function PieceDetail() {
     );
   }
 
-  const product = piece.productId ? productById(piece.productId) : undefined;
+  // Only a fixture piece knows which catalogue product it is; a wardrobe row does not carry that yet.
+  const product = piece.imageKey ? productById(piece.imageKey) : undefined;
 
   return (
     <Screen>
-      <ImageWell productId={piece.productId} label={piece.name} isolated />
+      <ImageWell productId={piece.imageKey} uri={piece.uri} label={piece.name} isolated />
       <PageHeading eyebrow={SOURCE_LABELS[piece.source]} title={piece.name} />
 
       <Section title="How you wear it">

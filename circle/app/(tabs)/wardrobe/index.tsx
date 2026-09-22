@@ -5,13 +5,14 @@ import { Button, TextAction } from "@/components/ui/button";
 import { gridItem, ImageWell, ProductGrid } from "@/components/ui/product";
 import { OutlinePanel } from "@/components/ui/rows";
 import { PageHeading, Screen, Section } from "@/components/ui/screen";
-import { EmptyState, LockedState } from "@/components/ui/states";
+import { EmptyState, LockedState, Skeleton } from "@/components/ui/states";
 import { ContentTabs, FilterChips } from "@/components/ui/tabs";
 import { Text } from "@/components/ui/text";
-import { atelier, bag, looks, pieces, productById } from "@/lib/fixtures";
+import { atelier, bag, looks, productById } from "@/lib/fixtures";
 import { money, pluralize, relativeDate } from "@/lib/format";
 import { useSession } from "@/lib/session";
-import { space } from "@/lib/theme";
+import { ratio, space } from "@/lib/theme";
+import { useWardrobe } from "@/lib/wardrobe";
 import { CATEGORIES, CATEGORY_LABELS, type Category } from "@/lib/types";
 
 type Tab = "owned" | "looks" | "shop";
@@ -25,6 +26,7 @@ export default function Wardrobe() {
   const { hasAtelier } = useSession();
   const [tab, setTab] = useState<Tab>("owned");
   const [category, setCategory] = useState<Category | "all">("all");
+  const { pieces, isLoading } = useWardrobe();
 
   const owned = category === "all" ? pieces : pieces.filter((piece) => piece.category === category);
   const saved = bag.map((line) => productById(line.productId)).filter(Boolean);
@@ -66,7 +68,18 @@ export default function Wardrobe() {
             />
           </Section>
 
-          {owned.length === 0 ? (
+          {isLoading ? (
+            <Section>
+              <ProductGrid>
+                {[0, 1, 2, 3].map((slot) => (
+                  <View key={slot} style={[gridItem, { gap: space.x2 }]}>
+                    <Skeleton aspect={ratio.isolated} />
+                    <Skeleton height={14} />
+                  </View>
+                ))}
+              </ProductGrid>
+            </Section>
+          ) : owned.length === 0 ? (
             <Section>
               <EmptyState
                 title="Nothing here yet"
@@ -89,7 +102,7 @@ export default function Wardrobe() {
                       accessibilityLabel={`${piece.name}, ${piece.source === "owned" ? "your own" : "from the house"}`}
                       style={({ pressed }) => [gridItem, { gap: space.x2, opacity: pressed ? 0.86 : 1 }]}
                     >
-                      <ImageWell productId={piece.productId} label={piece.name} isolated />
+                      <ImageWell productId={piece.imageKey} uri={piece.uri} label={piece.name} isolated />
                       <View style={{ gap: 2 }}>
                         <Text variant="productTitle" numberOfLines={2}>
                           {piece.name}

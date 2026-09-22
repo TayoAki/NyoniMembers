@@ -15,19 +15,23 @@ import { Text } from "./text";
  */
 export function ImageWell({
   productId,
+  uri,
   label,
   isolated = false,
   aspect,
   style,
 }: {
+  /** A bundled photograph, keyed into `lib/images.ts`. */
   productId?: string;
+  /** A remote photograph, which wins over `productId`. Null while a cutout is still extracting. */
+  uri?: string | null;
   label: string;
   isolated?: boolean;
   aspect?: number;
   style?: ViewStyle;
 }) {
   const surface = useSurface();
-  const source = productId ? pieceImage(productId) : undefined;
+  const source = uri ? { uri } : productId ? pieceImage(productId) : undefined;
 
   return (
     <View

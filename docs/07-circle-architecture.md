@@ -166,7 +166,10 @@ experience, not a requirement.
 Neither needs new server work. Both already exist on the deployment this document just chose.
 
 - **Wardrobe** is `items.list`, `items.update`, `items.markWorn` and the outfit functions. Circle's
-  wardrobe screens read the same rows the web app writes.
+  wardrobe screens read the same rows the web app writes — **this one is wired already**:
+  `circle/lib/wardrobe.ts` binds `useWardrobe()` to the fixtures or to `items:list` from what the
+  build was given, and the grid and the piece screen call it without knowing which. It is the proof
+  that the seam holds; the rest of the screens follow the same shape.
 - **Capture** is `uploads.generateUploadUrl` plus the extraction job. `expo-image-picker` supplies
   the file; everything after that is the pipeline that runs today.
 - **Try-on** is `renders.*` over `convex/ai/*`. The member's photo, the piece, a job the app watches

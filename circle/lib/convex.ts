@@ -42,6 +42,8 @@ export type ItemView = {
   pattern: string;
   material: string;
   formality: string;
+  /** "Nyoni Couture" on a capsule piece; whatever the member said on one they photographed. */
+  brand?: string;
   description: string;
   status: "ready" | "extracting" | "needsCredits" | "failed" | "hidden";
   wearCount: number;
