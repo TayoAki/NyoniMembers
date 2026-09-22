@@ -1,6 +1,5 @@
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import { Link } from "expo-router";
 import { Pressable, View } from "react-native";
 import { Button, TextAction } from "@/components/ui/button";
 import { gridItem, ImageWell, ProductGrid } from "@/components/ui/product";

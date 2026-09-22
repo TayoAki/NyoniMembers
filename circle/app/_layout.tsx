@@ -15,8 +15,8 @@ import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { AppProviders } from "@/components/app/providers";
 import { BrandHeader } from "@/components/ui/brand-header";
-import { SessionProvider } from "@/lib/session";
 import { ny } from "@/lib/theme";
 
 /**
@@ -33,7 +33,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SessionProvider>
+        <AppProviders>
           {/* The header is always ink, so the status bar is always light. */}
           <StatusBar style="light" />
           <Stack
@@ -60,7 +60,7 @@ export default function RootLayout() {
             <Stack.Screen name="circle/clothier" />
             <Stack.Screen name="settings" />
           </Stack>
-        </SessionProvider>
+        </AppProviders>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

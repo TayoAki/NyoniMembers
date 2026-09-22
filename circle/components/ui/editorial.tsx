@@ -4,7 +4,6 @@ import { Pressable, View, type ViewStyle } from "react-native";
 import { pieceImage } from "@/lib/images";
 import { ny, radius, ratio, space } from "@/lib/theme";
 import { SurfaceProvider, useGutter } from "@/lib/use-theme";
-import { TextAction } from "./button";
 import { Text } from "./text";
 
 /**

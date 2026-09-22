@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { View } from "react-native";
 import { Button } from "@/components/ui/button";
 import { OutlinePanel } from "@/components/ui/rows";
@@ -13,9 +14,11 @@ import { useSurface } from "@/lib/use-theme";
 /** Free at every tier, as it is at Indyx: planning what you wear is the wardrobe doing its job. */
 export default function Calendar() {
   const router = useRouter();
+  // Read once per mount: "today" must not move under the member while the screen is open.
+  const [now] = useState(() => Date.now());
   const sorted = [...wears].sort((a, b) => b.wornOn - a.wornOn);
-  const planned = sorted.filter((wear) => wear.wornOn > Date.now());
-  const logged = sorted.filter((wear) => wear.wornOn <= Date.now());
+  const planned = sorted.filter((wear) => wear.wornOn > now);
+  const logged = sorted.filter((wear) => wear.wornOn <= now);
 
   return (
     <Screen footer={<Button label="Log what you wore today" onPress={() => router.push("/wardrobe")} />}>

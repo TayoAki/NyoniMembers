@@ -1,8 +1,10 @@
 # Nyoni Circle
 
-The Expo app for iOS and Android, planned in [`docs/05-mobile-app-plan.md`](../docs/05-mobile-app-plan.md).
-This is the front end only: every screen is built and navigable, backed by fixtures in `lib/`. No
-Convex, no Clerk and no RevenueCat yet; those land in milestones M2, M4 and M7.
+The Expo app for iOS and Android, planned in [`docs/05-mobile-app-plan.md`](../docs/05-mobile-app-plan.md)
+with the architecture decided in [`docs/07-circle-architecture.md`](../docs/07-circle-architecture.md).
+Every screen is built and navigable. Identity is real when the build is given a Clerk key; the
+member's wardrobe and membership are real when it is given a Convex URL as well. With neither, the
+app runs entirely on the fixtures in `lib/`.
 
 ## Run it
 
@@ -23,6 +25,30 @@ pnpm exec eas build --profile development --platform ios
 pnpm exec eas build --profile development --platform android
 ```
 
+## What this build talks to
+
+Two environment variables, read at **bundle time** — Expo inlines `EXPO_PUBLIC_*` into the
+JavaScript, so they must be set when `pnpm build` runs, not when the server starts, and changing one
+means a rebuild.
+
+| Variable | Unset | Set |
+| --- | --- | --- |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | The Settings picker stands in for people | Real sign-in by email code, real sign-out, the member's real name |
+| `EXPO_PUBLIC_CONVEX_URL` | Membership and wardrobe come from fixtures | Both come from the house's deployment, the same rows the web app writes |
+
+Same Clerk instance as the web app, so the same accounts work and a tier set in Admin shows up here.
+`https://good-donkey-546.convex.cloud` is production and `https://accomplished-lemur-843.convex.cloud`
+is development; a preview anyone can open should point at development.
+
+```bash
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_… \
+EXPO_PUBLIC_CONVEX_URL=https://accomplished-lemur-843.convex.cloud \
+  pnpm build
+```
+
+`pnpm build` passes `--clear` because Metro's cache does not otherwise notice that an inlined
+variable changed, and a build that quietly ignores its own configuration is worse than a slow one.
+
 ## Seeing it without a device
 
 `pnpm exec expo export --platform web` renders every route to static HTML, which is how the
@@ -31,9 +57,10 @@ Web gets the layout right and tells you nothing about camera, push or purchase.
 
 ## What is fixture-backed
 
-Everything. `lib/fixtures.ts` holds one invented member and her orders, appointments, wears and
-conversations. The products, prices and photography are Nyoni Couture's own, copied from the web
-app's capsule; the person is not real and neither are her transactions.
+Everything except identity and membership, and those only once the keys above are set.
+`lib/fixtures.ts` holds one invented member and her orders, appointments, wears and conversations.
+The products, prices and photography are Nyoni Couture's own, copied from the web app's capsule; the
+person is not real and neither are her transactions.
 
 The state a member is in is switchable, because a screen is only right if it is right in every
 state. Sign in, or open Settings, and choose between signed out, the fourteen-day Atelier preview,
@@ -72,8 +99,11 @@ components/ui/       Text, Button, Screen, BrandHeader, product, tabs, rows, sta
 components/stylist/  advisor badge, chat, outfit board
 components/try-on/   preview stage, before/after control
 components/circle/   membership card, clothier card
+components/app/      the provider tree: Clerk, Convex, session
 lib/theme.ts         the tokens: colours, surfaces, type scale, spacing, radii, ratios
 lib/use-theme.tsx    which surface a component is on, and the responsive gutter
+lib/config.ts        what this build is allowed to talk to
+lib/convex.ts        the client for the house's deployment, and the functions Circle calls
 lib/session.tsx      who the member is and what they may reach
 lib/fixtures.ts      the fictional world
 assets/              the capsule photography

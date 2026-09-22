@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { DetailRow, OutlinePanel, ServiceRow } from "@/components/ui/rows";
 import { PageHeading, Screen, Section } from "@/components/ui/screen";
 import { Text } from "@/components/ui/text";
+import { BACKEND_MODE_LABELS, isAuthLive } from "@/lib/config";
 import { member } from "@/lib/fixtures";
 import { DEMO_STATES, DEMO_STATE_LABELS, useSession } from "@/lib/session";
-import { ny, space } from "@/lib/theme";
+import { ny } from "@/lib/theme";
 import { TIER_LABELS } from "@/lib/types";
 
 const NOTIFICATIONS = [
@@ -18,7 +19,7 @@ const NOTIFICATIONS = [
 
 export default function Settings() {
   const router = useRouter();
-  const { member: current, tier, atelierSource, setDemoState, demoState } = useSession();
+  const { member: current, tier, atelierSource, setDemoState, demoState, backend, signOut } = useSession();
   const [notifications, setNotifications] = useState({ drops: true, previews: true, fittings: true });
 
   function confirmDelete() {
@@ -91,29 +92,45 @@ export default function Settings() {
         <ServiceRow label="The Circle" onPress={() => router.push("/circle")} />
       </Section>
 
-      <Section title="Preview build" major>
+      <Section title="This build" major>
         <OutlinePanel>
           <Text variant="caption" tone="muted">
-            No backend is connected yet. Switch between the states a member can be in to review every screen.
+            {BACKEND_MODE_LABELS[backend]}
           </Text>
-          {DEMO_STATES.map((state) => (
-            <Button
-              key={state}
-              label={DEMO_STATE_LABELS[state]}
-              variant={demoState === state ? "primary" : "secondary"}
-              onPress={() => setDemoState(state)}
-            />
-          ))}
+          {isAuthLive
+            ? null
+            : DEMO_STATES.map((state) => (
+                <Button
+                  key={state}
+                  label={DEMO_STATE_LABELS[state]}
+                  variant={demoState === state ? "primary" : "secondary"}
+                  onPress={() => setDemoState(state)}
+                />
+              ))}
         </OutlinePanel>
       </Section>
 
       <Section>
-        <Button label="Sign out" variant="secondary" onPress={() => setDemoState("signed-out")} />
-        <Button label="Delete your account" variant="secondary" onPress={confirmDelete} />
-        <Text variant="caption" tone="muted">
-          Deleting your account removes your wardrobe, looks and previews from the house. It does not cancel your
-          membership or your App Store subscription.
-        </Text>
+        <Button label="Sign out" variant="secondary" onPress={() => void signOut()} />
+        {/*
+          Deletion is a real, irreversible server call and the App Store requires it before
+          submission. It is not wired to a live account yet, so on a real sign-in the honest answer
+          is to say so rather than to offer a button that only signs the member out.
+        */}
+        {isAuthLive ? (
+          <Text variant="caption" tone="muted">
+            To close your account, or to have your wardrobe, looks and previews erased, speak to your clothier. It is
+            not something this build can do yet.
+          </Text>
+        ) : (
+          <>
+            <Button label="Delete your account" variant="secondary" onPress={confirmDelete} />
+            <Text variant="caption" tone="muted">
+              Deleting your account removes your wardrobe, looks and previews from the house. It does not cancel your
+              membership or your App Store subscription.
+            </Text>
+          </>
+        )}
       </Section>
     </Screen>
   );

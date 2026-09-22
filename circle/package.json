@@ -6,19 +6,21 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "expo start --dev-client",
-    "build": "expo export --platform web",
+    "build": "expo export --platform web --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint"
   },
   "dependencies": {
+    "@clerk/clerk-expo": "^2.20.0",
     "@expo-google-fonts/bodoni-moda": "^0.4.2",
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
     "@expo-google-fonts/manrope": "^0.4.2",
     "@expo/metro-runtime": "~57.0.16",
     "@expo/vector-icons": "^15.1.1",
     "@types/react": "~19.2.18",
+    "convex": "^1.46.0",
     "expo": "~57.0.0",
     "expo-constants": "~57.0.19",
     "expo-dev-client": "~57.0.19",
@@ -46,5 +48,9 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.2"
   }
 }

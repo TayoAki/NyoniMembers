@@ -22,8 +22,10 @@ export default function Appointments() {
   const [kind, setKind] = useState<Appointment["kind"]>(priority ? "fitting" : "consultation");
   const [showroom, setShowroom] = useState(showrooms[0]?.id ?? "charlotte");
 
-  const upcoming = appointments.filter((entry) => entry.requestedFor > Date.now());
-  const past = appointments.filter((entry) => entry.requestedFor <= Date.now());
+  // Read once per mount: "today" must not move under the member while the screen is open.
+  const [now] = useState(() => Date.now());
+  const upcoming = appointments.filter((entry) => entry.requestedFor > now);
+  const past = appointments.filter((entry) => entry.requestedFor <= now);
 
   return (
     <Screen
