@@ -15,13 +15,13 @@ choices still open are in §6 with a recommendation and the evidence that would 
 
 ### The decisions already taken
 
-| Decision                                      | Choice                                                                                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| How much of the existing system comes with it | A fresh app and a fresh backend. Only the AI pipeline and the concierge agent carry over.              |
-| Where the code lives                          | A new `circle/` folder in this repository, as its own workspace package.                               |
-| What the first release contains               | The full journey. Everything in the concept design ships at once.                                      |
-| How the app's paid features are sold          | A digital subscription, **Atelier**, sold through Apple, Google and Stripe, modelled on Indyx Insider. |
-| Where virtual try-on sits                     | Behind Atelier, as Indyx puts virtual selfies behind Insider.                                          |
+| Decision                                      | Choice                                                                                                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| How much of the existing system comes with it | A fresh app. The backend is the house's existing Convex deployment — see [`07-circle-architecture.md`](07-circle-architecture.md) §1, which reverses this. |
+| Where the code lives                          | A new `circle/` folder in this repository, as its own workspace package.                                                                                   |
+| What the first release contains               | The full journey. Everything in the concept design ships at once.                                                                                          |
+| How the app's paid features are sold          | A digital subscription, **Atelier**, sold through Apple, Google and Stripe, modelled on Indyx Insider.                                                     |
+| Where virtual try-on sits                     | Behind Atelier, as Indyx puts virtual selfies behind Insider.                                                                                              |
 
 **Two concerns, recorded once and then set aside.** Shipping the whole journey before any member sees
 it means roughly four months without feedback and a larger first App Review surface; every milestone
@@ -108,8 +108,10 @@ nyonicouture.com. It is the members' door.
 ### Written from scratch
 
 - **The Expo app.** Every screen, component and navigation decision, designed for a phone.
-- **The Convex backend.** A new deployment with the schema in §7. No `planCredits`, no `packCredits`,
-  no `creditLedger`, no Clerk billing. Those were Fitcheck's answers to Fitcheck's business.
+- **The Convex backend.** The schema in §7, as new tables under `convex/circle/` — _not_ a new
+  deployment. [`07-circle-architecture.md`](07-circle-architecture.md) §1 sets out why one
+  deployment beat two, and what it costs: Circle inherits `planCredits`, `packCredits` and the
+  credit ledger until the allowance phase retires them, rather than starting without them.
 - **Commerce.** Catalogue, drops, product detail, sizes, the bag, checkout and orders.
 - **Subscriptions.** Purchase, entitlement and renewal state across three stores.
 - **Service.** Appointments, the annual suit entitlement, the clothier channel.
@@ -238,8 +240,10 @@ The preview is a flag we control, involves no store, and needs no card.
 
 **Six commitments in that diagram.**
 
-1. **A new Convex deployment.** The live web app keeps its own backend and keeps working. No
-   migration, no shared schema, no risk of breaking a running system to reshape it.
+1. **The house's existing Convex deployment**, with Circle's tables added beside the web app's.
+   Superseded commitment — the plan called for a second deployment; see
+   [`07-circle-architecture.md`](07-circle-architecture.md) §1. One member, one wardrobe, one copy
+   of the AI pipeline. Convex is additive, so no function the web app calls changes.
 2. **The phone talks to Convex directly.** Same authenticated functions, no REST layer between, and
    realtime queries that make job progress truthful.
 3. **WooCommerce takes money for anything physical, and the order is created before the member pays.**
@@ -372,9 +376,13 @@ testing; that is a test cycle, not a separate release.
 
 ### D8 — Where the code lives
 
-**A new `circle/` folder in this repository**, its own pnpm workspace package, containing both the
-Expo app and its Convex backend. The existing Next.js app stays at the root with its own `convex/`.
-Two deployments, two schemas, no interference.
+**A new `circle/` folder in this repository**, installing on its own so the Expo dependency tree
+stays out of the web app's lockfile and out of every Vercel build.
+
+The backend does _not_ live there. Circle's Convex functions go under the root `convex/circle/` on
+the house's existing deployment, alongside the web app's — one schema, one member row, one copy of
+the AI pipeline. [`07-circle-architecture.md`](07-circle-architecture.md) §1 has the reasoning and
+the cost.
 
 ### D9 — What Atelier costs
 

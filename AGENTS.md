@@ -15,7 +15,9 @@ Atlanta, Houston), built on the Fitcheck wardrobe architecture with the author's
 `docs/01-brand-brief.md` (voice, copy deck, membership tiers, catalogue), `docs/02-luxury-membership-research.md`
 and `docs/03-nyoni-members-app-plan.md` (feature map, data model, roadmap) before changing product
 behaviour. `docs/05-mobile-app-plan.md` is the master plan for **Nyoni Circle**, a new Expo app built from scratch in
-`circle/` on its own Convex deployment; the five `mobile-*` skills in `.claude/skills/` run its milestones. It
+`circle/`, and `docs/07-circle-architecture.md` records the decisions that supersede it — chiefly that Circle's
+backend is _this_ deployment, with its tables under `convex/circle/`, not a second one; the five `mobile-*`
+skills in `.claude/skills/` run its milestones. It
 is not a port: only `convex/ai/*` (the tuned image prompts and model calls) and the `agent/` persona carry
 over. It sells two separate things: **the Circle** (physical membership, bought on WooCommerce, never via
 in-app purchase) and **Atelier** (the digital app subscription, sold through Apple, Google and Stripe via

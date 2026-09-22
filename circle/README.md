@@ -31,10 +31,10 @@ Two environment variables, read at **bundle time** — Expo inlines `EXPO_PUBLIC
 JavaScript, so they must be set when `pnpm build` runs, not when the server starts, and changing one
 means a rebuild.
 
-| Variable | Unset | Set |
-| --- | --- | --- |
-| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | The Settings picker stands in for people | Real sign-in by email code, real sign-out, the member's real name |
-| `EXPO_PUBLIC_CONVEX_URL` | Membership and wardrobe come from fixtures | Both come from the house's deployment, the same rows the web app writes |
+| Variable                            | Unset                                      | Set                                                                     |
+| ----------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------- |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | The Settings picker stands in for people   | Real sign-in by email code, real sign-out, the member's real name       |
+| `EXPO_PUBLIC_CONVEX_URL`            | Membership and wardrobe come from fixtures | Both come from the house's deployment, the same rows the web app writes |
 
 Same Clerk instance as the web app, so the same accounts work and a tier set in Admin shows up here.
 `https://good-donkey-546.convex.cloud` is production and `https://accomplished-lemur-843.convex.cloud`
