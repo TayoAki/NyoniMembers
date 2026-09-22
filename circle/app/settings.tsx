@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DetailRow, OutlinePanel, ServiceRow } from "@/components/ui/rows";
 import { PageHeading, Screen, Section } from "@/components/ui/screen";
 import { Text } from "@/components/ui/text";
-import { BACKEND_MODE_LABELS, isAuthLive } from "@/lib/config";
+import { BACKEND_MODE_LABELS, isAuthLive, isBackendLive } from "@/lib/config";
 import { member } from "@/lib/fixtures";
 import { DEMO_STATES, DEMO_STATE_LABELS, useSession } from "@/lib/session";
 import { ny } from "@/lib/theme";
@@ -39,8 +39,9 @@ export default function Settings() {
 
       <Section title="Account">
         <OutlinePanel>
-          <DetailRow label="Name" value={current?.name ?? member.name} />
-          <DetailRow label="Email" value={current?.email ?? member.email} />
+          {/* Never the fixture's name under a real sign-in: this screen says "Your account". */}
+          <DetailRow label="Name" value={current?.name ?? (isAuthLive ? "—" : member.name)} />
+          <DetailRow label="Email" value={current?.email ?? (isAuthLive ? "—" : member.email)} />
           <DetailRow label="Membership" value={TIER_LABELS[tier]} />
           <DetailRow
             label="Atelier"
@@ -97,9 +98,10 @@ export default function Settings() {
           <Text variant="caption" tone="muted">
             {BACKEND_MODE_LABELS[backend]}
           </Text>
-          {isAuthLive
+          {/* The picker drives entitlement, so it belongs wherever entitlement is still invented. */}
+          {isBackendLive
             ? null
-            : DEMO_STATES.map((state) => (
+            : DEMO_STATES.filter((state) => !(isAuthLive && state === "signed-out")).map((state) => (
                 <Button
                   key={state}
                   label={DEMO_STATE_LABELS[state]}

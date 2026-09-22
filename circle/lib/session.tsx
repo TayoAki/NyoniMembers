@@ -78,6 +78,16 @@ function previewDaysLeft(joinedAt: number): number {
   return Math.max(0, PREVIEW_LENGTH_DAYS - elapsed);
 }
 
+type Entitlement = { tier: MembershipTier; source: Session["atelierSource"]; daysLeft: number };
+
+/** What a chosen demo state means. Used wherever entitlement has no deployment to come from. */
+function entitlementOf(state: DemoState): Entitlement {
+  if (state === "circle") return { tier: "prestige", source: "membership", daysLeft: 0 };
+  if (state === "atelier") return { tier: "client", source: "subscription", daysLeft: 0 };
+  if (state === "preview") return { tier: "client", source: "preview", daysLeft: 9 };
+  return { tier: "client", source: null, daysLeft: 0 };
+}
+
 // -- Fixtures ------------------------------------------------------------------------------------
 
 function FixtureSessionProvider({ children }: { children: ReactNode }) {
@@ -85,15 +95,7 @@ function FixtureSessionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Session>(() => {
     const isSignedIn = demoState !== "signed-out";
-    const tier: MembershipTier = demoState === "circle" ? "prestige" : "client";
-    const atelierSource: Session["atelierSource"] =
-      demoState === "circle"
-        ? "membership"
-        : demoState === "atelier"
-          ? "subscription"
-          : demoState === "preview"
-            ? "preview"
-            : null;
+    const { tier, source: atelierSource, daysLeft } = entitlementOf(demoState);
     return {
       isSignedIn,
       isLoading: false,
@@ -101,7 +103,7 @@ function FixtureSessionProvider({ children }: { children: ReactNode }) {
       tier,
       hasAtelier: atelierSource !== null,
       atelierSource,
-      previewDaysLeft: demoState === "preview" ? 9 : 0,
+      previewDaysLeft: daysLeft,
       previewsUsed: demoState === "circle" ? 7 : demoState === "atelier" ? 3 : 1,
       previewsIncluded: 60,
       backend: "fixtures",
@@ -138,19 +140,27 @@ function useHouseMember(enabled: boolean): Me | null | undefined {
 function ClerkSession({ children, me }: { children: ReactNode; me?: Me | null }) {
   const { isLoaded, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
+  // A build with a Clerk key but no deployment has a real member and nothing to read their
+  // membership from. Entitlement stays the picker's, so the gated screens can still be walked
+  // through; Settings says as much, and the picker disappears the moment there is a deployment.
+  const [demoState, setDemoState] = useState<DemoState>("circle");
 
   const value = useMemo<Session>(() => {
     const name = me?.name ?? user?.fullName ?? "";
     const email = me?.email ?? user?.primaryEmailAddress?.emailAddress ?? "";
     const joinedAt = me?.createdAt ?? user?.createdAt?.getTime() ?? Date.now();
 
-    // A house-set tier is the only tier. Until the deployment is reachable every member reads as a
-    // client, which is the truthful answer rather than a flattering one.
+    // A house-set tier is the only tier, so it is read and never inferred. A member the house has
+    // not placed is a client, which is the truthful answer rather than a flattering one.
     const membership = me?.membership;
-    const tier: MembershipTier = membership && membership.status === "active" ? membership.tier : "client";
-    const daysLeft = previewDaysLeft(joinedAt);
-    const atelierSource: Session["atelierSource"] =
-      TIER_RANK[tier] >= TIER_RANK.signature ? "membership" : daysLeft > 0 ? "preview" : null;
+    const houseTier: MembershipTier = membership && membership.status === "active" ? membership.tier : "client";
+    const housePreview = previewDaysLeft(joinedAt);
+    const house: Entitlement = {
+      tier: houseTier,
+      source: TIER_RANK[houseTier] >= TIER_RANK.signature ? "membership" : housePreview > 0 ? "preview" : null,
+      daysLeft: housePreview,
+    };
+    const { tier, source: atelierSource, daysLeft } = isBackendLive ? house : entitlementOf(demoState);
 
     return {
       isSignedIn: Boolean(isSignedIn),
@@ -173,14 +183,14 @@ function ClerkSession({ children, me }: { children: ReactNode; me?: Me | null })
       previewsUsed: 0,
       previewsIncluded: 60,
       backend: backendMode,
-      demoState: isSignedIn ? "circle" : "signed-out",
-      setDemoState: () => {},
+      demoState: isSignedIn ? demoState : "signed-out",
+      setDemoState: isBackendLive ? () => {} : setDemoState,
       signOut: async () => {
         await signOut();
       },
       atLeast: (required: MembershipTier) => TIER_RANK[tier] >= TIER_RANK[required],
     };
-  }, [isLoaded, isSignedIn, signOut, user, me]);
+  }, [isLoaded, isSignedIn, signOut, user, me, demoState]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
