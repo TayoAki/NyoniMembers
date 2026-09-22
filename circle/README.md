@@ -40,6 +40,12 @@ The wardrobe is the one feature wired end to end so far: `lib/wardrobe.ts` binds
 one source or the other at module scope, and the grid and the piece screen cannot tell which they
 got. Every other screen still reads `lib/fixtures.ts` and follows the same shape when its turn comes.
 
+One setting on that instance matters here: **bot protection blocks sign-up from this app**. It is a
+Turnstile widget rendered in a browser, and a custom flow on a phone has nowhere to put one, so
+Clerk refuses every `signUp.create` with `captcha_missing_token`. Signing in is unaffected. To let
+the app open accounts, turn it off in the Clerk dashboard under User & Authentication → Attack
+protection; until then the apply screen says so in the member's own words.
+
 Same Clerk instance as the web app, so the same accounts work and a tier set in Admin shows up here.
 `https://good-donkey-546.convex.cloud` is production and `https://accomplished-lemur-843.convex.cloud`
 is development; a preview anyone can open should point at development.
