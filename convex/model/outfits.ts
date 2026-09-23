@@ -19,7 +19,7 @@ const OUTFIT_SUMMARY_LIMIT = 200;
 const CONTAINING_SCAN_LIMIT = 500;
 
 export function slotItemIds(slots: OutfitSlots): Id<"items">[] {
-  const single = [slots.outerwear, slots.top, slots.suit, slots.bottom, slots.dress, slots.shoes].filter(
+  const single = [slots.outerwear, slots.top, slots.mid, slots.suit, slots.bottom, slots.dress, slots.shoes].filter(
     (id): id is Id<"items"> => Boolean(id),
   );
   return [...single, ...slots.accessories];
@@ -78,6 +78,7 @@ export async function validateSlots(
   };
   check("outerwear", slots.outerwear);
   check("top", slots.top);
+  check("mid", slots.mid);
   check("suit", slots.suit);
   check("bottom", slots.bottom);
   check("dress", slots.dress);
@@ -86,6 +87,7 @@ export async function validateSlots(
   if (slots.dress && (slots.top || slots.bottom)) problems.push("a dress replaces top and bottom");
   if (slots.suit && slots.bottom) problems.push("a suit includes its trousers and replaces bottom");
   if (slots.suit && slots.dress) problems.push("a suit and a dress cannot be worn together");
+  if (slots.mid && slots.dress) problems.push("a vest is worn over a shirt, not over a dress");
   if (slotItemIds(slots).length === 0) problems.push("an outfit needs at least one item");
   if (problems.length > 0 && !collect) throw appError("INVALID_INPUT", problems[0], { problems });
   return problems;

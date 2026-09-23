@@ -8,6 +8,7 @@ export type Silhouette = "separates" | "suit" | "dress";
 export const BOARD_SLOT_CLASS: Record<Slot, string> = {
   outerwear: "col-start-1 col-span-2 row-start-2 row-span-4",
   top: "col-start-3 col-span-3 row-start-1 row-span-3",
+  mid: "col-start-1 col-span-2 row-start-1 row-span-2",
   suit: "col-start-3 col-span-3 row-start-1 row-span-8",
   bottom: "col-start-3 col-span-3 row-start-4 row-span-5",
   dress: "col-start-3 col-span-3 row-start-1 row-span-8",

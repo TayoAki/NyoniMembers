@@ -1,6 +1,7 @@
 export const CATEGORIES = [
   "suit",
   "top",
+  "vest",
   "bottom",
   "outerwear",
   "dress",
@@ -14,6 +15,7 @@ export type Category = (typeof CATEGORIES)[number];
 export const CATEGORY_LABELS: Record<Category, string> = {
   suit: "Suits",
   top: "Tops",
+  vest: "Vests",
   bottom: "Bottoms",
   outerwear: "Outerwear",
   dress: "Dresses",
@@ -42,16 +44,19 @@ export const PRESENTATIONS = ["masculine", "feminine", "neutral"] as const;
 export type Presentation = (typeof PRESENTATIONS)[number];
 
 /**
- * Builder slots. `dress` replaces top + bottom. `suit` is a matched jacket and trousers (two-piece,
- * three-piece or tuxedo): it replaces bottom and is worn over the top, under any outerwear.
+ * Builder slots, outermost first. `dress` replaces top + bottom. `suit` is a matched jacket and
+ * trousers (two-piece, three-piece or tuxedo): it replaces bottom and is worn over the top, under
+ * any outerwear. `mid` is the waistcoat layer — over the shirt, under the jacket — which is what
+ * makes a three-piece dressable when its parts are held as separate pieces.
  */
-export const SLOTS = ["outerwear", "top", "suit", "bottom", "dress", "shoes", "accessories"] as const;
+export const SLOTS = ["outerwear", "suit", "mid", "top", "bottom", "dress", "shoes", "accessories"] as const;
 export type Slot = (typeof SLOTS)[number];
 
 export const SLOT_LABELS: Record<Slot, string> = {
   outerwear: "Outerwear",
-  top: "Top",
   suit: "Suit",
+  mid: "Vest",
+  top: "Top",
   bottom: "Bottom",
   dress: "Dress",
   shoes: "Shoes",
@@ -63,6 +68,7 @@ export const SLOT_CATEGORIES: Record<Slot, readonly Category[]> = {
   outerwear: ["outerwear"],
   top: ["top"],
   suit: ["suit"],
+  mid: ["vest"],
   bottom: ["bottom"],
   dress: ["dress"],
   shoes: ["shoes"],
@@ -70,7 +76,16 @@ export const SLOT_CATEGORIES: Record<Slot, readonly Category[]> = {
 };
 
 /** Order garments are layered when rendering, inner to outer. */
-export const LAYER_ORDER: readonly Slot[] = ["dress", "top", "bottom", "suit", "shoes", "outerwear", "accessories"];
+export const LAYER_ORDER: readonly Slot[] = [
+  "dress",
+  "top",
+  "mid",
+  "bottom",
+  "suit",
+  "shoes",
+  "outerwear",
+  "accessories",
+];
 
 export const ITEM_STATUSES = ["extracting", "ready", "failed", "hidden", "needsCredits"] as const;
 export type ItemStatus = (typeof ITEM_STATUSES)[number];

@@ -28,6 +28,7 @@ export type RenderPromptInput = {
 const SLOT_PHRASE: Record<Slot, string> = {
   dress: "a dress",
   top: "a top, worn on the upper body",
+  mid: "a waistcoat, worn buttoned over the shirt and under any jacket",
   suit: "a suit — its matching jacket and trousers, the jacket worn over the top",
   bottom: "bottoms, worn on the lower body",
   shoes: "shoes, worn on the feet",

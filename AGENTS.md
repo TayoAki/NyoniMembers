@@ -28,13 +28,20 @@ What differs from the Fitcheck base so far:
 - **Suits are a first-class garment.** `category: "suit"` and the `suit` outfit slot (a matched jacket
   and trousers) replace `bottom` and are worn over a `top`, under `outerwear`; see `convex/shared/wardrobe.ts`,
   `convex/model/outfits.ts` (`validateSlots`) and `convex/ai/prompts.ts` (suit-aware fallbacks).
-- **Every member starts with the Nyoni capsule.** Twenty-two curated pieces, not the catalogue:
+- **A waistcoat is its own garment, and a suit is held as its parts.** `category: "vest"` and the `mid`
+  outfit slot (over the shirt, under the jacket) let a three-piece be dressed. A suit product in the capsule
+  is split by `parts` in `scripts/build-collection.mjs` into a jacket (`outerwear`), trousers (`bottom`) and,
+  for a three-piece, a waistcoat (`vest`); each part carries `partOf` naming the suit and its price, and no
+  `priceUsd` of its own. `category: "suit"` and the `suit` slot remain for a matched suit held as one item.
+- **Every member starts with the Nyoni capsule.** Thirty-nine pieces from thirty-one products, not the catalogue:
   `convex/shared/collection.ts` lists them and `convex/collection.ts` seeds them after onboarding and from
   the wardrobe button; items carry `collectionKey`, and one whose key has left the capsule is retired on
   the member's next seed. Choose the pieces in the `CAPSULE` list in `scripts/build-collection.mjs` (by
   WooCommerce slug, with optional `name`, `colour` and `note` overrides), then regenerate:
   `node scripts/build-collection.mjs`, `NODE_USE_ENV_PROXY=1 node scripts/fetch-collection-images.mjs`,
-  `node scripts/build-collection.mjs --local`. "Capsule" is the member-facing word; `collection` stays the
+  `node scripts/build-collection.mjs --local`. A split suit's parts start out sharing the suit's own
+  photograph; `OPENAI_API_KEY=… node scripts/cut-collection-parts.mjs` gives each one a photo of its own
+  (~$0.03 a part), then run `--local` again. "Capsule" is the member-facing word; `collection` stays the
   name in code and in the schema.
 - **Menswear only.** Onboarding no longer asks for a wardrobe; `prefs.presentation` defaults to `masculine`.
 - **Voice.** Member-facing copy follows the brand brief: US English, "concierge" not "stylist", "pieces"

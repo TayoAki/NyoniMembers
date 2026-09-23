@@ -4,7 +4,6 @@
  * Nyoni capsule every member's wardrobe starts with.
  *
  *   node scripts/build-collection.mjs                 # remote image URLs (the seeder fetches from the store)
- *   node scripts/build-collection.mjs --download      # also save each image to public/collection/<key>.<ext>
  *   node scripts/build-collection.mjs --local         # use images already present in public/collection/ (no network)
  *
  * The store's bot challenge blocks plain downloads; scripts/fetch-collection-images.mjs pulls the
@@ -19,11 +18,10 @@
  */
 
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const args = process.argv.slice(2);
-const download = args.includes("--download");
 const local = args.includes("--local");
 
 /**
@@ -35,64 +33,199 @@ const local = args.includes("--local");
  * deliberately: a capsule stops working the moment it becomes a catalogue again.
  */
 const CAPSULE = [
-  { group: "Tailoring", slug: "cascata-2" },
-  { group: "Tailoring", slug: "grayson" },
-  { group: "Tailoring", slug: "kijivu-suit" },
-  { group: "Tailoring", slug: "isabella-bleu-pin-suit" },
-  { group: "Tailoring", slug: "opel-black-tux", name: "Sovereign Black Double-Breasted Tuxedo", colour: "black" },
-  { group: "Layers", slug: "cobalt-blazer-2", colour: "grey" },
-  { group: "Layers", slug: "grey-overcoat" },
+  // Five suits. `parts` splits a product into the pieces a wardrobe actually holds: the jacket and
+  // the trousers are worn apart as often as together, and a three-piece adds its waistcoat.
+  { group: "Suits", slug: "nathan", parts: ["jacket", "trousers", "vest"], colour: "navy" },
+  { group: "Suits", slug: "grayson", parts: ["jacket", "trousers", "vest"], colour: "charcoal" },
+  {
+    group: "Suits",
+    slug: "evano-windowpane",
+    parts: ["jacket", "trousers", "vest"],
+    colour: "grey",
+    note: "Super 200s wool in a grey windowpane check, for the days a plain suit is too plain. The waistcoat makes it a wedding; without it, a Tuesday.",
+  },
+  {
+    group: "Suits",
+    slug: "opel-black-tux",
+    parts: ["jacket", "trousers"],
+    name: "Sovereign Black Double-Breasted Tuxedo",
+    colour: "black",
+  },
+  { group: "Suits", slug: "perseo", parts: ["jacket", "trousers"], colour: "grey" },
+
+  // Five odd jackets, so the suit jackets are not the only thing that goes over a shirt.
+  { group: "Blazers", slug: "navy-aztec-blazer", colour: "navy" },
+  {
+    group: "Blazers",
+    slug: "vicenzo",
+    colour: "grey",
+    note: "A grey mélange odd jacket with enough texture to read as tailoring rather than a suit jacket gone astray. Takes the taupe or walnut trousers.",
+  },
+  {
+    group: "Blazers",
+    slug: "james-blazer",
+    colour: "grey",
+    note: "Grey-green glen check with a soft windowpane over it. The jacket for a town day that is not quite a suit day.",
+  },
+  {
+    group: "Blazers",
+    slug: "thomson-blazer",
+    colour: "orange",
+    note: "Burnt ochre in an open weave, cut unstructured. Summer, and the one piece in the capsule that answers a navy trouser with warmth.",
+  },
+  {
+    group: "Blazers",
+    slug: "ivoire-blazer-2",
+    colour: "ivory",
+    name: "Ivoire Double-Breasted Blazer",
+    note: "Ivory, double breasted, peak lapel. It carries a black tie evening in summer and a wedding at any time of year.",
+  },
+
+  // Five trousers that take any of those jackets.
   { group: "Trousers", slug: "nyoni-classic-side-adjuster-dress-pants", colour: "black" },
-  { group: "Trousers", slug: "nyoni-midnight-glen-plaid-pant", colour: "navy" },
   { group: "Trousers", slug: "nyoni-taupe-flat-front-tailored-dress-pants", colour: "taupe" },
-  { group: "Shirts and knitwear", slug: "cavalera-formal", colour: "white" },
-  { group: "Shirts and knitwear", slug: "elna-blu" },
-  { group: "Shirts and knitwear", slug: "nyoni-sable-black-spread-collar-shirt" },
-  { group: "Shirts and knitwear", slug: "nyoni-navy-turtleneck" },
+  { group: "Trousers", slug: "nyoni-midnight-glen-plaid-pant", colour: "navy" },
+  { group: "Trousers", slug: "nyoni-walnut-tweed-pant", colour: "brown" },
+  { group: "Trousers", slug: "nyoni-black-satin-side-stripe-tuxedo-pants", colour: "black" },
+
+  // Five waistcoats worn on their own, beside the ones that came with a three-piece.
   {
-    group: "Shirts and knitwear",
+    group: "Vests",
+    slug: "chalcedony",
+    colour: "charcoal",
+    name: "Chalcedony Shawl Waistcoat",
+    note: "A charcoal shawl waistcoat, plain: the one that goes under every jacket in the capsule without asking a question.",
+  },
+  {
+    group: "Vests",
     slug: "kenzie",
-    note: "A navy wool waistcoat for separates: over the blue shirt with grey or taupe trousers, or under the blazer when the evening turns formal.",
+    colour: "navy",
     name: "Kenzie Waistcoat",
-    colour: "navy",
+    note: "A navy wool waistcoat for separates: over the blue shirt with grey or taupe trousers, or under a blazer when the evening turns formal.",
   },
   {
-    group: "Shoes",
-    slug: "oxford",
-    note: "The black cap-toe oxford, the one shoe that answers every suit in the capsule and carries black tie when the evening calls for it.",
+    group: "Vests",
+    slug: "yuma",
+    colour: "grey",
+    name: "Yuma Double-Breasted Waistcoat",
+    note: "Mid grey, double breasted, shawl collar. A waistcoat with a front of its own, worn best where the jacket comes off.",
+  },
+  {
+    group: "Vests",
+    slug: "hematite",
+    colour: "blue",
+    name: "Hematite Windowpane Waistcoat",
+    note: "Blue with a fine windowpane. It lifts a plain charcoal or navy suit without competing with a patterned jacket.",
+  },
+  {
+    group: "Vests",
+    slug: "gabbro",
     colour: "black",
+    name: "Gabbro Marbled Waistcoat",
+    note: "A marbled black and ivory waistcoat. Black tie, and nothing else: it wants the plainest jacket in the room.",
   },
-  { group: "Shoes", slug: "monaco-cap-toe", name: "Monaco Cap-Toe Boot", colour: "black" },
-  { group: "Shoes", slug: "florence-ii-penny-loafer", colour: "burgundy" },
+
+  // Every boot the house stocks.
   {
-    group: "Accessories",
-    slug: "obinna",
-    note: "A handcrafted Milano silk tie, teal ground with a grey bar stripe: the pattern that sits comfortably against navy, charcoal and grey.",
-    name: "Obina Stripe Neck-tie",
-    colour: "teal",
+    group: "Boots",
+    slug: "antwerp-wing-tip",
+    colour: "brown",
+    name: "Antwerp Wing-Tip Boot",
+    note: "Cognac calf with a buttoned side and a wing-tip toe, made in Italy on a leather sole. The boot for brown and taupe tailoring.",
   },
-  { group: "Accessories", slug: "granito-2", colour: "blue" },
   {
-    group: "Accessories",
-    slug: "brittan-2",
-    note: "The black silk self-tie bow. Black tie asks for one thing, and this is it.",
-    name: "Brittan Silk Bow Tie",
+    group: "Boots",
+    slug: "roma-wing-tip",
     colour: "black",
+    name: "Roma Wing-Tip Boot",
+    note: "Black calf and suede, laced, on a leather sole, made in Italy. The most forgiving boot here with a checked or textured suit.",
   },
   {
-    group: "Accessories",
+    group: "Boots",
+    slug: "monaco-cap-toe",
+    colour: "black",
+    name: "Monaco Cap-Toe Boot",
+    note: "Black calf with a cap toe and a buckled strap, made in Italy on a leather sole. It carries navy and charcoal equally.",
+  },
+  {
+    group: "Boots",
+    slug: "chelsea-ii",
+    colour: "black",
+    name: "Chelsea II Boot",
+    note: "A black calf Chelsea with a brogued wing-tip, made in Italy. Pulls on, and goes under a suit trouser without a word.",
+  },
+  {
+    group: "Boots",
+    slug: "hamburg-wing-tip",
+    colour: "black",
+    name: "Hamburg Wing-Tip Boot",
+    note: "Black calf, side zip, wing-tip toe, made in Italy on a leather sole. The boot for winter tailoring and a long evening.",
+  },
+
+  // Five squares: one for each suit, and one that answers the ochre blazer.
+  {
+    group: "Pocket squares",
     slug: "silvano-2",
-    note: "A navy silk pocket square with a fine white print, made in Italy. Restrained enough for the boardroom, finished enough for a wedding.",
-    name: "Silvano Pocket Square",
     colour: "navy",
+    name: "Silvano Pocket Square",
+    note: "Navy silk with a fine ivory foliate print, made in Italy. The square for a navy or charcoal suit when the occasion is not about the square.",
+  },
+  {
+    group: "Pocket squares",
+    slug: "paisley",
+    colour: "black",
+    name: "Paisley Pocket Square",
+    note: "Black silk with a small ivory paisley, made in Italy. It finishes black tie and charcoal tailoring without raising its voice.",
+  },
+  {
+    group: "Pocket squares",
+    slug: "belagio-2",
+    colour: "teal",
+    name: "Belagio Pocket Square",
+    note: "Deep teal paisley on near-black silk, made in Italy. Evening, and the one square here that reads as colour from across a room.",
+  },
+  {
+    group: "Pocket squares",
+    slug: "venez-2",
+    colour: "orange",
+    name: "Venez Pocket Square",
+    note: "Copper baroque on black silk, made in Italy. It is the answer to the ochre blazer, and to brown tailoring generally.",
+  },
+  {
+    group: "Pocket squares",
+    slug: "serenata-2",
+    colour: "blue",
+    name: "Serenata Pocket Square",
+    note: "Blue and ivory silk stripe, made in Italy. The square for a patterned jacket, where another pattern would be one too many.",
+  },
+
+  // The house stocks exactly one belt. The group grows when the store does.
+  {
+    group: "Belts",
+    slug: "black-belt-2",
+    colour: "black",
+    name: "Black Leather Belt",
+    // The store has this one in no category at all.
+    category: "accessory",
+    subcategory: "belt",
+    note: "Black calf with a squared buckle. It is the belt the black and charcoal trousers ask for, and the only one the house stocks.",
   },
 ];
+
+/** What each split part of a suit becomes in a wardrobe. */
+const SUIT_PARTS = {
+  jacket: { suffix: "jacket", label: "Jacket", category: "outerwear", subcategory: "suit jacket" },
+  trousers: { suffix: "trousers", label: "Trousers", category: "bottom", subcategory: "suit trousers" },
+  vest: { suffix: "vest", label: "Waistcoat", category: "vest", subcategory: "waistcoat" },
+};
 
 const SOURCE = path.resolve("research/nyoni/woo-products.json");
 const TARGET = path.resolve("convex/shared/collection.ts");
 const PUBLIC_DIR = path.resolve("public/collection");
 
 /** WooCommerce category slug → [category, subcategory, formality, seasons]. Order matters: first match wins. */
+const SEASONS_ALL = ["spring", "summer", "autumn", "winter"];
+
 const CATEGORY_MAP = [
   ["tuxedo", ["suit", "tuxedo", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["three-piece-suit", ["suit", "three-piece suit", "formal", ["autumn", "winter", "spring"]]],
@@ -101,7 +234,7 @@ const CATEGORY_MAP = [
   ["suits", ["suit", "suit", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["blazers", ["outerwear", "blazer", "smart-casual", ["spring", "autumn", "winter"]]],
   ["winter-coat", ["outerwear", "overcoat", "formal", ["autumn", "winter"]]],
-  ["vest", ["top", "waistcoat", "formal", ["autumn", "winter", "spring"]]],
+  ["vest", ["vest", "waistcoat", "formal", ["autumn", "winter", "spring"]]],
   ["dress-shirts", ["top", "dress shirt", "formal", ["spring", "summer", "autumn", "winter"]]],
   ["casual-shirts", ["top", "shirt", "smart-casual", ["spring", "summer", "autumn"]]],
   ["sweater", ["top", "sweater", "smart-casual", ["autumn", "winter"]]],
@@ -187,8 +320,12 @@ const PATTERNS = [
 ];
 const MATERIALS = ["cashmere", "linen", "silk", "velvet", "suede", "calfskin", "leather", "cotton", "wool"];
 
-function classify(product) {
+function classify(product, entry) {
   for (const [slug, mapping] of CATEGORY_MAP) if (product.categories.includes(slug)) return mapping;
+  // A handful of products are in no category on the store; the capsule entry says what they are.
+  if (entry?.category) {
+    return [entry.category, entry.subcategory ?? entry.category, entry.formality ?? "smart-casual", SEASONS_ALL];
+  }
   return null;
 }
 
@@ -243,6 +380,19 @@ function tsString(value) {
   return JSON.stringify(value);
 }
 
+/** "Midnight Navy Three Piece Suit" + jacket -> "Midnight Navy Suit Jacket". */
+function partName(suitName, part) {
+  const tuxedo = /tuxedo|tux\b/i.test(suitName);
+  const stem = suitName
+    .replace(/\b(two|three)[\s-]piece\b/gi, "")
+    .replace(/\b(suit|tuxedo|tux)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const garment = tuxedo ? "Tuxedo" : "Suit";
+  if (part.suffix === "vest") return `${stem} Waistcoat`;
+  return `${stem} ${garment} ${part.label}`;
+}
+
 const DESCRIPTION_MAX = 240;
 
 /**
@@ -273,50 +423,89 @@ async function main() {
   const products = JSON.parse(await readFile(SOURCE, "utf8"));
   const bySlug = new Map(products.map((product) => [product.slug, product]));
   const localFiles = local && existsSync(PUBLIC_DIR) ? await readdir(PUBLIC_DIR) : [];
+  /**
+   * Each split part owns its own image file. Before the cutout pass those files are copies of the
+   * suit's own photograph, so the wardrobe is usable while the parts wait for a photo of their own.
+   */
+  const imageFor = (pieceKey, remote) => {
+    if (!local) return remote;
+    const file = localFiles.find((name) => name.startsWith(`${pieceKey}.`));
+    if (!file)
+      throw new Error(`No photo in public/collection for ${pieceKey}; run scripts/fetch-collection-images.mjs.`);
+    return `/collection/${file}`;
+  };
   const pieces = [];
   for (const entry of CAPSULE) {
     const product = bySlug.get(entry.slug);
     if (!product) throw new Error(`${entry.slug} is not in the export; re-run scripts/capture-nyoni.mjs.`);
     if (!product.inStock) throw new Error(`${entry.slug} is out of stock; choose another piece for the capsule.`);
-    const mapping = classify(product);
+    const mapping = classify(product, entry);
     if (!mapping) throw new Error(`${entry.slug} has no wardrobe category: ${product.categories.join(", ")}.`);
     if (!product.images?.[0]?.src) throw new Error(`${entry.slug} has no product photo.`);
     const [category, subcategory, formality, season] = mapping;
     const text = `${product.name} ${product.shortDescription ?? ""} ${product.description ?? ""}`;
     const key = keyFor(product);
-    let image = product.images[0].src;
-    if (local) {
-      const file = localFiles.find((name) => name.startsWith(`${key}.`));
-      if (!file) throw new Error(`No photo in public/collection for ${key}; run scripts/fetch-collection-images.mjs.`);
-      image = `/collection/${file}`;
-    }
-    if (download) {
-      await mkdir(PUBLIC_DIR, { recursive: true });
-      const ext = (new URL(image).pathname.split(".").pop() || "jpg").toLowerCase();
-      const response = await fetch(image);
-      if (response.ok) {
-        await writeFile(path.join(PUBLIC_DIR, `${key}.${ext}`), Buffer.from(await response.arrayBuffer()));
-        image = `/collection/${key}.${ext}`;
-      }
-    }
-    pieces.push({
-      key,
+    const remote = product.images[0].src;
+    const image = entry.parts ? remote : imageFor(key, remote);
+    const displayName = cleanName(product.name, entry.name);
+    const shared = {
       group: entry.group,
       productUrl: product.permalink,
+      colours: colourOf(product.name, entry.colour),
+      pattern: firstMatch(text, PATTERNS, "solid").replace("glenn plaid", "glen plaid"),
+      material: firstMatch(text, MATERIALS, category === "shoes" ? "leather" : "wool"),
+      season,
+      formality,
+      description: cleanDescription(product.shortDescription || product.description || product.name, entry.note),
+    };
+
+    if (entry.parts) {
+      // One product, two or three wardrobe pieces. They keep the suit's link and carry `partOf` so a
+      // screen can say what they belong to instead of printing the whole suit's price on a waistcoat.
+      for (const name of entry.parts) {
+        const part = SUIT_PARTS[name];
+        if (!part) throw new Error(`${entry.slug}: unknown part "${name}".`);
+        const partKey = `${key}-${part.suffix}`;
+        pieces.push({
+          ...shared,
+          key: partKey,
+          image: imageFor(partKey, image),
+          partOf: { name: displayName, priceUsd: product.priceUsd },
+          attributes: {
+            name: partName(displayName, part),
+            category: part.category,
+            subcategory: part.subcategory,
+            colours: shared.colours,
+            pattern: shared.pattern,
+            material: shared.material,
+            season,
+            formality,
+            fit: part.suffix === "jacket" ? "slim" : undefined,
+            brand: "Nyoni Couture",
+            description: shared.description,
+          },
+        });
+      }
+      continue;
+    }
+
+    pieces.push({
+      ...shared,
+      key,
       priceUsd: product.priceUsd,
       image,
       attributes: {
-        name: cleanName(product.name, entry.name),
+        name: displayName,
         category,
         subcategory,
-        colours: colourOf(product.name, entry.colour),
-        pattern: firstMatch(text, PATTERNS, "solid").replace("glenn plaid", "glen plaid"),
-        material: firstMatch(text, MATERIALS, category === "shoes" ? "leather" : "wool"),
+        colours: shared.colours,
+        pattern: shared.pattern,
+        material: shared.material,
         season,
         formality,
         fit: category === "suit" || subcategory === "blazer" ? "slim" : undefined,
         brand: "Nyoni Couture",
-        description: cleanDescription(product.shortDescription || product.description || product.name, entry.note),
+        description: shared.description,
       },
     });
   }
@@ -328,7 +517,9 @@ async function main() {
       const heading = piece.group === pieces[index - 1]?.group ? "" : `${index === 0 ? "" : "\n"}  // ${piece.group}\n`;
       return `${heading}  {
     key: ${tsString(piece.key)},
-    productUrl: ${tsString(piece.productUrl)},${piece.priceUsd !== undefined ? `\n    priceUsd: ${piece.priceUsd},` : ""}
+    productUrl: ${tsString(piece.productUrl)},${piece.priceUsd !== undefined ? `\n    priceUsd: ${piece.priceUsd},` : ""}${
+      piece.partOf ? `\n    partOf: { name: ${tsString(piece.partOf.name)}, priceUsd: ${piece.partOf.priceUsd} },` : ""
+    }
     image: ${tsString(piece.image)},
     attributes: {
       name: ${tsString(a.name)},
@@ -360,7 +551,10 @@ import type { vItemAttributes } from "./validators";
 export type CollectionPiece = {
   key: string;
   productUrl: string;
+  /** What the piece costs on its own. Absent when it is only sold as part of something. */
   priceUsd?: number;
+  /** Set on a suit's jacket, trousers and waistcoat: the suit they are sold as, and its price. */
+  partOf?: { name: string; priceUsd: number };
   image: string;
   attributes: Infer<typeof vItemAttributes>;
 };
@@ -374,9 +568,7 @@ export function collectionPiece(key: string): CollectionPiece | undefined {
 }
 `;
   await writeFile(TARGET, file);
-  console.log(
-    `Wrote the ${pieces.length}-piece capsule to ${path.relative(process.cwd(), TARGET)}${download ? ` and images to ${path.relative(process.cwd(), PUBLIC_DIR)}` : ""}.`,
-  );
+  console.log(`Wrote the ${pieces.length}-piece capsule to ${path.relative(process.cwd(), TARGET)}.`);
   console.log("Run `pnpm format` then `pnpm typecheck`; the seeder picks the new pieces up on the next seed.");
 }
 

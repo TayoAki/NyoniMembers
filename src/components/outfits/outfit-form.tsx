@@ -28,6 +28,7 @@ import { SLOTS, SLOT_CATEGORIES, SLOT_LABELS, type Slot } from "@convex/shared/w
 export type DraftSlots = {
   outerwear?: Id<"items">;
   top?: Id<"items">;
+  mid?: Id<"items">;
   suit?: Id<"items">;
   bottom?: Id<"items">;
   dress?: Id<"items">;

@@ -74,6 +74,7 @@ export const vPrefs = v.object({
 export const vOutfitSlots = v.object({
   outerwear: v.optional(v.id("items")),
   top: v.optional(v.id("items")),
+  mid: v.optional(v.id("items")),
   suit: v.optional(v.id("items")),
   bottom: v.optional(v.id("items")),
   dress: v.optional(v.id("items")),
