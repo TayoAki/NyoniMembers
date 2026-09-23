@@ -243,6 +243,32 @@ function tsString(value) {
   return JSON.stringify(value);
 }
 
+const DESCRIPTION_MAX = 240;
+
+/**
+ * Product copy on the store trails off into spec-sheet fragments — "ACCESSORY: /// PACKAGING: box
+ * covered with…" — which no member should read, and it is far longer than a card can hold. Cut the
+ * spec sheet off, then end on a whole sentence where there is one within the cap and on a whole
+ * word otherwise. A description that stops mid-word reads as broken, because it is.
+ */
+function cleanDescription(text, note) {
+  if (note) return note;
+  const prose = String(text ?? "")
+    // Everything from the first shouted label onwards is a spec sheet, not a description.
+    .split(/\s(?=[A-Z][A-Z ]{2,}:)|\s\/\/\/\s/)[0]
+    .replace(/\s+/g, " ")
+    .trim();
+  if (prose.length <= DESCRIPTION_MAX) return prose;
+
+  const head = prose.slice(0, DESCRIPTION_MAX + 1);
+  const sentence = Math.max(head.lastIndexOf(". "), head.lastIndexOf("! "), head.lastIndexOf("? "));
+  // Only end on a sentence when doing so keeps most of the allowance; otherwise it reads as a stub.
+  if (sentence >= DESCRIPTION_MAX * 0.6) return head.slice(0, sentence + 1).trim();
+
+  const word = head.lastIndexOf(" ");
+  return `${head.slice(0, word > 0 ? word : DESCRIPTION_MAX).replace(/[\s,;:—–-]+$/, "")}…`;
+}
+
 async function main() {
   const products = JSON.parse(await readFile(SOURCE, "utf8"));
   const bySlug = new Map(products.map((product) => [product.slug, product]));
@@ -290,7 +316,7 @@ async function main() {
         formality,
         fit: category === "suit" || subcategory === "blazer" ? "slim" : undefined,
         brand: "Nyoni Couture",
-        description: (entry.note || product.shortDescription || product.description || product.name).slice(0, 240),
+        description: cleanDescription(product.shortDescription || product.description || product.name, entry.note),
       },
     });
   }
