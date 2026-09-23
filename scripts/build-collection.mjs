@@ -54,7 +54,7 @@ const CAPSULE = [
   { group: "Suits", slug: "perseo", parts: ["jacket", "trousers"], colour: "grey" },
 
   // Five odd jackets, so the suit jackets are not the only thing that goes over a shirt.
-  { group: "Blazers", slug: "navy-aztec-blazer", colour: "navy" },
+  { group: "Blazers", slug: "navy-aztec-blazer", colour: "navy", pattern: "jacquard" },
   {
     group: "Blazers",
     slug: "vicenzo",
@@ -66,12 +66,14 @@ const CAPSULE = [
     slug: "james-blazer",
     colour: "grey",
     note: "Grey-green glen check with a soft windowpane over it. The jacket for a town day that is not quite a suit day.",
+    pattern: "glen plaid",
   },
   {
     group: "Blazers",
     slug: "thomson-blazer",
     colour: "orange",
     note: "Burnt ochre in an open weave, cut unstructured. Summer, and the one piece in the capsule that answers a navy trouser with warmth.",
+    season: ["spring", "summer", "autumn", "winter"],
   },
   {
     group: "Blazers",
@@ -79,6 +81,8 @@ const CAPSULE = [
     colour: "ivory",
     name: "Ivoire Double-Breasted Blazer",
     note: "Ivory, double breasted, peak lapel. It carries a black tie evening in summer and a wedding at any time of year.",
+    season: ["spring", "summer", "autumn", "winter"],
+    formality: "formal",
   },
 
   // Five trousers that take any of those jackets.
@@ -139,6 +143,7 @@ const CAPSULE = [
     colour: "black",
     name: "Roma Wing-Tip Boot",
     note: "Black calf and suede, laced, on a leather sole, made in Italy. The most forgiving boot here with a checked or textured suit.",
+    pattern: "solid",
   },
   {
     group: "Boots",
@@ -146,6 +151,7 @@ const CAPSULE = [
     colour: "black",
     name: "Monaco Cap-Toe Boot",
     note: "Black calf with a cap toe and a buckled strap, made in Italy on a leather sole. It carries navy and charcoal equally.",
+    material: "calfskin",
   },
   {
     group: "Boots",
@@ -187,9 +193,10 @@ const CAPSULE = [
   {
     group: "Pocket squares",
     slug: "venez-2",
-    colour: "orange",
+    colour: "brown",
     name: "Venez Pocket Square",
     note: "Copper baroque on black silk, made in Italy. It is the answer to the ochre blazer, and to brown tailoring generally.",
+    hex: ["#4B2C23", "#2B1B1B"],
   },
   {
     group: "Pocket squares",
@@ -209,6 +216,7 @@ const CAPSULE = [
     category: "accessory",
     subcategory: "belt",
     note: "Black calf with a squared buckle. It is the belt the black and charcoal trousers ask for, and the only one the house stocks.",
+    material: "leather",
   },
 ];
 
@@ -221,6 +229,7 @@ const SUIT_PARTS = {
 
 const SOURCE = path.resolve("research/nyoni/woo-products.json");
 const TARGET = path.resolve("convex/shared/collection.ts");
+const MEASURED_COLOURS = path.resolve("research/nyoni/collection-colours.json");
 const PUBLIC_DIR = path.resolve("public/collection");
 
 /** WooCommerce category slug → [category, subcategory, formality, seasons]. Order matters: first match wins. */
@@ -304,19 +313,29 @@ const COLOURS = [
 ];
 
 const PATTERNS = [
+  "windowpane",
+  "herringbone",
+  "houndstooth",
+  "birdseye",
   "glen plaid",
   "glenn plaid",
   "glencheck",
-  "check",
-  "plaid",
+  "glen check",
   "sharkskin",
   "pinstripe",
+  "jacquard",
+  "baroque",
+  "marbled",
+  "melange",
+  "mélange",
+  "foliate",
+  "paisley",
+  "floral",
+  "check",
+  "plaid",
   "stripe",
   "aztec",
-  "floral",
   "geo",
-  "paisley",
-  "houndstooth",
 ];
 const MATERIALS = ["cashmere", "linen", "silk", "velvet", "suede", "calfskin", "leather", "cotton", "wool"];
 
@@ -343,6 +362,19 @@ function colourOf(text, override) {
     ),
   ].slice(0, 3);
   return { primary, secondary, hex: [hex] };
+}
+
+/** Synonyms the copy uses collapse to one term, so colour and pattern matching compares like with like. */
+const PATTERN_ALIASES = {
+  "glenn plaid": "glen plaid",
+  "glen check": "glen plaid",
+  glencheck: "glen plaid",
+  mélange: "melange",
+  foliate: "floral",
+};
+
+function normalisePattern(pattern) {
+  return PATTERN_ALIASES[pattern] ?? pattern;
 }
 
 function firstMatch(text, words, fallback) {
@@ -374,6 +406,38 @@ function keyFor(product) {
     .replace(/^-|-$/g, "")
     .toLowerCase();
   return slug.startsWith("nyoni-") ? slug : `nyoni-${slug}`;
+}
+
+/**
+ * The store's variation labels, cleaned. They are what is left in stock rather than the full run —
+ * "44us / 54eu - gray" and "Black Belt - Black Belt - 105cm" both appear — so a piece with none
+ * means the store publishes no sizes for it, not that it has none.
+ */
+function sizesOf(product) {
+  const terms = (product.attributes ?? []).flatMap((attribute) => attribute.terms ?? []);
+  const sizes = [];
+  for (const term of terms) {
+    const suit = /(\d{2})\s*us\b[^\d]*(\d{2})\s*eu\b/i.exec(term);
+    const centimetres = /(\d{2,3})\s*cm\b/i.exec(term);
+    const shoe = /^\s*(\d{1,2}(?:\.5)?)\s*[-–,]/.exec(term) ?? /^\s*(\d{1,2}(?:\.5)?)\s*$/.exec(term);
+    const size = suit ? `${suit[1]}US / ${suit[2]}EU` : centimetres ? `${centimetres[1]}cm` : shoe ? shoe[1] : null;
+    if (size && !sizes.includes(size)) sizes.push(size);
+  }
+  return sizes.sort((a, b) => Number.parseFloat(a) - Number.parseFloat(b));
+}
+
+function rgbOf(hex) {
+  const match = /^#?([\da-f]{6})$/i.exec(hex ?? "");
+  if (!match) return null;
+  const value = Number.parseInt(match[1], 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+/** Squared distance in RGB. Crude next to Lab, but only the ordering matters here. */
+function distance(hex, anchor) {
+  const rgb = rgbOf(hex);
+  if (!rgb) return Number.POSITIVE_INFINITY;
+  return rgb.reduce((sum, channel, index) => sum + (channel - anchor[index]) ** 2, 0);
 }
 
 function tsString(value) {
@@ -424,6 +488,25 @@ async function main() {
   const bySlug = new Map(products.map((product) => [product.slug, product]));
   const localFiles = local && existsSync(PUBLIC_DIR) ? await readdir(PUBLIC_DIR) : [];
   /**
+   * Colours read off the photographs by scripts/measure-collection-colours.mjs. A colour word gives
+   * one hex to every piece that shares it, so five greys come out identical and nothing can match on
+   * shade; a measured hex is the piece's own.
+   */
+  const measured = existsSync(MEASURED_COLOURS) ? JSON.parse(await readFile(MEASURED_COLOURS, "utf8")) : {};
+  /**
+   * A split part has its own photograph, so it gets its own reading rather than the suit's. The
+   * readings are ordered by how near they sit to the colour the piece is named, so `hex[0]` never
+   * contradicts `primary` — a copper print on a black ground reports the copper, not the ground.
+   */
+  const coloursFor = (pieceKey, base, override) => {
+    if (override) return { ...base, hex: override };
+    const hex = measured[pieceKey];
+    if (!hex?.length) return base;
+    const anchor = rgbOf(base.hex[0]);
+    const ordered = anchor ? [...hex].sort((a, b) => distance(a, anchor) - distance(b, anchor)) : hex;
+    return { ...base, hex: ordered.slice(0, 3) };
+  };
+  /**
    * Each split part owns its own image file. Before the cutout pass those files are copies of the
    * suit's own photograph, so the wardrobe is usable while the parts wait for a photo of their own.
    */
@@ -443,7 +526,10 @@ async function main() {
     if (!mapping) throw new Error(`${entry.slug} has no wardrobe category: ${product.categories.join(", ")}.`);
     if (!product.images?.[0]?.src) throw new Error(`${entry.slug} has no product photo.`);
     const [category, subcategory, formality, season] = mapping;
-    const text = `${product.name} ${product.shortDescription ?? ""} ${product.description ?? ""}`;
+    const description = cleanDescription(product.shortDescription || product.description || product.name, entry.note);
+    // Match attributes on the copy the member actually reads, not on store text the note replaced:
+    // otherwise a piece described as windowpane is recorded as solid and shade matching misses it.
+    const text = `${product.name} ${description} ${product.shortDescription ?? ""} ${product.description ?? ""}`;
     const key = keyFor(product);
     const remote = product.images[0].src;
     const image = entry.parts ? remote : imageFor(key, remote);
@@ -452,11 +538,13 @@ async function main() {
       group: entry.group,
       productUrl: product.permalink,
       colours: colourOf(product.name, entry.colour),
-      pattern: firstMatch(text, PATTERNS, "solid").replace("glenn plaid", "glen plaid"),
-      material: firstMatch(text, MATERIALS, category === "shoes" ? "leather" : "wool"),
-      season,
-      formality,
-      description: cleanDescription(product.shortDescription || product.description || product.name, entry.note),
+      pattern: entry.pattern ?? normalisePattern(firstMatch(text, PATTERNS, "solid")),
+      material: entry.material ?? firstMatch(text, MATERIALS, category === "shoes" ? "leather" : "wool"),
+      sizes: sizesOf(product),
+      inStock: product.inStock === true,
+      season: entry.season ?? season,
+      formality: entry.formality ?? formality,
+      description,
     };
 
     if (entry.parts) {
@@ -475,11 +563,11 @@ async function main() {
             name: partName(displayName, part),
             category: part.category,
             subcategory: part.subcategory,
-            colours: shared.colours,
+            colours: coloursFor(partKey, shared.colours, entry.hex),
             pattern: shared.pattern,
             material: shared.material,
-            season,
-            formality,
+            season: shared.season,
+            formality: shared.formality,
             fit: part.suffix === "jacket" ? "slim" : undefined,
             brand: "Nyoni Couture",
             description: shared.description,
@@ -498,11 +586,11 @@ async function main() {
         name: displayName,
         category,
         subcategory,
-        colours: shared.colours,
+        colours: coloursFor(key, shared.colours, entry.hex),
         pattern: shared.pattern,
         material: shared.material,
-        season,
-        formality,
+        season: shared.season,
+        formality: shared.formality,
         fit: category === "suit" || subcategory === "blazer" ? "slim" : undefined,
         brand: "Nyoni Couture",
         description: shared.description,
@@ -517,7 +605,8 @@ async function main() {
       const heading = piece.group === pieces[index - 1]?.group ? "" : `${index === 0 ? "" : "\n"}  // ${piece.group}\n`;
       return `${heading}  {
     key: ${tsString(piece.key)},
-    productUrl: ${tsString(piece.productUrl)},${piece.priceUsd !== undefined ? `\n    priceUsd: ${piece.priceUsd},` : ""}${
+    productUrl: ${tsString(piece.productUrl)},${piece.priceUsd !== undefined ? `\n    priceUsd: ${piece.priceUsd},` : ""}
+    inStock: ${piece.inStock},${piece.sizes.length ? `\n    sizes: ${tsString(piece.sizes)},` : ""}${
       piece.partOf ? `\n    partOf: { name: ${tsString(piece.partOf.name)}, priceUsd: ${piece.partOf.priceUsd} },` : ""
     }
     image: ${tsString(piece.image)},
@@ -555,6 +644,13 @@ export type CollectionPiece = {
   priceUsd?: number;
   /** Set on a suit's jacket, trousers and waistcoat: the suit they are sold as, and its price. */
   partOf?: { name: string; priceUsd: number };
+  /** Whether the store had the product when the capsule was built. */
+  inStock: boolean;
+  /**
+   * The sizes the store still lists, which is what remains in stock rather than the full size run.
+   * Absent where the store publishes no sizes for the product — never a stand-in set.
+   */
+  sizes?: string[];
   image: string;
   attributes: Infer<typeof vItemAttributes>;
 };

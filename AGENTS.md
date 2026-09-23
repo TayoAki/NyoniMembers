@@ -41,7 +41,12 @@ What differs from the Fitcheck base so far:
   `node scripts/build-collection.mjs`, `NODE_USE_ENV_PROXY=1 node scripts/fetch-collection-images.mjs`,
   `node scripts/build-collection.mjs --local`. A split suit's parts start out sharing the suit's own
   photograph; `OPENAI_API_KEY=… node scripts/cut-collection-parts.mjs` gives each one a photo of its own
-  (~$0.03 a part), then run `--local` again. "Capsule" is the member-facing word; `collection` stays the
+  (~$0.03 a part), then run `--local` again. `node scripts/measure-collection-colours.mjs` reads each
+  piece's real shade off its photograph into `research/nyoni/collection-colours.json`, which the build
+  prefers over the one hex a colour word carries; re-run it whenever the photos change.
+  A capsule entry may override `pattern`, `material`, `season`, `formality` and `hex` where no text
+  can be trusted to imply them, and attributes are matched on the description the member reads, not
+  on the store copy a `note` replaced. "Capsule" is the member-facing word; `collection` stays the
   name in code and in the schema.
 - **Menswear only.** Onboarding no longer asks for a wardrobe; `prefs.presentation` defaults to `masculine`.
 - **Voice.** Member-facing copy follows the brand brief: US English, "concierge" not "stylist", "pieces"
