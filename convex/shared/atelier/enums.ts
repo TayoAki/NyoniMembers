@@ -51,6 +51,11 @@ export function isStudioStep(value: string): value is StudioStep {
 
 export const DRAFT_STATUSES = ["draft", "submitted", "archived"] as const;
 export type DraftStatus = (typeof DRAFT_STATUSES)[number];
+export const DRAFT_STATUS_LABELS: Record<DraftStatus, string> = {
+  draft: "Draft",
+  submitted: "Submitted to the house",
+  archived: "Archived",
+};
 
 export const FIT_ROUTES = ["atelier", "remote", "undecided"] as const;
 export type FitRoute = (typeof FIT_ROUTES)[number];
@@ -198,6 +203,11 @@ export const QUOTE_LINE_KINDS = ["commission", "cloth", "option", "shipping", "t
 export type QuoteLineKind = (typeof QUOTE_LINE_KINDS)[number];
 export const REDEMPTION_STATUSES = ["reserved", "redeemed", "released"] as const;
 export type RedemptionStatus = (typeof REDEMPTION_STATUSES)[number];
+export const REDEMPTION_STATUS_LABELS: Record<RedemptionStatus, string> = {
+  reserved: "Reserved for a quote",
+  redeemed: "Used for a commission",
+  released: "Released",
+};
 
 export const ORDER_STATUSES = [
   "preflight",

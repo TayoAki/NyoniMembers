@@ -1,6 +1,6 @@
 "use client";
 
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { Show, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Wordmark } from "@/components/common/wordmark";
@@ -56,15 +56,15 @@ export function AtelierTopbar() {
           </nav>
           <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-2">
             <ThemeToggle />
-            <SignedOut>
+            <Show when="signed-out">
               <Link
                 href={`${routes.signIn}?redirect_url=${encodeURIComponent(pathname)}`}
                 className="inline-flex h-9 items-center border border-foreground/25 px-4 text-[13px] font-medium transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-4"
               >
                 Sign in
               </Link>
-            </SignedOut>
-            <SignedIn>
+            </Show>
+            <Show when="signed-in">
               <Link
                 href={routes.wardrobe}
                 className="hidden h-9 items-center px-3 text-[13px] font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
@@ -72,7 +72,7 @@ export function AtelierTopbar() {
                 Members
               </Link>
               <UserButton appearance={{ elements: { avatarBox: "size-8", userButtonTrigger: "size-11 justify-center sm:size-8" } }} />
-            </SignedIn>
+            </Show>
           </div>
         </div>
       </header>
