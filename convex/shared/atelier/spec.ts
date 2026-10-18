@@ -305,12 +305,12 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
   for (const key of Object.keys(patch.trousers ?? {})) note("trousers", key);
   if (patch.waistcoat !== undefined) note("waistcoat");
 
+  // Every move away from what the merged patch asked for is reported, whether or not the client touched
+  // the field: an impossible request is told so, never silently corrected (S08).
   const move = <K extends keyof JacketSpec>(key: K, to: JacketSpec[K], label: string, reason: string) => {
     const from = next.jacket[key];
     if (from === to) return;
-    if (!touched.has(`jacket.${key}`)) {
-      conflicts.push({ field: `jacket.${key}`, label, from: String(from), to: String(to), reason });
-    }
+    conflicts.push({ field: `jacket.${key}`, label, from: String(from), to: String(to), reason });
     next.jacket[key] = to;
   };
 
@@ -352,9 +352,7 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
     }
     // Rule 5: no cuffs on tuxedo trousers.
     if (next.trousers.hem === "cuffed") {
-      if (!touched.has("trousers.hem")) {
-        conflicts.push({ field: "trousers.hem", label: "Trouser hem", from: "cuffed", to: "plain", reason: "Tuxedo trousers are finished with a plain hem." });
-      }
+      conflicts.push({ field: "trousers.hem", label: "Trouser hem", from: "cuffed", to: "plain", reason: "Tuxedo trousers are finished with a plain hem." });
       next.trousers.hem = "plain";
     }
   } else if (next.jacket.pockets === "patch" && next.jacket.ticketPocket) {
@@ -363,19 +361,30 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
 
   // Rule 4: the waistcoat exists only on a three-piece.
   if (next.garment === "three_piece" && next.waistcoat === null) {
-    if (!touched.has("waistcoat")) {
-      conflicts.push({ field: "waistcoat", label: "Waistcoat", from: "none", to: labelOf(WAISTCOAT_STYLE_OPTIONS, DEFAULT_WAISTCOAT.style), reason: "A three-piece includes a waistcoat." });
-    }
+    conflicts.push({ field: "waistcoat", label: "Waistcoat", from: "none", to: labelOf(WAISTCOAT_STYLE_OPTIONS, DEFAULT_WAISTCOAT.style), reason: "A three-piece includes a waistcoat." });
     next.waistcoat = { ...DEFAULT_WAISTCOAT };
   }
   if (next.garment !== "three_piece" && next.waistcoat !== null) {
-    if (!touched.has("waistcoat")) {
-      conflicts.push({ field: "waistcoat", label: "Waistcoat", from: labelOf(WAISTCOAT_STYLE_OPTIONS, next.waistcoat.style), to: "none", reason: `A ${labelOf(GARMENT_OPTIONS, next.garment).toLowerCase()} has no waistcoat.` });
-    }
+    conflicts.push({ field: "waistcoat", label: "Waistcoat", from: labelOf(WAISTCOAT_STYLE_OPTIONS, next.waistcoat.style), to: "none", reason: `A ${labelOf(GARMENT_OPTIONS, next.garment).toLowerCase()} has no waistcoat.` });
     next.waistcoat = null;
   }
 
-  return { spec: next, conflicts };
+  return { spec: next, conflicts: mergeConflicts(conflicts) };
+}
+
+/** One line per field: the first value it held, the value it ends on, and every reason in order. */
+function mergeConflicts(conflicts: Conflict[]): Conflict[] {
+  const merged: Conflict[] = [];
+  for (const conflict of conflicts) {
+    const existing = merged.find((entry) => entry.field === conflict.field);
+    if (!existing) {
+      merged.push({ ...conflict });
+      continue;
+    }
+    existing.to = conflict.to;
+    if (!existing.reason.includes(conflict.reason)) existing.reason = `${existing.reason} ${conflict.reason}`;
+  }
+  return merged.filter((entry) => entry.from !== entry.to);
 }
 
 /** Which pocket, vent and hem options the current garment may show at all (rule 3 and 5). */

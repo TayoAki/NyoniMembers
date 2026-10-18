@@ -14,7 +14,7 @@ const SOURCE = path.resolve("research/nyoni/atelier-cloths.json");
 const TARGET = path.resolve("convex/shared/atelier/cloths.ts");
 
 const WEIGHT = { "four-season": "four_season", "autumn-winter": "autumn_winter", lightweight: "lightweight", summer: "summer" };
-const PATTERN = { solid: "solid", pinstripe: "pinstripe", "glen check": "glen_check", plaid: "plaid", jacquard: "jacquard", herringbone: "herringbone" };
+const PATTERN = { solid: "solid", pinstripe: "pinstripe", "chalk stripe": "chalk_stripe", "glen check": "glen_check", plaid: "plaid", jacquard: "jacquard", herringbone: "herringbone" };
 const OCCASION = { wedding: "wedding", business: "business", "black-tie": "black_tie", corporate: "corporate", "casual-refinement": "casual_refinement" };
 
 const { cloths, source } = JSON.parse(await readFile(SOURCE, "utf8"));

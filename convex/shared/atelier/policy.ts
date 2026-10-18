@@ -59,8 +59,11 @@ export const PROVIDER_DISCLOSURE_VERSION = "openai-gpt-image-2.2026-10";
 
 /** Days of making the house needs before an event, and the words for the three readiness states. */
 export function eventReadiness(eventDate: number | undefined, now: number): { state: "comfortable" | "tight" | "unlikely" | "none"; daysLeft: number | null; copy: string } {
-  if (!eventDate) return { state: "none", daysLeft: null, copy: "" };
+  if (eventDate === undefined) return { state: "none", daysLeft: null, copy: "" };
   const daysLeft = Math.ceil((eventDate - now) / 86_400_000);
+  if (daysLeft < 0) {
+    return { state: "unlikely", daysLeft, copy: "Your date has passed. Your concierge can still help you plan the next occasion." };
+  }
   if (daysLeft >= ATELIER_LIMITS.eventBufferDays + 14) {
     return { state: "comfortable", daysLeft, copy: `About ${Math.round(daysLeft / 7)} weeks until your date. ${HOUSE_POLICY.verified.leadTime}` };
   }

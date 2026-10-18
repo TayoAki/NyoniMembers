@@ -277,7 +277,7 @@ export const CLOTH_SEED: readonly ClothSeed[] = [
     description: "A quiet chalk stripe on charcoal.",
     composition: "100% wool",
     weight: "four_season",
-    pattern: "pinstripe",
+    pattern: "chalk_stripe",
     colour: "charcoal",
     hex: "#38383C",
     season: ["autumn","winter","spring"],
