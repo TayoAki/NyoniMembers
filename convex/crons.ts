@@ -13,4 +13,10 @@ crons.interval("atelier: expire preview jobs", { hours: 1 }, internal.atelier.pr
 /** Photographs past their retention date are deleted with the results made from them. */
 crons.interval("atelier: expire photographs", { hours: 1 }, internal.atelier.photos.expire, {});
 
+/** Unassigned cases past the service promise, and next actions past due, are escalated with a visible note. */
+crons.interval("atelier: escalate overdue cases", { hours: 1 }, internal.atelier.cases.escalateOverdue, {});
+
+/** Offered quotes past their expiry close with a message on the case; nothing is accepted against them. */
+crons.interval("atelier: expire quotes", { hours: 1 }, internal.atelier.quotes.expire, {});
+
 export default crons;
