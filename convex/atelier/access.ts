@@ -136,3 +136,9 @@ export function staffDisplayName(user: Doc<"users"> | null | undefined): string 
   const first = user.name?.trim().split(/\s+/)[0];
   return first || "Your concierge";
 }
+
+/** The same first-name rule for a client in a staff view; a guest or a nameless account reads "Client". */
+export function clientDisplayName(user: Doc<"users"> | null | undefined): string {
+  const first = user?.name?.trim().split(/\s+/)[0];
+  return first || "Client";
+}

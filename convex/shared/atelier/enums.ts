@@ -353,6 +353,11 @@ export const PREVIEW_QUALITIES = ["pending", "accepted", "rejected"] as const;
 export type PreviewQuality = (typeof PREVIEW_QUALITIES)[number];
 export const PHOTO_STATUSES = ["active", "pending_deletion", "deleted"] as const;
 export type PhotoStatus = (typeof PHOTO_STATUSES)[number];
+export const PHOTO_STATUS_LABELS: Record<PhotoStatus, string> = {
+  active: "Kept for your previews",
+  pending_deletion: "Being removed",
+  deleted: "Removed",
+};
 
 export const PRIVACY_KINDS = ["export", "delete_photos", "delete_designs", "close_account"] as const;
 export type PrivacyKind = (typeof PRIVACY_KINDS)[number];
