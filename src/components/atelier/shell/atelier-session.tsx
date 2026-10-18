@@ -1,16 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  mintGuestKey,
-  readDraftIndex,
-  readGuestKey,
-  storageAvailable as probeStorage,
-  upsertDraftEntry,
-  writeDraftIndex,
-  writeGuestKey,
-  type LocalDraftEntry,
-} from "@/lib/atelier/local-drafts";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import type { LocalDraftEntry } from "@/lib/atelier/local-drafts";
+import { forgetDraft, getServerSnapshot, getSnapshot, initialize, rememberDraft, subscribe } from "@/lib/atelier/session-store";
 
 export type AtelierSession = {
   /** The bearer key this browser uses for guest-owned rows; null until mounted. */
@@ -32,41 +24,22 @@ const AtelierSessionContext = createContext<AtelierSession | null>(null);
  * about what "saved" means.
  */
 export function AtelierSessionProvider({ children }: { children: ReactNode }) {
-  const [guestKey, setGuestKey] = useState<string | null>(null);
-  const [storageOk, setStorageOk] = useState(true);
-  const [ready, setReady] = useState(false);
-  const [draftIndex, setDraftIndex] = useState<LocalDraftEntry[]>([]);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
-    const available = probeStorage();
-    setStorageOk(available);
-    const existing = readGuestKey();
-    const key = existing ?? mintGuestKey();
-    if (!existing) writeGuestKey(key);
-    setGuestKey(key);
-    setDraftIndex(readDraftIndex());
-    setReady(true);
-  }, []);
-
-  const rememberDraft = useCallback((entry: LocalDraftEntry) => {
-    setDraftIndex((current) => {
-      const next = upsertDraftEntry(current, entry);
-      writeDraftIndex(next);
-      return next;
-    });
-  }, []);
-
-  const forgetDraft = useCallback((draftId: string) => {
-    setDraftIndex((current) => {
-      const next = current.filter((entry) => entry.draftId !== draftId);
-      writeDraftIndex(next);
-      return next;
-    });
+    initialize();
   }, []);
 
   const value = useMemo<AtelierSession>(
-    () => ({ guestKey, storageAvailable: storageOk, ready, draftIndex, rememberDraft, forgetDraft }),
-    [guestKey, storageOk, ready, draftIndex, rememberDraft, forgetDraft],
+    () => ({
+      guestKey: snapshot.guestKey,
+      storageAvailable: snapshot.storageAvailable,
+      ready: snapshot.ready,
+      draftIndex: snapshot.draftIndex,
+      rememberDraft,
+      forgetDraft,
+    }),
+    [snapshot],
   );
 
   return <AtelierSessionContext value={value}>{children}</AtelierSessionContext>;

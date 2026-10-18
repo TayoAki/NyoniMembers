@@ -186,7 +186,7 @@ All table names are prefixed `atelier`. Ownership fields are `userId?: Id<"users
 
 ## 5. Convex modules
 
-Layout: thin public/internal functions in `convex/atelier/<domain>.ts`; business logic in `convex/model/atelier/<domain>.ts`; cross-domain return-shape validators in `convex/atelier/views.ts` (lead-owned), every other `v<Thing>View` exported from its own domain module. Lead-owned cores every domain builds on: `convex/model/atelier/catalogue.ts` (`ensureCatalogueSeeded`, `currentCatalogueVersion`, `getEntry`, `listApproved`, `toEntryView`, `clothSummary`, `specNames`), `convex/model/atelier/revisions.ts` (`createRevision`, `latestRevision`, `toRevisionSummary`), `convex/model/atelier/case-core.ts` (`createCase`, `appendMessage`, `touchCase`, `requireCase`, `findBySubmissionKey`) and `convex/model/atelier/notifications.ts` (`queueNotification`). Every function has `args` and `returns`. Every client-facing read goes through `resolveActor` / `requireDraftAccess`; every staff function through `requireStaff`.
+Layout: thin public/internal functions in `convex/atelier/<domain>.ts`; business logic in `convex/model/atelier/<domain>.ts`; cross-domain return-shape validators in `convex/atelier/views.ts` (lead-owned), every other `v<Thing>View` exported from its own domain module. Lead-owned cores every domain builds on: `convex/model/atelier/catalogue.ts` (`ensureCatalogueSeeded`, `currentCatalogueVersion`, `getEntry`, `listApproved`, `toEntryView`, `clothSummary`, `specNames`), `convex/model/atelier/revisions.ts` (`createRevision`, `latestRevision`, `toRevisionSummary`), `convex/model/atelier/case_core.ts` (`createCase`, `appendMessage`, `touchCase`, `requireCase`, `findBySubmissionKey`) and `convex/model/atelier/notifications.ts` (`queueNotification`). Every function has `args` and `returns`. Every client-facing read goes through `resolveActor` / `requireDraftAccess`; every staff function through `requireStaff`.
 
 Client reads take `guestKey: v.optional(v.string())` so guests can read what they own; the frontend passes it from `useAtelierSession()`.
 
@@ -351,8 +351,8 @@ The house's own world, verified from nyonicouture.com: onyx ground `#080808`, cr
 
 | Agent | Owns (create/edit only these) |
 | --- | --- |
-| lead | `convex/schema.ts`, `convex/shared/atelier/*`, `convex/atelier/access.ts`, `convex/atelier/views.ts`, `convex/model/atelier/{catalogue,revisions,case-core,notifications}.ts`, `convex/crons.ts`, `convex/lib/errors.ts`, `src/lib/routes.ts`, nav, `(atelier)/layout.tsx`, `src/components/atelier/shell/*`, `src/lib/atelier/local-drafts.ts`, `DESIGN.md`, `docs/08-*` |
-| catalogue | `convex/atelier/catalogue.ts` (functions over the lead's model), `convex/model/atelier/catalogue-staff.ts`, `tests/atelier-catalogue.test.mjs` |
+| lead | `convex/schema.ts`, `convex/shared/atelier/*`, `convex/atelier/access.ts`, `convex/atelier/views.ts`, `convex/model/atelier/{catalogue,revisions,case_core,notifications}.ts`, `convex/crons.ts`, `convex/lib/errors.ts`, `src/lib/routes.ts`, nav, `(atelier)/layout.tsx`, `src/components/atelier/shell/*`, `src/lib/atelier/local-drafts.ts`, `DESIGN.md`, `docs/08-*` |
+| catalogue | `convex/atelier/catalogue.ts` (functions over the lead's model), `convex/model/atelier/catalogue_staff.ts`, `tests/atelier-catalogue.test.mjs` |
 | drafts | `convex/model/atelier/{drafts,shares}.ts`, `convex/atelier/{drafts,shares}.ts`, tests |
 | previews | `convex/model/atelier/{photos,previews}.ts`, `convex/atelier/{photos,previews,generation}.ts`, tests |
 | fit | `convex/model/atelier/fit.ts`, `convex/atelier/fit.ts`, tests |

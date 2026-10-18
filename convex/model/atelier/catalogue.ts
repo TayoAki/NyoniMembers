@@ -28,11 +28,14 @@ export async function getEntry(ctx: Ctx, kind: CatalogueKind, code: string): Pro
     .unique();
 }
 
+/** Entries of a kind a client may choose from. The range is a few dozen; the cap keeps the read bounded. */
+export const CATALOGUE_READ_MAX = 500;
+
 export async function listApproved(ctx: Ctx, kind: CatalogueKind): Promise<Doc<"atelierCatalogueEntries">[]> {
   return ctx.db
     .query("atelierCatalogueEntries")
     .withIndex("by_kind_status", (q) => q.eq("kind", kind).eq("status", "approved"))
-    .collect();
+    .take(CATALOGUE_READ_MAX);
 }
 
 export async function toEntryView(ctx: Ctx, doc: Doc<"atelierCatalogueEntries">): Promise<CatalogueEntryView> {

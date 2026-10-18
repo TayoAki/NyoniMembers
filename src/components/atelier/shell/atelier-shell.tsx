@@ -1,8 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useTheme } from "next-themes";
+import { useSearchParams } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 import { AtelierSessionProvider } from "./atelier-session";
 import { AtelierTopbar } from "./atelier-topbar";
+
+/** Development only: `?theme=light|dark` sets the theme so both can be captured without a click. */
+function PreviewThemeFromQuery() {
+  const params = useSearchParams();
+  const { setTheme } = useTheme();
+  const requested = process.env.NODE_ENV === "production" ? null : params.get("theme");
+  useEffect(() => {
+    if (requested === "light" || requested === "dark") setTheme(requested);
+  }, [requested, setTheme]);
+  return null;
+}
 
 /**
  * The Atelier's frame: session (guest key + local drafts), the top bar and the content column.
@@ -11,6 +24,7 @@ import { AtelierTopbar } from "./atelier-topbar";
 export function AtelierShell({ children }: { children: ReactNode }) {
   return (
     <AtelierSessionProvider>
+      <PreviewThemeFromQuery />
       <div className="atelier-shell flex min-h-svh min-w-0 flex-col bg-background text-foreground">
         <a
           href="#atelier-main"

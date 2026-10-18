@@ -68,17 +68,22 @@ export function staffRolesOf(user: Doc<"users">): readonly StaffRole[] {
   return user.staffRoles ?? [];
 }
 
-export function hasStaffRole(user: Doc<"users">, role?: StaffRole): boolean {
+/** One role, or any of several (a shade may be confirmed by a fitter or by operations). */
+export type StaffRoleRequirement = StaffRole | readonly StaffRole[];
+
+export function hasStaffRole(user: Doc<"users">, role?: StaffRoleRequirement): boolean {
   if (user.role === "admin") return true;
-  if (!role) return staffRolesOf(user).length > 0;
-  return staffRolesOf(user).includes(role);
+  const held = staffRolesOf(user);
+  if (!role) return held.length > 0;
+  const wanted = typeof role === "string" ? [role] : role;
+  return wanted.some((candidate) => held.includes(candidate));
 }
 
 /**
  * Staff gate. An admin (role in Convex and in the Clerk session, as `requireAdmin` checks) holds every
- * role; anyone else needs the named role in `users.staffRoles`. Throws FORBIDDEN.
+ * role; anyone else needs one of the named roles in `users.staffRoles`. Throws FORBIDDEN.
  */
-export async function requireStaff(ctx: Ctx, role?: StaffRole): Promise<Doc<"users">> {
+export async function requireStaff(ctx: Ctx, role?: StaffRoleRequirement): Promise<Doc<"users">> {
   const user = await getCurrentUser(ctx);
   if (!user) throw appError("UNAUTHENTICATED", "Sign in to continue.");
   if (user.role === "admin") {
@@ -87,7 +92,9 @@ export async function requireStaff(ctx: Ctx, role?: StaffRole): Promise<Doc<"use
     if (current === "admin") return user;
   }
   if (!hasStaffRole(user, role)) {
-    throw appError("FORBIDDEN", role ? `This needs the ${role.replace("_", " ")} role.` : "Staff only.");
+    const wanted = role === undefined ? [] : typeof role === "string" ? [role] : [...role];
+    const names = wanted.map((candidate) => candidate.replace("_", " ")).join(" or ");
+    throw appError("FORBIDDEN", names ? `This needs the ${names} role.` : "Staff only.");
   }
   return user;
 }
