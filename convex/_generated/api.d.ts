@@ -61,6 +61,7 @@ import type * as model_atelier_notifications from "../model/atelier/notification
 import type * as model_atelier_orders from "../model/atelier/orders.js";
 import type * as model_atelier_photos from "../model/atelier/photos.js";
 import type * as model_atelier_previews from "../model/atelier/previews.js";
+import type * as model_atelier_privacy from "../model/atelier/privacy.js";
 import type * as model_atelier_quotes from "../model/atelier/quotes.js";
 import type * as model_atelier_revisions from "../model/atelier/revisions.js";
 import type * as model_atelier_shares from "../model/atelier/shares.js";
@@ -162,6 +163,7 @@ declare const fullApi: ApiFromModules<{
   "model/atelier/orders": typeof model_atelier_orders;
   "model/atelier/photos": typeof model_atelier_photos;
   "model/atelier/previews": typeof model_atelier_previews;
+  "model/atelier/privacy": typeof model_atelier_privacy;
   "model/atelier/quotes": typeof model_atelier_quotes;
   "model/atelier/revisions": typeof model_atelier_revisions;
   "model/atelier/shares": typeof model_atelier_shares;

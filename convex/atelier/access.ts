@@ -111,7 +111,10 @@ export type AuditInput = {
 /** Every staff action and every read of a client's private image lands here (O06, O08). */
 export async function audit(ctx: MutationCtx, input: AuditInput, now: number = Date.now()): Promise<void> {
   const user = input.actor && "user" in input.actor ? input.actor.user : input.actor;
-  const actorKind: AuditActorKind = input.actorKind ?? (user ? (hasStaffRole(user) ? "staff" : "client") : "system");
+  const guest = Boolean(input.actor && "guestKey" in input.actor && input.actor.guestKey);
+  // A guest acting on their own rows is a client, not the system; only a call with no actor at all is.
+  const actorKind: AuditActorKind =
+    input.actorKind ?? (user ? (hasStaffRole(user) ? "staff" : "client") : guest ? "client" : "system");
   await ctx.db.insert("atelierAuditLog", {
     actorUserId: user?._id,
     actorKind,
