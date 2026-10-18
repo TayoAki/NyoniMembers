@@ -17,6 +17,13 @@ export const ERROR_CODES = [
   "CONFLICT",
   "WARDROBE_FULL",
   "ITEM_BUSY",
+  // Atelier
+  "PREVIEWS_UNAVAILABLE",
+  "STALE_REVISION",
+  "QUOTE_EXPIRED",
+  "NOT_ELIGIBLE",
+  "RELEASE_BLOCKED",
+  "INVALID_STATE",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

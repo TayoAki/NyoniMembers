@@ -3,6 +3,7 @@ import {
   Images,
   LayoutGrid,
   Plus,
+  Scissors,
   Settings,
   Shirt,
   ShieldCheck,
@@ -19,12 +20,14 @@ export const PRIMARY_NAV: readonly NavItem[] = [
   { href: routes.outfits, label: "Looks", icon: LayoutGrid },
   { href: routes.stylist, label: "Concierge", icon: Sparkles },
   { href: routes.lookbook, label: "Lookbook", icon: Images },
+  { href: routes.atelier.home, label: "Atelier", icon: Scissors },
 ];
 
 export const SECONDARY_NAV: readonly NavItem[] = [
   { href: routes.membership, label: "Membership", icon: CreditCard },
   { href: routes.settings, label: "Settings", icon: Settings },
   { href: routes.admin, label: "Admin", icon: ShieldCheck, adminOnly: true },
+  { href: routes.staffAtelier.queue, label: "Atelier desk", icon: Scissors, adminOnly: true },
 ];
 
 export function isActivePath(pathname: string, href: string): boolean {

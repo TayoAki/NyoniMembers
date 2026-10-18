@@ -19,4 +19,42 @@ export const routes = {
   settings: "/settings",
   admin: "/admin",
   share: (token: string) => `/share/${token}`,
+
+  /** The Atelier: the made-to-measure suit experience (docs/08-atelier-build-contract.md §1). */
+  atelier: {
+    home: "/atelier",
+    design: (draftId: Id<"atelierDrafts"> | string) => `/atelier/design/${draftId}`,
+    step: (draftId: Id<"atelierDrafts"> | string, step: string) => `/atelier/design/${draftId}/${step}`,
+    drafts: "/atelier/drafts",
+    link: "/atelier/link",
+    shared: (token: string) => `/atelier/shared/${token}`,
+    membership: "/atelier/membership",
+    fit: "/atelier/fit",
+    fittings: "/atelier/fittings",
+    fitting: (appointmentId: Id<"atelierAppointments"> | string) => `/atelier/fittings/${appointmentId}`,
+    requests: "/atelier/requests",
+    request: (caseId: Id<"atelierCases"> | string) => `/atelier/requests/${caseId}`,
+    orders: "/atelier/orders",
+    order: (orderId: Id<"atelierOrders"> | string) => `/atelier/orders/${orderId}`,
+    privacy: "/atelier/privacy",
+    groups: "/atelier/groups",
+    group: (groupId: Id<"atelierGroups"> | string) => `/atelier/groups/${groupId}`,
+    joinGroup: (inviteToken: string) => `/atelier/groups/join/${inviteToken}`,
+  },
+
+  /** Staff surfaces for the Atelier, inside the signed-in app shell (admin role required). */
+  staffAtelier: {
+    queue: "/admin/atelier",
+    case: (caseId: Id<"atelierCases"> | string) => `/admin/atelier/cases/${caseId}`,
+    catalogue: "/admin/atelier/catalogue",
+    fit: "/admin/atelier/fit",
+    fitProfile: (profileId: Id<"atelierFitProfiles"> | string) => `/admin/atelier/fit/${profileId}`,
+    quotes: "/admin/atelier/quotes",
+    production: "/admin/atelier/production",
+    order: (orderId: Id<"atelierOrders"> | string) => `/admin/atelier/production/${orderId}`,
+    previews: "/admin/atelier/previews",
+    aftercare: "/admin/atelier/aftercare",
+    correction: (correctionId: Id<"atelierCorrections"> | string) => `/admin/atelier/aftercare/${correctionId}`,
+    privacy: "/admin/atelier/privacy",
+  },
 } as const;

@@ -34,3 +34,36 @@ The landing page has its own fashion editorial composition: Manrope display type
 The user explicitly requested parallax. The public page therefore uses Motion scroll transforms and a native CSS sticky story, an intentional exception to the app's short layout-only motion convention. Never intercept wheel/touch scrolling. Mobile, short viewports and reduced-motion preferences get a normal stacked story with no extended sticky scrolling. All essential text and signup links remain visible without entrance-animation delays.
 
 Campaign photos in `public/landing/` depict generated fictional adults. They are style inspiration, not customer results or private user uploads. Label illustrative previews accordingly. Use optimized Next Images and shared plan/credit constants; do not invent testimonials or usage metrics.
+
+# The Atelier
+
+The made-to-measure suit experience (`/atelier`, `docs/08-atelier-build-contract.md`) is the house's own
+world, verified from nyonicouture.com on 18 October 2026, and it is built as a product, not a page: the
+visitor is designing a suit, then asking the house to make it.
+
+- **Palette and type are the house's.** Onyx `#080808` ground, cream `#F2ECDF` type, gold `#CAA663` as the
+  single accent (primary action, selection, membership), brown `#2F281A` secondary surfaces, `#262626`
+  hairlines, 0–4px radii, no shadows. Bodoni Moda for the one display line on a screen and for cloth
+  names; Manrope for everything a person operates; IBM Plex Mono at 0.16em tracking for production
+  codes, measurements, receipt numbers and dates in tables. The light theme is the same ink and gold on
+  cream and has to look intended, not inverted.
+- **Modes.** `/atelier` (the entry) is Persuade: one editorial statement, a studio look, a single primary
+  action, and it may use the site's own gold-rule eyebrow once. Everything after it is Operate: no
+  eyebrows, no cards nested in cards, no icon tiles, no gradients, no metric tiles, no decorative motion.
+  Standard controls from `src/components/ui` everywhere; brand lives in type, palette, density and the
+  signature move.
+- **The signature move is the stage.** A large, calm figure drawn in hairlines (`SuitFigure`), filled live
+  with the cloth's representative shade, beside a panel that reads like a tailor's order book: ruled rows,
+  one decision per section, codes in mono at the end of the row. The figure is captioned "Studio
+  illustration"; a personal preview is captioned "Illustrative preview — not a fitting". Neither pretends
+  to be a photograph of the finished suit.
+- **One authored motion:** the cloth crossfade on the stage, ≤250 ms, exponential ease-out, none under
+  `prefers-reduced-motion`. Lists and panels otherwise appear in place.
+- **Truthful states are design.** Save shows its scope ("Saved to this browser" / "Saved to your account");
+  a request is "received", not "booked"; a quote accepted is not paid; shipped is not fitted; refund
+  approved is not refunded; estimated dates carry the word "Estimate". The exact words are in
+  `docs/08-atelier-build-contract.md` §6 and the enums' label maps; copy them, do not paraphrase.
+- **Phones.** The stage becomes a sticky, collapsing header above the panel; the primary action is never
+  under a fixed bar; 44px targets; one H1 per screen; `aria-live` for save and job status.
+- **Staff surfaces** (`/admin/atelier/*`) are dense Operate screens: tables, filters, forms, the same
+  vocabulary as the client sees, plus codes and provenance. Their job is to make the client's promises true.

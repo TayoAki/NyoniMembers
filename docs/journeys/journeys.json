@@ -1,0 +1,759 @@
+{
+  "date": "2026-10-18",
+  "status": "Proposed journeys, not implemented service promises",
+  "journeys": [
+    {
+      "id": "C01",
+      "title": "Explore as a guest",
+      "release": "Core",
+      "entry": "First-time visitor; no account, photo or measurements required.",
+      "steps": [
+        "Open Design your suit \u2192 see a complete studio look, brief service explanation and primary action.",
+        "Choose Start from a look or Start designing \u2192 create a durable guest draft.",
+        "Skip occasion or personal-photo entry \u2192 continue with studio model; optional steps remain accessible."
+      ],
+      "branches": "Browser storage blocked: retain the in-memory draft, explain that resume is unavailable, and offer download. Loading never leaves an empty screen; unavailable featured look has an alternative.",
+      "outcome": "Active guest design with stable draft ID; no order or request created.",
+      "acceptance": "Guest reaches fabric and review without mandatory login, photo upload or tour. First edit has an observable saved/pending state.",
+      "evidence": "SS01\u2013SS02; avoid intrusive tours; Huntsman process clarity.",
+      "current_prototype": "Partial: six-step guest tool exists; durable server guest draft and entry looks do not."
+    },
+    {
+      "id": "C02",
+      "title": "Occasion, deadline and recommended looks",
+      "release": "Core",
+      "entry": "Guest or returning client starting a design.",
+      "steps": [
+        "Choose occasion, optional event date and intended use \u2192 reveal a small explained selection of looks.",
+        "Inspect a recommendation \u2192 see its actual fabric/style defaults before choosing.",
+        "Apply a look \u2192 populate design; keep Browse all available and allow changing the occasion later."
+      ],
+      "branches": "Changing a recommendation must ask before replacing existing custom choices. An imminent event triggers concierge review, not an unverified delivery promise. Skipping date is allowed.",
+      "outcome": "A chosen base look plus recommendation reasons and optional event context.",
+      "acceptance": "Occasion changes the recommendations rather than only recording a label. Event readiness distinguishes delivery from required fitting time. Cancel leaves the existing suit unchanged.",
+      "evidence": "SS03; Huntsman service-led entry; deadline complaints across review sample.",
+      "current_prototype": "Partial: occasion is recorded; recommendations and deadlines are absent."
+    },
+    {
+      "id": "C03",
+      "title": "Browse and filter the fabric collection",
+      "release": "Core",
+      "entry": "Approved, sellable catalogue; unverified metadata excluded from filters.",
+      "steps": [
+        "Open fabric collection \u2192 names, real swatches, codes and verified commercial status.",
+        "Apply colour/pattern/material/season filters or search \u2192 result count and active chips update.",
+        "Select fabric \u2192 specification and studio reference update together; personal image is marked stale if applicable."
+      ],
+      "branches": "No matches: show active filters and Clear all. Missing attributes are not guessed. Unavailable selection stays visible with replacement choices and requires re-confirmation before ordering.",
+      "outcome": "Exactly one selected approved fabric with catalogue version and source ID.",
+      "acceptance": "Result count matches the actual list. Opening details and Back preserve filters/scroll. Late image results cannot overwrite a later selection.",
+      "evidence": "SS02; HK02\u2013HK04; PC02\u2013PC04.",
+      "current_prototype": "Partial: three real fabric choices and photo changes; full catalogue/filter/inventory handling absent."
+    },
+    {
+      "id": "C04",
+      "title": "Inspect cloth and request a physical sample",
+      "release": "Core",
+      "entry": "Client opens a fabric card; sample service must be configured before showing Request sample.",
+      "steps": [
+        "Open details \u2192 large actual swatch, source ID and verified material/care specifications.",
+        "Choose cloth \u2192 commit it and return to the same collection position.",
+        "If offered, request a sample \u2192 show cost/address requirements, validate delivery information, and create a separate sample request."
+      ],
+      "branches": "Unknown composition, price or availability is omitted or clearly awaiting confirmation. Closing inspection discards uncommitted choice. Failed sample submission preserves inputs and does not claim dispatch.",
+      "outcome": "Selected cloth or a separately acknowledged sample request; sample does not order a suit.",
+      "acceptance": "Swatch source matches code throughout. Sample status distinguishes requested, accepted and shipped. No personal address is requested for digital-only inspection.",
+      "evidence": "HK04; PC04; real-swatch confidence concerns.",
+      "current_prototype": "Partial: swatch detail dialog exists; verified rich metadata and sample fulfilment do not."
+    },
+    {
+      "id": "C05",
+      "title": "Shortlist and compare fabrics",
+      "release": "Core",
+      "entry": "At least two approved fabrics available; draft may already have a selected fabric.",
+      "steps": [
+        "Add up to three fabrics to shortlist \u2192 visible count and removable saved entries.",
+        "Open Compare \u2192 show equally sized swatches and verified comparable specifications.",
+        "Choose one \u2192 update the suit, retaining the shortlist; return to browsing without losing position."
+      ],
+      "branches": "A fourth addition offers replacement, not a dead end. Missing values are shown as unconfirmed, not zero. Removed/unavailable catalogue entries remain identified but cannot be newly ordered.",
+      "outcome": "An informed cloth choice; shortlist remains part of the draft.",
+      "acceptance": "Removing an item updates both tray and comparison. Merely inspecting an alternative never changes the selected fabric.",
+      "evidence": "HK04 and PC04 information patterns; proposed NYONI comparison.",
+      "current_prototype": "Absent in current local client tool; older v2 fabric-comparison experiment is not this implementation."
+    },
+    {
+      "id": "C06",
+      "title": "Choose silhouette and tailoring details",
+      "release": "Core",
+      "entry": "Only tailor-approved base styles and combinations are offered.",
+      "steps": [
+        "Inspect base style \u2192 see construction, included defaults and real reference views.",
+        "Select jacket/trouser detail \u2192 focused panel explains the choice and current value.",
+        "Apply \u2192 update compatible specification and relevant preview; Cancel returns without change."
+      ],
+      "branches": "Conflict opens an explanation naming affected options and proposed changes. Confirm applies the complete change atomically; Cancel retains everything. Changing base style never silently resets bespoke selections.",
+      "outcome": "A manufacturable configuration with explicit accepted dependencies.",
+      "acceptance": "Every selected option maps to a production ID. Reopening a detail restores its committed value. Conflicts cannot survive into quote approval.",
+      "evidence": "SS03\u2013SS07; HK05; PC05\u2013PC07; IN05.",
+      "current_prototype": "Partial: one jacket construction, three lapels and fixed trousers; no dependency engine or broader silhouettes."
+    },
+    {
+      "id": "C07",
+      "title": "Choose buttons, lining and monogram",
+      "release": "Core",
+      "entry": "Approved accessory catalogue and supported monogram rules.",
+      "steps": [
+        "Inspect actual button/lining samples \u2192 source code and applicable size/coverage shown.",
+        "Choose accessories \u2192 update design summary and supported detail views.",
+        "Enter optional monogram \u2192 preview supported text, placement and thread style before applying."
+      ],
+      "branches": "Unsupported characters/length give specific help. If an interior image is unavailable, retain a real specimen and explain that placement is reviewed at fitting; do not pretend the closed jacket displays it.",
+      "outcome": "Exact accessory IDs and validated monogram specification.",
+      "acceptance": "Review/export and production record match the selected supplier components. A catalogue substitution requires explicit reapproval.",
+      "evidence": "SS04\u2013SS05; HK06; Proper Cloth selected-button mismatch review.",
+      "current_prototype": "Partial: real button/lining selection and text monogram exist; accurate interior/thread/placement rendering absent."
+    },
+    {
+      "id": "C08",
+      "title": "Add a photo with informed consent",
+      "release": "Photo proof",
+      "entry": "Optional full-body route; studio model remains available. No processing starts before an explicit action.",
+      "steps": [
+        "Choose See it on me \u2192 see suitable-photo examples, output limitations, provider and retention information.",
+        "Select own/authorized photo \u2192 validate file type, dimensions, size, person visibility and quality; strip EXIF.",
+        "Confirm crop and consent \u2192 show an input preview plus Generate my preview."
+      ],
+      "branches": "Blur, multiple people, hidden feet/face or unsupported image gives a retake reason. Invalid files are rejected safely. Cancel revokes temporary access and returns to studio. Selfie-only avatar is a separate future feature, never a body-accurate substitute.",
+      "outcome": "A privately scoped person-image asset and consent version; no generated result yet.",
+      "acceptance": "Uploading alone cannot trigger a paid generation. No public image URL, raw photo analytics or automatic marketing consent. Skipping photo preserves all garment choices.",
+      "evidence": "Proposed; personal-preview plan and provider capability research, not verified competitor VTON.",
+      "current_prototype": "Absent; requires private upload/consent service."
+    },
+    {
+      "id": "C09",
+      "title": "Generate and inspect a personal preview",
+      "release": "Photo proof",
+      "entry": "Valid photo, approved complete garment reference and explicit generation authorization.",
+      "steps": [
+        "Press Generate \u2192 freeze design/reference version and create one idempotent job.",
+        "Queued/processing \u2192 show truthful status, useful wait guidance, and supported cancellation.",
+        "Success \u2192 show current personal image, Original/Studio/Personal controls, exact garment details and approximation label."
+      ],
+      "branches": "Provider refusal, timeout, quota or quality failure preserves original photo/draft and explains retry or studio fallback. Cancellation prevents a late result appearing as current. Do not invent progress percentages.",
+      "outcome": "A customer-specific result associated with one immutable configuration.",
+      "acceptance": "Job and image reads are owner-authorized. A rejected likeness/body/garment result is not silently displayed as successful. Generation never edits the underlying tailoring specification.",
+      "evidence": "Proposed; no competitor review proves identity or fit accuracy.",
+      "current_prototype": "Absent; provider has not been selected or benchmarked."
+    },
+    {
+      "id": "C10",
+      "title": "Change design after personal generation and compare looks",
+      "release": "Photo proof",
+      "entry": "At least one completed personal preview exists.",
+      "steps": [
+        "Change fabric/lapel \u2192 studio reference updates immediately; personal image gets Previous design status.",
+        "Choose Update my preview \u2192 generate against the new immutable configuration.",
+        "Compare two saved looks \u2192 display each image with its own fabric/style labels and choose a design explicitly."
+      ],
+      "branches": "Rapid edits or out-of-order responses cannot mislabel images. Generating variant B never overwrites saved A. A retained personal view shows its historical labels until replaced.",
+      "outcome": "One chosen current configuration and a limited set of versioned private comparisons.",
+      "acceptance": "Select A, request B, edit to C, then receive B: result B cannot become current C. Deleting an image does not delete its garment specification.",
+      "evidence": "Current image-layer research plus proposed personal job lifecycle.",
+      "current_prototype": "Absent for personal previews; studio switching exists."
+    },
+    {
+      "id": "C11",
+      "title": "Recover, replace or remove a personal photo",
+      "release": "Photo proof",
+      "entry": "Photo uploaded, job active, failed or completed.",
+      "steps": [
+        "Open photo controls \u2192 see Replace photo, Remove photo and related result choices.",
+        "Replace \u2192 cancel/revoke older work, validate new input and retain the garment design.",
+        "Remove \u2192 explain which private input/results will be deleted, execute deletion and return to studio."
+      ],
+      "branches": "Offline or delayed deletion shows pending status and retry rather than a false deleted receipt. Changing provider requires a fresh applicable disclosure/consent. Retention exceptions must be explicit.",
+      "outcome": "Controlled photo/result lifecycle with deletion receipt or clearly pending deletion.",
+      "acceptance": "Old image links expire or are revoked under the stated policy. Replacement cannot reuse another person asset or resurrect deleted output.",
+      "evidence": "Provider-retention research; proposed privacy requirement.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C12",
+      "title": "Save and resume a guest design",
+      "release": "Core",
+      "entry": "Guest editing on one browser; future durable draft service scoped separately from existing local storage.",
+      "steps": [
+        "Edit \u2192 record draft version and visible save status.",
+        "Leave/return \u2192 offer Resume or Start new without silently discarding old work.",
+        "Resume \u2192 restore specification, shortlist, stage and supported views; revalidate changed catalogue/commercial data."
+      ],
+      "branches": "Storage denied/offline: explain scope and offer download. Stale server/local copies require a recoverable conflict choice. Expired photo does not invalidate the garment draft.",
+      "outcome": "Resumable design with clear local/server save scope.",
+      "acceptance": "Reload reproduces committed values. Save is never submission. Invalid old schema migrates safely or preserves a recoverable export.",
+      "evidence": "SS10; Hockerty restart complaint; existing local draft tests.",
+      "current_prototype": "Partial: same-browser local draft works; durable guest service and conflict resolution absent."
+    },
+    {
+      "id": "C13",
+      "title": "Create an account, link a draft and share a design",
+      "release": "Connected service",
+      "entry": "Client explicitly chooses cross-device save or sharing; guest design remains usable.",
+      "steps": [
+        "Choose Save across devices \u2192 sign in/create account through approved authentication.",
+        "After authentication \u2192 ask which guest draft to link; retain source until save succeeds.",
+        "Share \u2192 create a revocable read-only design link with an explicit audience and expiry."
+      ],
+      "branches": "Login cancellation returns to draft. Account with an existing design requires merge/keep-both choice. Personal photos and measurements are excluded from shared links by default and require separate controls.",
+      "outcome": "Owner-linked design or explicitly scoped read-only share; no recipient message automatically sent.",
+      "acceptance": "Other accounts cannot enumerate or edit private drafts. Expiry/revocation works. A shared view cannot mutate the owner\u2019s suit.",
+      "evidence": "SS10 was same-browser only; account/share are proposed.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C14",
+      "title": "Returning member and verified entitlement",
+      "release": "Connected service",
+      "entry": "Authenticated member; actual membership rules and source system configured.",
+      "steps": [
+        "Open studio \u2192 fetch verified tier, benefit status and eligible options.",
+        "Choose included cloth or upgrade \u2192 display explicit inclusion, upgrade amount and final confirmation conditions.",
+        "Use annual benefit \u2192 reserve/redeem under approved policy with a visible receipt after success."
+      ],
+      "branches": "Unknown/disconnected entitlement is pending confirmation, not Available. No remaining benefit offers quote/concierge route. Concurrent redemption is server-controlled and retry-safe.",
+      "outcome": "A priced/eligible design and auditable benefit state; browsing alone does not redeem.",
+      "acceptance": "No entitlement derived from frontend labels. Quote, checkout and staff view agree; failed payment/redemption releases reservations according to real policy.",
+      "evidence": "Original NYONI membership intent; proposed business integration.",
+      "current_prototype": "Absent; current tool makes no live entitlement claims."
+    },
+    {
+      "id": "C15",
+      "title": "First-time client chooses a fit route",
+      "release": "Core",
+      "entry": "Client has a design but no verified fit profile.",
+      "steps": [
+        "Open Fit \u2192 distinguish atelier fitting from guided remote measurements.",
+        "Inspect expectations \u2192 show what happens, what to bring and supported service locations.",
+        "Choose route \u2192 retain preference and continue to request/review without guessing a size from the preview."
+      ],
+      "branches": "Unsupported location/service routes to concierge review. Uncertain client may ask for help without completing fabricated measurements.",
+      "outcome": "Fit preference linked to design; not a confirmed appointment or approved body profile.",
+      "acceptance": "A personal image never implies verified measurements. Client can change route without losing design or overwriting a previous profile.",
+      "evidence": "IN appointment routes; HU process; PC08\u2013PC09.",
+      "current_prototype": "Partial: fitting preferences exist; service directory and live requests absent."
+    },
+    {
+      "id": "C16",
+      "title": "Returning client reuses or updates verified measurements",
+      "release": "Connected service",
+      "entry": "Owner has a dated, staff-approved fit profile.",
+      "steps": [
+        "Open profile \u2192 see verification date, source and fit preference.",
+        "Confirm whether body/comfort preferences changed \u2192 reuse profile or start a revision.",
+        "Submit changes \u2192 retain approved historical version and show pending review."
+      ],
+      "branches": "Outdated/incomplete profile requires human review under tailor-defined rules. Never silently apply unapproved revisions to an already released order.",
+      "outcome": "Explicit profile version associated with the design/quote.",
+      "acceptance": "Original values, revisions and reviewer are traceable. Selecting a stored profile requires authorization and cannot leak household/other-client measurements.",
+      "evidence": "Proper Cloth repeat-fit accounts; Oliver Wicks measurement guidance.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C17",
+      "title": "Guided remote measurements and photo-assisted fit review",
+      "release": "Connected service",
+      "entry": "Client selects supported remote service and agrees to its actual data use.",
+      "steps": [
+        "Choose units and follow tailor-approved body/garment measurement instructions.",
+        "Enter values with diagrams and field-specific checks; optionally add fit/posture photos under separate consent.",
+        "Submit for staff review \u2192 receive requested clarification or an approved profile, never an automatic perfect-fit promise."
+      ],
+      "branches": "Uncertain values can be saved with an ask-for-help flag. Unit switching is lossless within defined rounding. Images used for fitting are not silently reused for generative previews.",
+      "outcome": "A provisional measurement submission, then an independently approved profile.",
+      "acceptance": "Plausibility rules come from a qualified tailor. Incomplete data cannot become approved. Movement preferences such as sitting or performance are recorded explicitly.",
+      "evidence": "HK profile entry; PC fit routes; OW/Sartoro qualitative reviews.",
+      "current_prototype": "Absent; earlier v2 four-field experiment is not an approved measurement system."
+    },
+    {
+      "id": "C18",
+      "title": "Request, book, reschedule or cancel a fitting",
+      "release": "Core",
+      "entry": "Actual service types/locations known. Request-first is the default until live calendar integration exists.",
+      "steps": [
+        "Choose fitting service and location; inspect expectations and accessibility/contact needs.",
+        "Request-first: submit preferred timing/contact details \u2192 durable pending request ID. Live calendar only: choose available slot \u2192 review and confirm reservation.",
+        "Manage an acknowledged request/booking \u2192 reschedule or cancel with the correct confirmation state."
+      ],
+      "branches": "Slot taken at confirmation: keep inputs and offer alternatives. A preferred date is not a reserved slot. Failed submission gives retry without duplicate request. Reminders require approved channels/preferences.",
+      "outcome": "An acknowledged request OR an actual confirmed booking, labelled distinctly.",
+      "acceptance": "Real calendar receipt required for Confirmed. Time zones and event deadlines are explicit. Cancellation updates both client and staff records.",
+      "evidence": "IN07\u2013IN11; HU03; Lanieri booking complaints.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C19",
+      "title": "Review the complete design and request a quote",
+      "release": "Core",
+      "entry": "Design passes catalogue/compatibility validation; fit may be pending but visibly so.",
+      "steps": [
+        "Review exact materials, construction, personal details, fit route, preview version and pending confirmations.",
+        "Edit any section \u2192 return to review with new dependencies and preview freshness reflected.",
+        "Request review/quote \u2192 validate contact and consent, create durable request and show receipt with next action."
+      ],
+      "branches": "Changed material availability/terms requires acknowledgement. Failed send preserves draft; retry uses the same submission identity. No price, completion date or dispatch is invented.",
+      "outcome": "An immutable submitted design version and staff-owned request.",
+      "acceptance": "Request source IDs match export and staff view. Quote request is not purchase, redemption or booking. Download/print remains available independently.",
+      "evidence": "SS07\u2013SS09; PC specifications; IN Save-to-bag confusion.",
+      "current_prototype": "Partial: editable review, prepare, print and JSON export; no actual submission."
+    },
+    {
+      "id": "C20",
+      "title": "Collaborate with a named concierge",
+      "release": "Core",
+      "entry": "Submitted request assigned to an available staff member.",
+      "steps": [
+        "Open request \u2192 see actual owner, status and latest message/action.",
+        "Staff proposes fabric/style/fit change \u2192 client compares the before/after specification.",
+        "Accept or reject \u2192 version decision; material commercial changes trigger a new quote for approval."
+      ],
+      "branches": "No owner available: show awaiting assignment and real response expectation. Notification failure does not remove the in-app message. Unanswered case escalates under an actual operations rule.",
+      "outcome": "An agreed design and fitting/quote next step with a retained conversation.",
+      "acceptance": "No changes applied through informal chat alone. Staff sees the same current version; ownership transfer preserves case history.",
+      "evidence": "OW guidance; SS automated-loop complaints; Huntsman continuity.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C21",
+      "title": "Approve quote and optionally pay",
+      "release": "Commerce later",
+      "entry": "Staff-reviewed quote with actual pricing, availability and terms; payment connection is separate scope.",
+      "steps": [
+        "Inspect itemized total, tax/shipping where applicable, benefit/upgrade adjustments and actual fit/delivery conditions.",
+        "Accept the exact quote version; if offered, choose deposit/full payment and review the payable amount.",
+        "Pay through configured provider \u2192 receipt only after verified confirmation; connect order to accepted specification."
+      ],
+      "branches": "Expired/revised quote requires reapproval. Declined/uncertain payment preserves design and avoids duplicate charges. Quote approval is not proof of payment or production release.",
+      "outcome": "Approved commercial commitment and, when applicable, confirmed payment/order.",
+      "acceptance": "Webhooks are idempotent and server-verified. Customer cannot pay an old quote to obtain new specifications. Discounts, benefits and refunds are auditable.",
+      "evidence": "Proposed commerce; research did not complete competitor purchases.",
+      "current_prototype": "Absent; checkout intentionally disabled."
+    },
+    {
+      "id": "C22",
+      "title": "Track production and manage an event deadline",
+      "release": "Connected service",
+      "entry": "Released order with actual production milestones.",
+      "steps": [
+        "Open order \u2192 see only real stages such as approved, in production, quality review and shipped.",
+        "Review expected next milestone and event/fitting buffer; ask concierge for clarification.",
+        "If risk appears \u2192 receive realistic alternatives and decide on changes before they are committed."
+      ],
+      "branches": "Estimated dates are labelled estimates. Carrier delivery and garment readiness are different. Delayed events/production do not receive a fabricated automatic guarantee.",
+      "outcome": "Visible, accountable order progress with deadline risks and decisions.",
+      "acceptance": "Every milestone has a source/time. Staff cannot conceal an unresolved fit/quality issue by marking an item shipped. Event-risk communication is recorded.",
+      "evidence": "SS/IN/OW/Sartoro deadline reviews.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C23",
+      "title": "Receive the suit and assess first fit",
+      "release": "Connected service",
+      "entry": "Order delivered or collected; fulfilment receipt available.",
+      "steps": [
+        "Open arrival guidance \u2192 inspect garment against approved specification and follow a short fit checklist.",
+        "Confirm acceptable fit or flag a specific jacket/trouser/detail issue.",
+        "If helpful, add consented photos and book/request a follow-up; staff acknowledges assessment."
+      ],
+      "branches": "Carrier Delivered does not auto-close fit review. Missing/damaged garment routes to fulfilment support, not a measurement change. Policy dates use the approved commercial rules.",
+      "outcome": "Client-approved fit or a linked open support case.",
+      "acceptance": "Original garment specification remains visible. Fit-check photos are private and purpose-scoped. Acceptance does not silently waive rights outside approved terms.",
+      "evidence": "Proper Cloth remake accounts; IN post-delivery gaps.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C24",
+      "title": "Request an alteration or remake",
+      "release": "Core service pilot",
+      "entry": "Delivered garment has a fit/detail problem.",
+      "steps": [
+        "Choose issue by garment region; describe symptoms and add optional supporting photos.",
+        "Receive case ID/owner and clarification request; distinguish fit correction from a manufacturing mismatch.",
+        "Review proposed alteration/remake, costs/coverage, logistics and timing \u2192 accept remedy; track until client reassessment."
+      ],
+      "branches": "Repeated unsuccessful corrections escalate for human decision. Third-party tailor reimbursement requires explicit preapproval/status rather than an unexplained form. Event risk remains visible.",
+      "outcome": "Resolved case or an explicitly escalated alternative, not an automatically closed ticket.",
+      "acceptance": "Each correction versions measurements and links to the original issue. Follow-up checks actual fit before asking whether service was successful.",
+      "evidence": "Proper Cloth two-remake positive account; SS alteration and IN reimbursement complaints.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C25",
+      "title": "Cancel, return, exchange or request a refund",
+      "release": "Commerce later",
+      "entry": "Client/order qualifies under the actual published policy; no blanket custom-garment policy assumed.",
+      "steps": [
+        "Open order support \u2192 show eligible actions and explain exclusions before collecting a request.",
+        "Choose action \u2192 see specific instructions, return label/pickup where supported and any approval conditions.",
+        "Track requested/approved/received/refunded separately; receive confirmation only from actual service/payment state."
+      ],
+      "branches": "Broken label or missed pickup has a direct retry and human escalation path. Pending refund is not Refunded. Cancellation after production release requires actual staff/policy review.",
+      "outcome": "Auditable cancellation/return/remedy with accurate financial status.",
+      "acceptance": "Partial refunds and exchanges reconcile with payments/benefits. No duplicate returns, lost labels or bot-only loops. Request cannot silently cancel unrelated garments.",
+      "evidence": "SS returns-loop complaints; IN post-sale friction; negative PC review checks.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C26",
+      "title": "Reorder from a successful suit",
+      "release": "Connected service",
+      "entry": "Client has an approved historical garment and fit profile.",
+      "steps": [
+        "Choose Reorder \u2192 duplicate to a new draft, preserving history.",
+        "Review changed availability, prices, catalogue versions and profile freshness.",
+        "Keep the proven fit or request revisions; confirm new design/quote before ordering."
+      ],
+      "branches": "Discontinued cloth offers clearly different substitutes, never an invisible replacement. New measurements do not rewrite the original order. Archived personal photos are not silently restored.",
+      "outcome": "New approved order using explicitly chosen historical references.",
+      "acceptance": "Equivalent supplier ID is verified rather than inferred from a similar colour. Current policies/benefits apply visibly.",
+      "evidence": "Proper Cloth and OW repeat-order reviews.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C27",
+      "title": "Export or delete personal data and close an account",
+      "release": "Connected service",
+      "entry": "Owner requests data controls; authentication proportional to the action.",
+      "steps": [
+        "Open privacy centre \u2192 separate designs, photos/results, fit records and account settings.",
+        "Choose export or deletion \u2192 explain scope, retention exceptions and effect on active service.",
+        "Confirm \u2192 provide actual completion/pending receipt; revoke shares/access and handle vendor deletion requests where supported."
+      ],
+      "branches": "Active-order retention is explained, not hidden. A pending downstream deletion is not called instantaneous deletion. Signed-out owner receives an appropriate identity-verification route.",
+      "outcome": "Traceable owner request with scoped access/deletion and documented exceptions.",
+      "acceptance": "Deletion and export do not expose another client. Cache, backups and vendor retention follow disclosed policy. Removing a photo does not accidentally cancel an order.",
+      "evidence": "Proposed privacy design; provider retention differs from NYONI storage.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "C28",
+      "title": "Coordinate wedding or group designs",
+      "release": "Later optional",
+      "entry": "NYONI confirms group service and one organizer invites participants explicitly.",
+      "steps": [
+        "Organizer defines shared style intent and event context \u2192 creates a group design brief.",
+        "Each participant accepts invitation and creates a private fit/photo profile while selecting permitted individual details.",
+        "Staff reviews group compatibility and per-person readiness; organizer sees consented status only."
+      ],
+      "branches": "Organizer cannot access members\u2019 measurements/photos or authorize purchases for them without explicit permissions. Missing participants and deadline risks are visible; one order failure does not corrupt others.",
+      "outcome": "Coordinated but individually approved designs and fulfilment records.",
+      "acceptance": "Permissions distinguish shared styling from private personal data. Group consistency is explicit without promising identical fit or shared ownership.",
+      "evidence": "Wedding-order review pain points; proposed NYONI service.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O01",
+      "title": "Intake, assignment and concierge queue",
+      "release": "Core",
+      "entry": "A sample/fitting/design request is submitted.",
+      "steps": [
+        "Validate and deduplicate request \u2192 place it in a visible staff queue with receipt timestamp.",
+        "Assign a named owner \u2192 record acceptance and an actual next action.",
+        "Clarify missing information or transfer ownership \u2192 preserve conversation and version history."
+      ],
+      "branches": "Unassigned/overdue cases escalate under configured staffing rules. Notification failure remains visible; no false emailed/delivered state.",
+      "outcome": "Owned request and traceable next action.",
+      "acceptance": "Every acknowledged request appears in the queue once. The client sees the same owner/status. A staff absence cannot orphan a case.",
+      "evidence": "Customer support/communication complaints.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O02",
+      "title": "Approve catalogue materials and compatibility",
+      "release": "Core",
+      "entry": "Supplier material or construction option is imported/changed.",
+      "steps": [
+        "Review actual swatch, source code, production eligibility and verified metadata.",
+        "Approve dependencies, available views and material/price versions; flag uncertainty.",
+        "Publish a version \u2192 affected drafts/quotes are revalidated; withdrawn stock is not silently substituted."
+      ],
+      "branches": "OCR ambiguity cannot become a confirmed SKU. Missing image does not invent garment coverage. Updates to accepted quotes require controlled reapproval.",
+      "outcome": "Tailor-approved catalogue and a complete audit trail.",
+      "acceptance": "Every exposed option has provenance and an owner. Only supported combinations can be submitted as approved; all imagery is versioned.",
+      "evidence": "PC compatibility and selected-component complaints; original PDFs.",
+      "current_prototype": "Partial extraction exists; approval/availability tools absent."
+    },
+    {
+      "id": "O03",
+      "title": "Review measurements and approve fit profiles",
+      "release": "Core",
+      "entry": "Provisional measurements/photos or a revision is awaiting review.",
+      "steps": [
+        "Inspect units, body-vs-garment semantics, provenance and client comfort goals.",
+        "Request clarification or approve corrected values with reason and reviewer.",
+        "Link an immutable approved profile version to the design/order; retain superseded versions."
+      ],
+      "branches": "Image-only or uncalibrated estimates cannot be promoted to verified measurements. Production already released requires a change request, not silent editing.",
+      "outcome": "Approved profile or clear client action required.",
+      "acceptance": "Only authorized fitting staff can approve. Measurement revisions explain the difference and cannot overwrite a different order/client profile.",
+      "evidence": "PC/OW/Sartoro fit-review findings.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O04",
+      "title": "Quote, entitlement and commercial review",
+      "release": "Core before live orders",
+      "entry": "A valid design and applicable business policies are available.",
+      "steps": [
+        "Check actual availability, construction feasibility, fit status and event timing.",
+        "Resolve real membership eligibility and price breakdown; create expiring quote version.",
+        "Send for explicit client approval; revisions supersede earlier versions without losing history."
+      ],
+      "branches": "Unknown lead time or entitlement stays pending. An unavailable material produces an explicit alternative proposal. No invented discount, tax or annual benefit.",
+      "outcome": "Approved quote or a client-visible clarification request.",
+      "acceptance": "Client and staff totals match. Financial and entitlement adjustments have authorized owners and cannot be changed by client-side state.",
+      "evidence": "SS information clarity; NYONI membership requirements.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O05",
+      "title": "Release production and handle specification changes",
+      "release": "Connected service",
+      "entry": "Client accepted the current quote and prerequisites are satisfied.",
+      "steps": [
+        "Perform production preflight against the approved specification/profile and applicable payment/benefit state.",
+        "Release immutable order package with exact IDs and accepted construction instructions.",
+        "Handle later change requests with feasibility, timing and commercial impact before new release."
+      ],
+      "branches": "Personal preview never becomes a measurement or BOM authority. Version mismatch blocks release. Late changes are not promised before maker confirmation.",
+      "outcome": "One controlled production version and auditable changes.",
+      "acceptance": "Factory/tailor receives the same IDs approved by client. A changed quote or photo result cannot automatically mutate a released order.",
+      "evidence": "Specification-mismatch reviews; proposed operational control.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O06",
+      "title": "Operate and review personal-preview jobs",
+      "release": "Photo proof",
+      "entry": "Consented generation job queued or flagged by a client/quality check.",
+      "steps": [
+        "Verify owner, design asset version, eligible input and remaining generation budget.",
+        "Run bounded provider job \u2192 inspect output quality criteria and flag unusable results.",
+        "Deliver approved result, request retake or provide studio fallback; record operational metrics without raw-photo logging."
+      ],
+      "branches": "Provider outage, duplicate callbacks, stale result or deleted photo prevents current-result delivery. Staff image access is restricted and logged, not open to every concierge.",
+      "outcome": "Controlled personal-result lifecycle with accountable failure handling.",
+      "acceptance": "No cross-client cache or access. Identity/body/construction failures are not disguised as success. Provider deletion limitations remain disclosed.",
+      "evidence": "Proposed personal-preview quality/privacy plan.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O07",
+      "title": "Resolve aftercare, returns and payment remedies",
+      "release": "Core aftercare; finance later",
+      "entry": "Client opens a fit, quality, shipment or financial case.",
+      "steps": [
+        "Triage issue and retrieve original accepted specification, profile, delivery and prior corrections.",
+        "Assign remedy with actual coverage, deadline, logistics and approval owner.",
+        "Confirm fulfilment/refund from the responsible system, then invite client reassessment and close or escalate."
+      ],
+      "branches": "Repeated fit failures, missing labels, unreceived reimbursements or unresolved refunds escalate to a person with authority. Customer must not repeatedly re-enter the same case.",
+      "outcome": "Accountable resolution with accurate financial/fit status.",
+      "acceptance": "Refund confirmation is distinct from approval; reopened cases retain history. Staff cannot mark payment refunded on an unverified message.",
+      "evidence": "SS support loops; PC remakes; IN reimbursement complaints.",
+      "current_prototype": "Absent."
+    },
+    {
+      "id": "O08",
+      "title": "Manage access, privacy and deletion requests",
+      "release": "Connected service; required before photo pilot",
+      "entry": "Owner makes a data request or a retention job is due.",
+      "steps": [
+        "Verify requester and enumerate scoped designs, photos, shares, jobs and fit records.",
+        "Apply deletion/export rules and valid retention exceptions; revoke active links and cancel affected jobs.",
+        "Track downstream provider requests and notify owner of actual completion/pending exceptions."
+      ],
+      "branches": "Failed storage/vendor deletion is retried/escalated, not hidden. Access investigations preserve necessary audit evidence without uncontrolled image copies.",
+      "outcome": "Completed owner request or transparent pending state.",
+      "acceptance": "Cross-account access tests, staff role checks, expiry and deletion checks pass before pilot. Legal/policy exceptions require documented review.",
+      "evidence": "Photo-provider retention research; proposed service control.",
+      "current_prototype": "Absent."
+    }
+  ],
+  "screens": [
+    {
+      "id": "S01",
+      "name": "Entry / recommended looks",
+      "journeys": "C01\u2013C02"
+    },
+    {
+      "id": "S02",
+      "name": "Occasion / event context",
+      "journeys": "C02"
+    },
+    {
+      "id": "S03",
+      "name": "Fabric browser / filters / empty results",
+      "journeys": "C03"
+    },
+    {
+      "id": "S04",
+      "name": "Fabric inspection / sample request",
+      "journeys": "C04"
+    },
+    {
+      "id": "S05",
+      "name": "Shortlist and comparison",
+      "journeys": "C05"
+    },
+    {
+      "id": "S06",
+      "name": "Base styles / jacket and trousers",
+      "journeys": "C06"
+    },
+    {
+      "id": "S07",
+      "name": "Focused tailoring detail / Apply-Cancel",
+      "journeys": "C06"
+    },
+    {
+      "id": "S08",
+      "name": "Compatibility confirmation",
+      "journeys": "C06\u2013C07"
+    },
+    {
+      "id": "S09",
+      "name": "Buttons / lining / interior / monogram",
+      "journeys": "C07"
+    },
+    {
+      "id": "S10",
+      "name": "Personal preview introduction / consent",
+      "journeys": "C08"
+    },
+    {
+      "id": "S11",
+      "name": "Upload / validation / crop / retake",
+      "journeys": "C08"
+    },
+    {
+      "id": "S12",
+      "name": "Generation queued / processing / cancel",
+      "journeys": "C09"
+    },
+    {
+      "id": "S13",
+      "name": "Personal result / stale / retry / fallback",
+      "journeys": "C09\u2013C11"
+    },
+    {
+      "id": "S14",
+      "name": "Personal look comparison",
+      "journeys": "C10"
+    },
+    {
+      "id": "S15",
+      "name": "Drafts / resume / conflict",
+      "journeys": "C12"
+    },
+    {
+      "id": "S16",
+      "name": "Authentication / draft linking",
+      "journeys": "C13"
+    },
+    {
+      "id": "S17",
+      "name": "Read-only shared design / expired access",
+      "journeys": "C13"
+    },
+    {
+      "id": "S18",
+      "name": "Member benefit / verified eligibility",
+      "journeys": "C14"
+    },
+    {
+      "id": "S19",
+      "name": "Fit-route selection / service information",
+      "journeys": "C15"
+    },
+    {
+      "id": "S20",
+      "name": "Verified fit profile / revision",
+      "journeys": "C16"
+    },
+    {
+      "id": "S21",
+      "name": "Measurement guide / units / clarification",
+      "journeys": "C17"
+    },
+    {
+      "id": "S22",
+      "name": "Service/location / request vs booking",
+      "journeys": "C18"
+    },
+    {
+      "id": "S23",
+      "name": "Live availability / booking management (conditional)",
+      "journeys": "C18"
+    },
+    {
+      "id": "S24",
+      "name": "Editable design review / request contact",
+      "journeys": "C19"
+    },
+    {
+      "id": "S25",
+      "name": "Submission receipt / pending / failure",
+      "journeys": "C18\u2013C20"
+    },
+    {
+      "id": "S26",
+      "name": "Concierge case / proposed change",
+      "journeys": "C20"
+    },
+    {
+      "id": "S27",
+      "name": "Quote detail / revisions / approval",
+      "journeys": "C21"
+    },
+    {
+      "id": "S28",
+      "name": "Payment / confirmation / pending (conditional)",
+      "journeys": "C21"
+    },
+    {
+      "id": "S29",
+      "name": "Production / event risk / tracking",
+      "journeys": "C22"
+    },
+    {
+      "id": "S30",
+      "name": "Delivery and first-fit checklist",
+      "journeys": "C23"
+    },
+    {
+      "id": "S31",
+      "name": "Aftercare case / alteration / remake",
+      "journeys": "C24"
+    },
+    {
+      "id": "S32",
+      "name": "Cancellation / return label / refund status",
+      "journeys": "C25"
+    },
+    {
+      "id": "S33",
+      "name": "Historical suit / reorder review",
+      "journeys": "C26"
+    },
+    {
+      "id": "S34",
+      "name": "Privacy / export / photo removal / account closure",
+      "journeys": "C11/C27"
+    },
+    {
+      "id": "S35",
+      "name": "Group design and individual permissions (optional)",
+      "journeys": "C28"
+    }
+  ]
+}
