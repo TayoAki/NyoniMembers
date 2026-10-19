@@ -92,13 +92,14 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
   if (closed)
     return <p className="text-sm text-muted-foreground">This commission was cancelled; no milestone can be added.</p>;
 
-  const kindOptions = HAND_RECORDED_KINDS.map((candidate) => ({
-    code: candidate,
-    label: MILESTONE_KIND_WORDS[candidate],
-    description: STATUS_FOR_MILESTONE[candidate]
-      ? `As a fact, moves the commission to “${ORDER_STATUS_LABELS[STATUS_FOR_MILESTONE[candidate] as keyof typeof ORDER_STATUS_LABELS]}”.`
-      : undefined,
-  }));
+  const kindOptions = HAND_RECORDED_KINDS.map((candidate) => {
+    const advancesTo = STATUS_FOR_MILESTONE[candidate];
+    return {
+      code: candidate,
+      label: MILESTONE_KIND_WORDS[candidate],
+      description: advancesTo ? `As a fact, moves the commission to “${ORDER_STATUS_LABELS[advancesTo]}”.` : undefined,
+    };
+  });
   const sourceOptions = MILESTONE_SOURCES.map((candidate) => ({
     code: candidate,
     label: MILESTONE_SOURCE_STAFF_WORDS[candidate],

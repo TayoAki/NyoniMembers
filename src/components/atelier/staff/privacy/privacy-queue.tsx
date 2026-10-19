@@ -121,7 +121,7 @@ export function PrivacyQueueTable({
                 className="h-8"
                 onClick={() => onSelect(row._id)}
               >
-                {selected === row._id ? "Open" : "Open"}
+                {selected === row._id ? "Opened" : "Open"}
               </Button>
             </TableCell>
           </TableRow>

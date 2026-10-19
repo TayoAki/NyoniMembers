@@ -66,16 +66,16 @@ export function GroupReviewSection({ group }: { group: GroupReviewView }) {
   return (
     <AtelierSection
       id={`group-${group._id}`}
-      title={
-        <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          {group.name}
-          <StatusLine tone={GROUP_STATUS_TONES[group.status]}>{group.statusLabel}</StatusLine>
-        </span>
-      }
+      title={group.name}
       description={`Organized by ${group.organizerName} · ${group.occasionLabel}${group.eventDate !== undefined ? ` · ${formatDate(group.eventDate)}` : " · no event date"} · sent ${formatDateTime(group.updatedAt)}.`}
     >
       <div className="space-y-8">
         <OrderBook>
+          <OrderBookRow
+            label="Status"
+            value={<StatusLine tone={GROUP_STATUS_TONES[group.status]}>{group.statusLabel}</StatusLine>}
+            note="The organizer reads the same words."
+          />
           <OrderBookRow
             label="Brief"
             value={<span className="whitespace-pre-wrap">{group.brief || "No brief written."}</span>}

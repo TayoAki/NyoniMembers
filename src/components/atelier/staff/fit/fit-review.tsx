@@ -18,6 +18,7 @@ import type { FitReviewView } from "@convex/atelier/fit";
 import { FIT_PROVENANCE_LABELS } from "@convex/shared/atelier/enums";
 import {
   JACKET_COMFORT_LABELS,
+  MEASUREMENT_FIELDS,
   MOVEMENT_LABELS,
   POSTURE_LABELS,
   TROUSER_COMFORT_LABELS,
@@ -27,7 +28,6 @@ import { FitPhotos } from "./fit-photos";
 import { FitReviewSkeleton } from "./fit-skeleton";
 import { FIT_STATUS_TONES, flagWords, isPendingFit } from "./fit-words";
 import { initialFitterValues, MeasurementReview, parseFitterValues } from "./measurement-review";
-import { MEASUREMENT_FIELDS } from "@convex/shared/atelier/measurements";
 
 const REQUIRED_KEYS = MEASUREMENT_FIELDS.filter((field) => field.required).map((field) => field.key);
 
