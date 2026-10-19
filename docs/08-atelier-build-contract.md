@@ -254,7 +254,7 @@ Client reads take `guestKey: v.optional(v.string())` so guests can read what the
 ### 5.9 `orders` (owner: commerce agent)
 
 - `get({ orderId, guestKey? })` → `OrderView` (status, payment state words, milestones, estimate labelled, spec description, fit profile version, checklist, corrections summary); `listMine`; `setFirstFitChecklist`; `acceptFit`. Flagging a fit issue is `corrections.request` (§5.10), which also moves the order to `correction_open`.
-- Staff (`operations`): `preflight({ orderId })` (checks quote accepted, revision hash matches, fit profile approved or route recorded, payment state as policy requires) → list of blockers; `release({ orderId, makerRef })` (fails on blockers); `addMilestone`; `markShipped`; `markDelivered`; `recordPayment({ orderId, state, amountUsd, reference, provider })` (idempotent on reference); `setRisk`.
+- Staff (`operations`; `staffGet` also admits `finance`): `preflight({ orderId })` (checks quote accepted, revision hash matches, fit profile approved or route recorded, payment state as policy requires) → list of blockers; `release({ orderId, makerRef })` (fails on blockers); `addMilestone`; `markShipped`; `markDelivered`; `recordPayment({ orderId, state, amountUsd, reference, provider })` (idempotent on reference; `refunded` and `refunded_partial` need `finance`, and a confirmed refund on a correction records them itself); `addMilestone` takes production kinds only, and an `estimated_ready` milestone is always an estimate that updates the order's estimate; `setRisk`.
 
 ### 5.10 `corrections` (owner: aftercare agent)
 
@@ -310,22 +310,23 @@ New codes appended to `ERROR_CODES` in `convex/lib/errors.ts`: `PREVIEWS_UNAVAIL
 
 ### State language (exact words, from the spec)
 
-| Fact                                             | Say                                                                                                 | Never                   |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- | ----------------------- |
-| Draft saved in this browser only                 | "Saved to this browser"                                                                             | "Saved" alone           |
-| Draft saved to account                           | "Saved to your account"                                                                             |                         |
-| Request submitted                                | "Request received" + receipt id                                                                     | "Booked", "Ordered"     |
-| Appointment requested                            | "Requested · awaiting confirmation"                                                                 | "Confirmed"             |
-| Appointment confirmed by staff with calendar ref | "Confirmed for {date}"                                                                              |                         |
-| Quote accepted, no payment confirmed             | "Quote accepted · payment not yet recorded"                                                         | "Paid"                  |
-| Payment recorded by staff                        | "Payment confirmed"                                                                                 |                         |
-| Order shipped                                    | "Shipped" (carrier) — fit review still open                                                         | "Delivered and fitted"  |
-| Refund approved, not confirmed                   | "Refund approved · not yet returned to you"                                                         | "Refunded"              |
-| Preview job                                      | "Queued" / "Working on your preview" / "Could not finish" / "Cancelled" / "Shows a previous design" | percentages, countdowns |
-| Deletion                                         | "Access removed" / "Deleting" / "Waiting on provider" / "Completed with exceptions"                 | "Deleted instantly"     |
-| Estimated dates                                  | "Estimate" label beside every estimated date                                                        | bare dates              |
-| Studio figure                                    | "Studio illustration"                                                                               | "Preview of your suit"  |
-| Personal preview                                 | "Illustrative preview — not a fitting"                                                              | "How it will fit"       |
+| Fact                                             | Say                                                                                                 | Never                        |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Draft saved in this browser only                 | "Saved to this browser"                                                                             | "Saved" alone                |
+| Draft saved to account                           | "Saved to your account"                                                                             |                              |
+| Request submitted                                | "Request received" + receipt id                                                                     | "Booked", "Ordered"          |
+| Appointment requested                            | "Requested · awaiting confirmation"                                                                 | "Confirmed"                  |
+| Appointment confirmed by staff with calendar ref | "Confirmed for {date}"                                                                              |                              |
+| Quote accepted, no payment confirmed             | "Quote accepted · payment not yet recorded"                                                         | "Paid"                       |
+| Payment recorded by staff                        | "Payment confirmed"                                                                                 |                              |
+| Order shipped                                    | "Shipped" (carrier) — fit review still open                                                         | "Delivered and fitted"       |
+| Refund approved, not confirmed                   | "Refund approved · not yet returned to you"                                                         | "Refunded"                   |
+| Cancellation carried out by the house            | "Completed · commission cancelled"                                                                  | "Awaiting your reassessment" |
+| Preview job                                      | "Queued" / "Working on your preview" / "Could not finish" / "Cancelled" / "Shows a previous design" | percentages, countdowns      |
+| Deletion                                         | "Access removed" / "Deleting" / "Waiting on provider" / "Completed with exceptions"                 | "Deleted instantly"          |
+| Estimated dates                                  | "Estimate" label beside every estimated date                                                        | bare dates                   |
+| Studio figure                                    | "Studio illustration"                                                                               | "Preview of your suit"       |
+| Personal preview                                 | "Illustrative preview — not a fitting"                                                              | "How it will fit"            |
 
 ### Design (also recorded in `DESIGN.md` → "Atelier")
 
