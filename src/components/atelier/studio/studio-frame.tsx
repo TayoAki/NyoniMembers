@@ -59,8 +59,8 @@ function GroupBriefLine({ participation }: { participation: ParticipationView })
       Part of <span className="text-foreground">{participation.groupName}</span>, {participation.organizerFirstName}
       ’s shared design.{" "}
       {yours.length > 0
-        ? `Yours to choose: ${listWords(yours)}. The other lines follow the shared design and cannot be changed here.`
-        : "Every line follows the shared design and cannot be changed here."}
+        ? `Yours to choose: ${listWords(yours)}. What the shared design sets beyond these cannot be changed here.`
+        : "What the shared design sets cannot be changed here."}
     </p>
   );
 }
@@ -96,7 +96,9 @@ export function StudioFrame({ children }: { children: ReactNode }) {
             {STEP_LABELS[step]}
           </h1>
           <SaveStatus />
-          {participation ? <GroupBriefLine participation={participation} /> : null}
+          {participation && participation.status !== "declined" ? (
+            <GroupBriefLine participation={participation} />
+          ) : null}
           {note ? (
             <StatusLine tone="warning" className="text-pretty">
               {note}

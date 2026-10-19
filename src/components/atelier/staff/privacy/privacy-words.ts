@@ -4,8 +4,8 @@ import type { PrivacyStatus, PrivacyStepStatus } from "@convex/shared/atelier/en
 
 /**
  * Words for the privacy desk (A08, O08). Request and kind words come from the views (`statusLabel`,
- * `kindLabel`, step `label`); this file adds tones, the step-status words (the enums carry none: a
- * backend gap) and the audit table map.
+ * `kindLabel`, step `label`) and step-status words from `PRIVACY_STEP_STATUS_LABELS`; this file adds the
+ * tones and the audit table map.
  */
 
 export const PRIVACY_TITLE = "Privacy";

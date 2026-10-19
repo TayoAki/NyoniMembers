@@ -25,6 +25,9 @@ type EditorState = {
   failedPatch: SpecPatch | null;
 };
 
+/** Answers a second attempt would only repeat: a change the house's rules refuse, or a design no longer there. */
+const REFUSALS: readonly string[] = ["INVALID_STATE", "INVALID_INPUT", "NOT_FOUND", "FORBIDDEN"];
+
 /**
  * The current design a STALE_REVISION answer carries (another tab or window wrote first), so the
  * change can be previewed on it at once rather than waiting for the subscription.
@@ -58,7 +61,7 @@ export type SpecEditorHandle = {
   editor: SpecEditor;
   /** The failure behind an error state, so the status line can offer the right way out. */
   lastFailure: ClientError | null;
-  /** Re-sends the change that failed; null when nothing failed. */
+  /** Re-sends the change that failed; null when nothing failed or the change was refused outright. */
   retry: (() => void) | null;
   /** Drops the change that failed and returns the stage to the committed design. */
   discard: (() => void) | null;
@@ -140,7 +143,11 @@ export function useSpecEditor({ draft, guestKeyArg, confirmConflicts }: SpecEdit
   );
 
   const failedPatch = state.failedPatch;
-  const retry = useMemo(() => (failedPatch ? () => void commit(failedPatch) : null), [failedPatch, commit]);
+  const refused = state.phase.state === "error" && REFUSALS.includes(state.phase.failure.code);
+  const retry = useMemo(
+    () => (failedPatch && !refused ? () => void commit(failedPatch) : null),
+    [failedPatch, refused, commit],
+  );
   const discard = useMemo(
     () =>
       failedPatch

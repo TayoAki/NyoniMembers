@@ -1,19 +1,22 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useSearchParams } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { AtelierSessionProvider } from "./atelier-session";
 import { AtelierTopbar } from "./atelier-topbar";
 
-/** Development only: `?theme=light|dark` sets the theme so both can be captured without a click. */
+/**
+ * Development only: `?theme=light|dark` on the loaded URL sets the theme so both can be captured without
+ * a click. Read from `window.location` in an effect, not `useSearchParams`, so the layout above every
+ * static Atelier page never opts the build out of prerendering.
+ */
 function PreviewThemeFromQuery() {
-  const params = useSearchParams();
   const { setTheme } = useTheme();
-  const requested = process.env.NODE_ENV === "production" ? null : params.get("theme");
   useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const requested = new URLSearchParams(window.location.search).get("theme");
     if (requested === "light" || requested === "dark") setTheme(requested);
-  }, [requested, setTheme]);
+  }, [setTheme]);
   return null;
 }
 

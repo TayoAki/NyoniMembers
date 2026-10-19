@@ -9,6 +9,7 @@ import { CommitError } from "./commit-error";
 import { DETAIL_PART_LABELS, detailRowsFor, findGroup, type DetailPart } from "./detail-groups";
 import { DetailRow, DetailToggleRow } from "./detail-row";
 import { DetailSheet } from "./detail-sheet";
+import { LockedNote } from "./locked-note";
 import { SavingIndicator } from "./saving-indicator";
 import { usePanelCommit } from "./use-panel-commit";
 
@@ -22,16 +23,19 @@ type SheetState = { key: string | null; open: boolean; instance: number };
  * always show the committed design, never a preview that was abandoned.
  */
 export function StylePanel() {
-  const { editor } = useStudio();
+  const { draft, editor } = useStudio();
   const spec = editor.spec;
   const { pending, failure, run, retry } = usePanelCommit();
   const [sheet, setSheet] = useState<SheetState>({ key: null, open: false, instance: 0 });
-  const busy = pending !== null;
+  const locked = draft.status !== "draft";
+  const busy = pending !== null || locked;
 
   const parts = PARTS.filter((part) => part !== "waistcoat" || spec.waistcoat !== null);
 
   return (
     <div className="space-y-8">
+      <LockedNote status={draft.status} what="style and tailoring details" />
+
       <section aria-labelledby="style-base-title">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 id="style-base-title" className="text-xl font-medium tracking-tight sm:text-2xl">

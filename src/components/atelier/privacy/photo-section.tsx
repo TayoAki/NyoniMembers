@@ -6,6 +6,7 @@ import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
 import {
   PENDING_DELETION_WORDS,
+  PHOTO_REQUEST_WORDS,
   PHOTO_TONES,
   RECORDED_STEPS_SENTENCE,
   REMOVE_PHOTO_WORDS,
@@ -22,7 +23,7 @@ import { reportError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { api } from "@convex/_generated/api";
 import type { PersonPhotoView } from "@convex/atelier/photos";
-import { ATELIER_LIMITS, PHOTO_STATUS_LABELS, PRIVACY_KIND_LABELS } from "@convex/shared/atelier/enums";
+import { ATELIER_LIMITS, PHOTO_STATUS_LABELS } from "@convex/shared/atelier/enums";
 
 type Props = {
   photo: PersonPhotoView | null;
@@ -33,7 +34,7 @@ type Props = {
 /**
  * S34 · Photographs and previews (C11): the one photograph the previews are made from, until when it is
  * kept, and its removal — now, through the studio's own mutation, or as a recorded request whose steps
- * include telling the preview provider.
+ * also delete the posture photographs on the account's fit profiles and disclose the provider's own retention.
  */
 export function PhotoSection({ photo, signedIn, privacy }: Props) {
   const guestKeyArg = useGuestKeyArg();
@@ -118,9 +119,7 @@ export function PhotoSection({ photo, signedIn, privacy }: Props) {
               </div>
             ) : null}
             <p className="max-w-2xl text-xs leading-relaxed text-pretty text-muted-foreground">
-              &ldquo;{PRIVACY_KIND_LABELS.delete_photos}&rdquo; runs the removal as recorded steps — preview links
-              revoked, preview jobs cancelled, photographs and results deleted, the preview provider told — and
-              discloses what the house cannot confirm from here. {RECORDED_STEPS_SENTENCE}
+              {PHOTO_REQUEST_WORDS} {RECORDED_STEPS_SENTENCE}
             </p>
             {failure ? (
               <ErrorAlert

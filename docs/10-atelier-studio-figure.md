@@ -50,8 +50,9 @@ in an `aspect-[3/5] h-full` box; the entry hero and the shared-design page give 
 Landmarks are constants at the top of `suit-figure.tsx`; every path is built from `P(dx, y)`, an offset
 from the centre line. The two fronts are separate pieces whose top edge is the lapel roll line, so the
 shirt, tie and waistcoat beneath show in the V and in the open quarters without clipping. The shirt body is
-painted before the trousers, so the waistband sits over it, and stays inside the jacket's side seams, so no
-shirt shows between body and sleeve. `Piece` paints shade, weave overlay and outline; `detail` pieces
+painted before the trousers, so the waistband sits over it. The shirt, the trouser waist and the ticket pocket
+all stay inside the jacket's side seams, so only the page shows in the gap between body and sleeve.
+`Piece` paints shade, weave overlay and outline; `detail` pieces
 (pockets, welt, collar, cuff) never take the dashed "no cloth" outline.
 
 Two inks. Edges that meet the page (the silhouette, head, hands, shirt, shoes) are `currentColor`. Every

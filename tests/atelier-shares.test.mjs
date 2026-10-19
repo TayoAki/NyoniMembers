@@ -4,7 +4,7 @@ import { accountActor, fakeCtx, guestActor, isAppError, otherGuestActor, strange
 
 const drafts = await import("../convex/model/atelier/drafts.ts");
 const shares = await import("../convex/model/atelier/shares.ts");
-const { ATELIER_LIMITS } = await import("../convex/shared/atelier/enums.ts");
+const { ATELIER_LIMITS, SHARE_STATES, SHARE_STATE_LABELS } = await import("../convex/shared/atelier/enums.ts");
 const { LOOKS } = await import("../convex/shared/atelier/looks.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
@@ -189,4 +189,26 @@ test("a shared view follows the owner's edits but can never make them", async ()
     false,
     "the shares model exposes no edit",
   );
+});
+
+test("the review step's share words and audience limit are the server's own", async () => {
+  assert.equal(ATELIER_LIMITS.shareAudienceMax, drafts.SHARE_AUDIENCE_MAX, "one limit for the form and the server");
+  const f = fakeCtx();
+  const draft = await draftFor(f);
+  const longest = "x".repeat(ATELIER_LIMITS.shareAudienceMax);
+  const open = await shares.createShare(f.ctx, draft, guestActor, { audience: longest, expiresInDays: 1 }, NOW);
+  await assert.rejects(
+    shares.createShare(f.ctx, draft, guestActor, { audience: `${longest}x`, expiresInDays: 1 }, NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  const revoked = await shares.createShare(f.ctx, draft, guestActor, { audience: "Partner", expiresInDays: 1 }, NOW);
+  await shares.revokeShare(f.ctx, revoked.shareId, guestActor, NOW + 1);
+  const states = new Set();
+  for (const at of [NOW + 2, NOW + 2 * DAY]) {
+    for (const share of await shares.listSharesForDraft(f.ctx, draft._id))
+      states.add(shares.toShareView(share, at).state);
+  }
+  assert.deepEqual([...states].sort(), [...SHARE_STATES].sort(), "every state the owner's list reports");
+  for (const state of SHARE_STATES) assert.ok(SHARE_STATE_LABELS[state], `a label for ${state}`);
+  assert.ok(open.token.length > 0);
 });

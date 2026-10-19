@@ -70,11 +70,23 @@ export function ClothSheet({
     setSampleOpen(false);
   }
 
+  // A full shortlist asks which cloth to replace in a dialog of its own, opened once this sheet has closed.
+  const afterClose = useRef<(() => void) | null>(null);
+  const replacing = !shortlisted && shortlistFull;
+
   const open = cloth !== null;
   const entry = cloth ?? shown;
 
   return (
-    <Sheet open={open} onOpenChange={(next) => (next ? undefined : onClose())}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => (next ? undefined : onClose())}
+      onOpenChangeComplete={(next) => {
+        const then = afterClose.current;
+        afterClose.current = null;
+        if (!next && then) then();
+      }}
+    >
       <SheetContent
         side={isMobile ? "bottom" : "right"}
         className="flex flex-col gap-0 p-0 data-[side=bottom]:h-[92dvh] data-[side=bottom]:rounded-t-none data-[side=right]:sm:max-w-xl"
@@ -200,17 +212,21 @@ export function ClothSheet({
                 <Button
                   variant="outline"
                   className="h-11 rounded-none px-5"
-                  onClick={onToggleShortlist}
-                  disabled={shortlistPending || locked || (!shortlisted && shortlistFull)}
+                  onClick={() => {
+                    if (!replacing) return onToggleShortlist();
+                    afterClose.current = onToggleShortlist;
+                    onClose();
+                  }}
+                  disabled={shortlistPending || locked}
                   aria-pressed={shortlisted}
                 >
                   {shortlistPending ? <Spinner data-icon="inline-start" aria-label="Updating shortlist" /> : null}
                   {shortlisted ? "Remove from shortlist" : "Add to shortlist"}
                 </Button>
               </div>
-              {!shortlisted && shortlistFull ? (
+              {replacing && !locked ? (
                 <p className="text-xs text-muted-foreground">
-                  Your shortlist holds {ATELIER_LIMITS.shortlistMax} cloths. Take one out to add another.
+                  Your shortlist holds {ATELIER_LIMITS.shortlistMax} cloths; adding this one asks which to replace.
                 </p>
               ) : null}
               {locked ? (

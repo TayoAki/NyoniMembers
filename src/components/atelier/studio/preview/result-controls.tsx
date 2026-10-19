@@ -19,6 +19,15 @@ export type ResultView = "original" | "studio" | "personal";
 const VIEWS: readonly ResultView[] = ["original", "studio", "personal"];
 const VIEW_LABELS: Record<ResultView, string> = { original: "Original", studio: "Studio", personal: "Personal" };
 
+/**
+ * A finished preview whose image is not shown: the house set it aside, or has put it back for review.
+ * Null for every other job. Its words come from the quality labels, never "Ready".
+ */
+export function heldPreviewLabel(job: PreviewJobView): string | null {
+  if (job.status !== "done" || job.resultUrl !== null) return null;
+  return job.quality === "accepted" ? "Image not available" : PREVIEW_QUALITY_LABELS[job.quality];
+}
+
 function isResultView(value: unknown): value is ResultView {
   return typeof value === "string" && (VIEWS as readonly string[]).includes(value);
 }
@@ -139,14 +148,19 @@ export function ResultControls({
     );
   }
 
-  if (job.status === "done") {
+  const held = heldPreviewLabel(job);
+  if (held !== null) {
     return (
       <div className="space-y-4">
         <StatusLine live tone="warning">
-          {PREVIEW_QUALITY_LABELS.rejected}
+          {held}
         </StatusLine>
         <p className="max-w-xl text-sm leading-relaxed text-pretty text-muted-foreground">
-          This preview was finished, but the house&apos;s preview review did not accept its quality, so it is not shown.
+          {job.quality === "rejected"
+            ? "This preview was finished, but the house's preview review did not accept its quality, so it is not shown."
+            : job.quality === "pending"
+              ? "This preview was finished, and the house is reviewing it before it is shown."
+              : "This preview was finished, but its image cannot be shown."}{" "}
           Your photograph and design are unchanged; you can ask for another.
         </p>
         {lines}

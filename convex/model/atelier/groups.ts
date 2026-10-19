@@ -88,7 +88,9 @@ export const GROUPS_PER_ORGANIZER_MAX = 20;
 const PARTICIPANTS_READ_MAX = 100;
 /** Fit profile versions read to find an approved one; a client holds a handful. */
 const FIT_HISTORY_MAX = 20;
-/** Groups the review queue reads in one go, newest first. */
+/** Groups the review desk lists: drafts nobody was invited to and closed groups are not the house's business. */
+const REVIEW_QUEUE_STATUSES: readonly GroupStatus[] = ["inviting", "in_review", "approved"];
+/** Groups of one status the review desk reads in one go, latest first. */
 const REVIEW_READ_MAX = 200;
 const DAY_MS = 86_400_000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -215,15 +217,15 @@ export function effectiveStatus(
 export async function participantView(ctx: Ctx, participant: Participant): Promise<GroupParticipantView> {
   const declined = participant.status === "declined";
   const hasDesign = !declined && participant.draftId !== undefined;
-  let designReady = false;
-  if (hasDesign && participant.consent.shareStyleStatus && participant.draftId) {
-    const draft = await ctx.db.get(participant.draftId);
-    designReady = draft !== null && draft.status !== "archived" && draft.spec.clothCode !== null;
-  }
-  let fitReady = false;
-  if (!declined && participant.consent.shareFitStatus && participant.userId) {
-    fitReady = await hasApprovedFitProfile(ctx, participant.userId);
-  }
+  const { shareStyleStatus, shareFitStatus } = participant.consent;
+  // A guest who joined and later linked the design to an account has a row with no account; the design names it.
+  const readDraft = hasDesign && (shareStyleStatus || (shareFitStatus && !participant.userId));
+  const draft = readDraft && participant.draftId ? await ctx.db.get(participant.draftId) : null;
+  const designReady =
+    shareStyleStatus && draft !== null && draft.status !== "archived" && draft.spec.clothCode !== null;
+  const fitUserId = participant.userId ?? (draft?.groupId === participant.groupId ? draft.userId : undefined);
+  const fitReady =
+    !declined && shareFitStatus && fitUserId !== undefined && (await hasApprovedFitProfile(ctx, fitUserId));
   const status = effectiveStatus(participant.status, { designReady, fitReady });
   return {
     participantId: participant._id,
@@ -263,6 +265,7 @@ export async function groupView(ctx: Ctx, group: Group): Promise<GroupView> {
     permittedIndividual: group.permittedIndividual.filter(isPermittedIndividualPath),
     status: group.status,
     statusLabel: GROUP_STATUS_LABELS[group.status],
+    staffReviewNote: group.staffReviewNote,
     participants,
     createdAt: group.createdAt,
     updatedAt: group.updatedAt,
@@ -744,6 +747,38 @@ export async function leaveGroup(
   );
 }
 
+/**
+ * Records that a participant's design has become a commission, called where the order is created. From
+ * then on neither the organizer nor the participant can take them out of the group. A design outside a
+ * group, or one whose participant has left or was removed, changes nothing. Returns the row it marked.
+ */
+export async function markParticipantOrdered(
+  ctx: MutationCtx,
+  draftId: Id<"atelierDrafts">,
+  now: number = Date.now(),
+): Promise<Id<"atelierGroupParticipants"> | null> {
+  const draft = await ctx.db.get(draftId);
+  if (!draft?.groupId) return null;
+  const participants = await listParticipants(ctx, draft.groupId);
+  const participant = participants.find((row) => row.draftId === draft._id);
+  if (!participant || participant.status === "declined") return null;
+  if (participant.status === "ordered") return participant._id;
+  await ctx.db.patch(participant._id, { status: "ordered" });
+  await ctx.db.patch(participant.groupId, { updatedAt: now });
+  await audit(
+    ctx,
+    {
+      actor: null,
+      action: "group.participant.ordered",
+      targetTable: "atelierGroupParticipants",
+      targetId: participant._id,
+      meta: { groupId: participant.groupId, draftId: draft._id, from: participant.status },
+    },
+    now,
+  );
+  return participant._id;
+}
+
 // ------------------------------------------------------------------------------------------------
 // Staff (concierge)
 // ------------------------------------------------------------------------------------------------
@@ -817,10 +852,17 @@ export async function reviewGroup(
   return reviewView(ctx, updated ?? { ...group, status: input.status, updatedAt: now });
 }
 
-/** Groups awaiting or under the house's eye: everything an organizer has begun inviting to, newest first. */
+/** Groups awaiting or under the house's eye: everything an organizer has begun inviting to, latest first. */
 export async function listGroupsForReview(ctx: Ctx): Promise<GroupReviewView[]> {
-  // atelierGroups has no by_status index yet; the creation-time index keeps this read bounded.
-  const groups = await ctx.db.query("atelierGroups").order("desc").take(REVIEW_READ_MAX);
-  const open = groups.filter((group) => group.status !== "draft" && group.status !== "closed");
+  const byStatus = await Promise.all(
+    REVIEW_QUEUE_STATUSES.map((status) =>
+      ctx.db
+        .query("atelierGroups")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .order("desc")
+        .take(REVIEW_READ_MAX),
+    ),
+  );
+  const open = byStatus.flat().sort((a, b) => b.updatedAt - a.updatedAt);
   return Promise.all(open.map((group) => reviewView(ctx, group)));
 }

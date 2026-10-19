@@ -13,6 +13,7 @@ import {
 import { eventReadiness } from "@convex/shared/atelier/policy";
 import type { DescribedLine } from "@convex/shared/atelier/spec";
 import { OrderBook, OrderBookRow, OrderBookSection } from "@/components/atelier/common/order-book";
+import { heldPreviewLabel } from "@/components/atelier/studio/preview/result-controls";
 import { ItemImage } from "@/components/common/item-image";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -113,6 +114,7 @@ export function ReviewOrderBook({
   const readiness = eventReadiness(draft.eventDate, now);
   const groups = groupLines(draft.lines);
   const clothState = clothNote(draft.cloth);
+  const heldPreview = preview ? heldPreviewLabel(preview) : null;
 
   return (
     <OrderBook aria-label="Your design">
@@ -191,10 +193,11 @@ export function ReviewOrderBook({
         ) : preview ? (
           <OrderBookRow
             label="Personal preview"
-            value={`${PREVIEW_STATUS_LABELS[preview.status]} · ${preview.isCurrent ? "current design" : "previous design"}`}
-            tone={preview.isCurrent ? "default" : "warning"}
+            value={`${heldPreview ?? PREVIEW_STATUS_LABELS[preview.status]} · ${preview.isCurrent ? "current design" : "previous design"}`}
+            tone={preview.isCurrent && heldPreview === null ? "default" : "warning"}
             note={
               <>
+                {heldPreview !== null ? <span>Its image is not shown · </span> : null}
                 <span>{preview.specLabel}</span>
                 {preview.revision !== null ? <span> · Revision {preview.revision}</span> : null}
                 <span> · Illustrative preview — not a fitting</span>

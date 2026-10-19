@@ -18,6 +18,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { StaffAppointmentRow } from "@convex/atelier/appointments";
+import { APPOINTMENT_STATUS_LABELS } from "@convex/shared/atelier/enums";
 import { APPOINTMENT_TRANSITIONS } from "./case-words";
 
 const HOUR_MS = 3_600_000;
@@ -138,6 +139,12 @@ export function AppointmentDetail({ appointment }: { appointment: StaffAppointme
               <span className="text-muted-foreground">Not recorded</span>
             )
           }
+          note={
+            appointment.recordedCalendarRef &&
+            (appointment.status === "rescheduled" || appointment.status === "cancelled")
+              ? "From a booking the client no longer holds: clear it in Square Appointments. A new confirmation needs a new reference."
+              : undefined
+          }
         />
       </OrderBook>
 
@@ -158,8 +165,8 @@ export function AppointmentDetail({ appointment }: { appointment: StaffAppointme
                 </Mono>
                 <span>
                   {entry.from === entry.to
-                    ? `Confirmed again`
-                    : `${entry.from.replace(/_/g, " ")} → ${entry.to.replace(/_/g, " ")}`}{" "}
+                    ? APPOINTMENT_STATUS_LABELS[entry.to]
+                    : `${APPOINTMENT_STATUS_LABELS[entry.from]} → ${APPOINTMENT_STATUS_LABELS[entry.to]}`}{" "}
                   by {entry.by === "staff" ? "the house" : entry.by === "client" ? "the client" : "the system"}
                   {entry.note ? <span className="text-muted-foreground"> · {entry.note}</span> : null}
                 </span>
@@ -179,7 +186,8 @@ function ConfirmForm({ appointment }: { appointment: StaffAppointmentRow }) {
     appointment.confirmedStart !== null ? toLocalInput(appointment.confirmedStart) : "",
   );
   const [end, setEnd] = useState(appointment.confirmedEnd !== null ? toLocalInput(appointment.confirmedEnd) : "");
-  const [calendarRef, setCalendarRef] = useState(appointment.recordedCalendarRef ?? "");
+  // A reference left from a released booking is the one to clear, never one to confirm a new time with.
+  const [calendarRef, setCalendarRef] = useState(appointment.confirmed ? (appointment.recordedCalendarRef ?? "") : "");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

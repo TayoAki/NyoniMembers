@@ -1,5 +1,8 @@
 import type { Id } from "@convex/_generated/dataModel";
 
+/** The prefix of every staff case page; the queue is the list of cases, so there is no page here itself. */
+const STAFF_CASE_BASE = "/admin/atelier/cases";
+
 /** Every internal link goes through here so a route rename is one change. */
 export const routes = {
   home: "/",
@@ -45,7 +48,8 @@ export const routes = {
   /** Staff surfaces for the Atelier, inside the signed-in app shell (admin role required). */
   staffAtelier: {
     queue: "/admin/atelier",
-    case: (caseId: Id<"atelierCases"> | string) => `/admin/atelier/cases/${caseId}`,
+    caseBase: STAFF_CASE_BASE,
+    case: (caseId: Id<"atelierCases"> | string) => `${STAFF_CASE_BASE}/${caseId}`,
     catalogue: "/admin/atelier/catalogue",
     fit: "/admin/atelier/fit",
     fitProfile: (profileId: Id<"atelierFitProfiles"> | string) => `/admin/atelier/fit/${profileId}`,

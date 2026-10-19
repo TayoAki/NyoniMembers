@@ -64,6 +64,8 @@ export const vPrivacyStepView = v.object({
   status: vPrivacyStepStatus,
   at: v.union(v.number(), v.null()),
   note: v.union(v.string(), v.null()),
+  /** Ran what it could and now rests with a privacy staff member, whose completion records it (A08). */
+  awaitsStaff: v.boolean(),
 });
 export type PrivacyStepView = Infer<typeof vPrivacyStepView>;
 
@@ -334,7 +336,10 @@ export const staffExportUrl = mutation({
   },
 });
 
-/** Manual re-run of the next step, including one that failed; audited as the staff member's action. */
+/**
+ * Manual run of the next step: a re-run of one that failed, or the staff member's record of one that awaits
+ * them (the account removed at the identity provider). Audited as the staff member's action.
+ */
 export const staffAdvance = mutation({
   args: { requestId: v.id("atelierPrivacyRequests") },
   returns: vAdvanceResult,

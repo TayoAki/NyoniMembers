@@ -99,6 +99,12 @@ const LEG_HALF: Record<TrouserFit, { knee: number; hem: number }> = {
 };
 /** The top of the trouser waistband; it shows in the jacket's open quarters, so the rise moves it. */
 const WAISTBAND_Y: Record<Rise, number> = { mid: 440, high: 424 };
+/**
+ * The trouser waist stays inside the jacket's side seam and reaches the hip only below where body and sleeve
+ * meet (y ≈ 450), so the page, not trouser cloth, shows under the arm whatever the rise.
+ */
+const TROUSER_WAIST_DX = 82;
+const TROUSER_HIP_Y = 500;
 
 type Stance = {
   /** Button rows, top first. */
@@ -427,7 +433,7 @@ function Trousers({
         const inKnee = c - s * half.knee;
         const outHem = c + s * half.hem;
         const inHem = c - s * half.hem;
-        const leg = `M ${P(0, yWB)} L ${P(s * HIP_DX, yWB)} C ${P(s * (HIP_DX + 2), 580)} ${P(outKnee + s * 2, 670)} ${P(outKnee, KNEE_Y)} C ${P(outKnee - s, 810)} ${P(outHem, 870)} ${P(outHem, TROUSER_HEM_Y)} L ${P(inHem, TROUSER_HEM_Y)} C ${P(inHem, 870)} ${P(inKnee - s, 810)} ${P(inKnee, KNEE_Y)} C ${P(inKnee + s * 2, 690)} ${P(s * 6, 620)} ${P(0, 568)} Z`;
+        const leg = `M ${P(0, yWB)} L ${P(s * TROUSER_WAIST_DX, yWB)} L ${P(s * HIP_DX, TROUSER_HIP_Y)} C ${P(s * (HIP_DX + 2), 580)} ${P(outKnee + s * 2, 670)} ${P(outKnee, KNEE_Y)} C ${P(outKnee - s, 810)} ${P(outHem, 870)} ${P(outHem, TROUSER_HEM_Y)} L ${P(inHem, TROUSER_HEM_Y)} C ${P(inHem, 870)} ${P(inKnee - s, 810)} ${P(inKnee, KNEE_Y)} C ${P(inKnee + s * 2, 690)} ${P(s * 6, 620)} ${P(0, 568)} Z`;
         const creaseTop = front ? (pleats === "flat" ? 600 : yWB + 14) : 640;
         return (
           <g key={s}>
@@ -484,7 +490,7 @@ function Trousers({
       {front ? (
         <>
           <Seam
-            d={`M ${P(-HIP_DX, yWB)} L ${P(HIP_DX, yWB)} M ${P(-HIP_DX, yWB + 14)} L ${P(HIP_DX, yWB + 14)}`}
+            d={`M ${P(-TROUSER_WAIST_DX, yWB)} L ${P(TROUSER_WAIST_DX, yWB)} M ${P(-TROUSER_WAIST_DX, yWB + 14)} L ${P(TROUSER_WAIST_DX, yWB + 14)}`}
             cloth={cloth}
             opacity={0.8}
             width={FINE}
@@ -587,18 +593,19 @@ function Pockets({ s, spec, cloth, tuxedo }: { s: Side; spec: SuitSpec; cloth: C
       />
     );
   }
-  // The ticket pocket is cut in the hip pockets' style: two welts on a jetted jacket, a flap otherwise.
+  // The ticket pocket is cut in the hip pockets' style: two welts on a jetted jacket, a flap otherwise. It sits
+  // between the side seam (about 84 out at this height) and the dart, so none of it crosses the gap under the arm.
   const ticket =
     pockets === "jetted" ? (
       <Seam
-        d={`M ${P(-96, 413)} L ${P(-62, 415)} M ${P(-96, 418)} L ${P(-62, 420)}`}
+        d={`M ${P(-82, 413)} L ${P(-48, 415)} M ${P(-82, 418)} L ${P(-48, 420)}`}
         cloth={cloth}
         opacity={0.9}
         width={FINE}
       />
     ) : (
       <Piece
-        d={`M ${P(-96, 412)} L ${P(-62, 410)} L ${P(-62, 422)} Q ${P(-62, 425)} ${P(-65, 425)} L ${P(-93, 426)} Q ${P(-96, 426)} ${P(-96, 423)} Z`}
+        d={`M ${P(-82, 412)} L ${P(-48, 410)} L ${P(-48, 422)} Q ${P(-48, 425)} ${P(-51, 425)} L ${P(-79, 426)} Q ${P(-82, 426)} ${P(-82, 423)} Z`}
         cloth={cloth}
         detail
       />

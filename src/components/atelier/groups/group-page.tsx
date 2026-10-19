@@ -145,6 +145,16 @@ function GroupDetail({ group }: { group: GroupView }) {
       </section>
 
       <div>
+        {group.staffReviewNote ? (
+          <AtelierSection
+            id="house-note"
+            title="The house’s note"
+            description="From your concierge, written when the house reviewed this group. Participants do not see it."
+          >
+            <p className="max-w-2xl text-sm leading-relaxed whitespace-pre-line">{group.staffReviewNote}</p>
+          </AtelierSection>
+        ) : null}
+
         <AtelierSection id="brief" title="The brief" description="Read by every participant and by the house.">
           {group.brief.trim() ? (
             <p className="max-w-2xl text-sm leading-relaxed whitespace-pre-line">{group.brief}</p>

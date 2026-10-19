@@ -522,6 +522,15 @@ export const PARTICIPANT_STATUS_LABELS: Record<ParticipantStatus, string> = {
   declined: "Declined",
 };
 
+/** A read-only design link (C13): open until it runs out, or closed early by its owner. */
+export const SHARE_STATES = ["active", "expired", "revoked"] as const;
+export type ShareState = (typeof SHARE_STATES)[number];
+export const SHARE_STATE_LABELS: Record<ShareState, string> = {
+  active: "Open",
+  expired: "Expired",
+  revoked: "Revoked",
+};
+
 export const NOTIFICATION_CHANNELS = ["email", "sms", "in_app"] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 export const NOTIFICATION_STATUSES = ["queued", "sent", "delivered", "failed"] as const;
@@ -543,6 +552,8 @@ export const ATELIER_LIMITS = {
   assignWithinHours: 24,
   quoteValidDays: 14,
   shareMaxDays: 30,
+  /** Characters in the "who is this link for" line on a share. */
+  shareAudienceMax: 80,
   draftsPerOwner: 20,
   maxPhotoBytes: 12 * 1024 * 1024,
   minPhotoEdgePx: 600,

@@ -781,3 +781,126 @@ test("an account's photo and jobs are stamped with the user, never a guest key",
   assert.equal(await photos.getPhotoView(f.ctx, guestActor), null);
   assert.equal((await previews.listStaffJobs(f.ctx, undefined))[0].ownerKind, "account");
 });
+
+/* ------------------------------------------------------------------ one owner per photograph and job */
+
+/** A signed-in client whose browser still holds the guest key it designed with before signing in. */
+const signedInOnThisBrowser = { user: accountActor.user, guestKey: GUEST_KEY };
+
+test("a signed-in client on a design this browser still holds is asked to save it first; nothing is frozen or queued", async () => {
+  const f = setup();
+  const draft = await makeDraft(f, guestActor);
+  const photo = await addPhoto(f, signedInOnThisBrowser);
+  assert.equal(photo.userId, accountActor.user._id, "the photograph belongs to the account");
+  const revisionsBefore = f.rowsOf("atelierRevisions").length;
+
+  await assert.rejects(start(f, draft._id, signedInOnThisBrowser), (error) => {
+    assert.equal(error.data.code, "INVALID_STATE");
+    assert.equal(error.data.message, previews.LINK_BEFORE_PREVIEW_MESSAGE);
+    assert.deepEqual(error.data.details, { linkRequired: true });
+    return true;
+  });
+  assert.equal(f.rowsOf("atelierPreviewJobs").length, 0, "no job stamped with the browser's key");
+  assert.equal(f.rowsOf("atelierRevisions").length, revisionsBefore, "nothing is frozen");
+  assert.equal(f.scheduled.length, 0);
+  assert.equal((await f.ctx.db.get(draft._id)).personPhotoId, undefined, "the design is not pointed at the photograph");
+
+  // Saved to the account, the same design and photograph make a job the account owns, which removal retires.
+  await drafts.linkDraft(f.ctx, accountActor.user, draft._id, GUEST_KEY, NOW);
+  const { jobId } = await start(f, draft._id, signedInOnThisBrowser);
+  const job = await f.ctx.db.get(jobId);
+  assert.equal(job.userId, accountActor.user._id);
+  assert.equal(job.guestKey, undefined);
+  await photos.removePhoto(f.ctx, accountActor, photo._id, NOW + MINUTE);
+  assert.equal((await f.ctx.db.get(jobId)).status, "cancelled");
+});
+
+test("assertSameOwner: a job and its photograph must have one owner, account or browser", () => {
+  const accountPhoto = { userId: accountActor.user._id };
+  const guestPhoto = { guestKey: GUEST_KEY };
+  assert.doesNotThrow(() => previews.assertSameOwner({ userId: accountActor.user._id }, accountPhoto));
+  assert.doesNotThrow(() => previews.assertSameOwner({ guestKey: GUEST_KEY }, guestPhoto));
+  assert.throws(() => previews.assertSameOwner({ guestKey: GUEST_KEY }, accountPhoto), isAppError("INVALID_STATE"));
+  assert.throws(
+    () => previews.assertSameOwner({ userId: accountActor.user._id }, guestPhoto),
+    isAppError("INVALID_STATE"),
+  );
+  assert.throws(
+    () => previews.assertSameOwner({ guestKey: GUEST_KEY }, { userId: accountActor.user._id, guestKey: GUEST_KEY }),
+    isAppError("INVALID_STATE"),
+    "a photograph the account holds is the account's, whatever key it once carried",
+  );
+  assert.throws(() => previews.assertSameOwner({}, guestPhoto), isAppError("INVALID_STATE"));
+});
+
+/** A job written before the guard: stamped with the browser's key, made from the account's photograph. */
+async function legacyMismatchedJob(f) {
+  const draft = await makeDraft(f, guestActor);
+  const photo = await addPhoto(f, signedInOnThisBrowser);
+  const revisionId = await f.ctx.db.insert("atelierRevisions", {
+    draftId: draft._id,
+    revision: 1,
+    spec: draft.spec,
+    specHash: specHash(draft.spec),
+    catalogueVersion: 1,
+    reason: "preview",
+    createdAt: NOW,
+  });
+  const resultStorageId = f.addFile({ contentType: "image/png" });
+  const jobId = await f.ctx.db.insert("atelierPreviewJobs", {
+    guestKey: GUEST_KEY,
+    draftId: draft._id,
+    personPhotoId: photo._id,
+    revisionId,
+    specHash: specHash(draft.spec),
+    specLabel: "Legacy",
+    idempotencyKey: previews.idempotencyKey(draft._id, specHash(draft.spec), photo._id),
+    status: "done",
+    quality: "accepted",
+    resultStorageId,
+    attempt: 1,
+    completedAt: NOW,
+    expiresAt: NOW + 30 * DAY,
+    createdAt: NOW,
+  });
+  return { draft, photo, jobId, resultStorageId };
+}
+
+test("retry refuses a job stamped with a different owner from its photograph", async () => {
+  const f = setup();
+  const { jobId } = await legacyMismatchedJob(f);
+  await f.ctx.db.patch(jobId, { status: "failed", resultStorageId: undefined });
+  await assert.rejects(previews.retryPreview(f.ctx, signedInOnThisBrowser, jobId, NOW + MINUTE), (error) => {
+    assert.equal(error.data.code, "INVALID_STATE");
+    assert.equal(error.data.details.linkRequired, true);
+    return true;
+  });
+  assert.equal(f.rowsOf("atelierPreviewJobs").length, 1);
+});
+
+test("the by_photo index lists every job made from a photograph, whoever it is stamped with", async () => {
+  const f = setup();
+  const { photo, jobId } = await legacyMismatchedJob(f);
+  const viaPhoto = await f.ctx.db
+    .query("atelierPreviewJobs")
+    .withIndex("by_photo", (q) => q.eq("personPhotoId", photo._id))
+    .take(10);
+  assert.deepEqual(
+    viaPhoto.map((job) => job._id),
+    [jobId],
+  );
+});
+
+test(
+  "removing a photograph retires every job made from it, including one stamped with another owner",
+  { todo: "lead action: retireJobsForPhoto in convex/model/atelier/photos.ts reads by_photo instead of by owner" },
+  async () => {
+    const f = setup();
+    const { photo, jobId, resultStorageId } = await legacyMismatchedJob(f);
+    await photos.removePhoto(f.ctx, accountActor, photo._id, NOW + MINUTE);
+    const job = await f.ctx.db.get(jobId);
+    assert.equal(job.status, "expired");
+    assert.equal(job.resultStorageId, undefined);
+    assert.equal(f.files.has(resultStorageId), false, "the result made from the photograph is deleted with it");
+  },
+);

@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 /**
  * A fake Convex ctx for unit tests of the Atelier models: an in-memory db that honours the chained
  * query API (`withIndex` → `order` → `filter` → `take`/`first`/`unique`) by predicate, records every
- * insert and patch, and treats `undefined` in a patch as "remove the field", as Convex does.
+ * insert and patch, and treats `undefined` in a patch as "remove the field", as Convex does. Rows come
+ * back in the named index's order (its fields from `convex/schema.ts`, then `_creationTime`), as Convex
+ * returns them, so a model that stops early on an ordered index is tested against the real order.
  */
 
 registerHooks({
@@ -22,6 +24,45 @@ registerHooks({
     }
   },
 });
+
+const { default: schema } = await import("../convex/schema.ts");
+
+/** The fields an index orders by, before `_creationTime`; an unknown index or table orders by creation. */
+function indexFields(table, indexName) {
+  if (!indexName || indexName === "by_creation_time") return [];
+  const index = schema.tables[table]?.indexes.find((entry) => entry.indexDescriptor === indexName);
+  return index ? index.fields : [];
+}
+
+/** Convex's order across types: undefined < null < bigint < number < boolean < string < bytes < array < object. */
+function typeRank(value) {
+  if (value === undefined) return 0;
+  if (value === null) return 1;
+  if (typeof value === "bigint") return 2;
+  if (typeof value === "number") return 3;
+  if (typeof value === "boolean") return 4;
+  if (typeof value === "string") return 5;
+  if (value instanceof ArrayBuffer) return 6;
+  if (Array.isArray(value)) return 7;
+  return 8;
+}
+
+export function compareValues(a, b) {
+  const rank = typeRank(a) - typeRank(b);
+  if (rank !== 0) return Math.sign(rank);
+  if (Array.isArray(a)) {
+    for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
+      const item = compareValues(a[i], b[i]);
+      if (item !== 0) return item;
+    }
+    return Math.sign(a.length - b.length);
+  }
+  if (typeof a === "object" && a !== null && !(a instanceof ArrayBuffer)) {
+    return compareValues(JSON.stringify(a), JSON.stringify(b));
+  }
+  if (a === b || a === undefined || a === null) return 0;
+  return a < b ? -1 : 1;
+}
 
 export const GUEST_KEY = "a".repeat(32);
 export const OTHER_GUEST_KEY = "b".repeat(32);
@@ -41,19 +82,34 @@ function resolve(operand, row) {
   return operand && typeof operand === "object" && "__field" in operand ? row[operand.__field] : operand;
 }
 
-function queryBuilder(source) {
+function queryBuilder(table, source) {
   const predicates = [];
   let descending = false;
+  let fields = [];
   const run = () => {
     const list = source().filter((row) => predicates.every((predicate) => predicate(row)));
-    list.sort((a, b) => a._creationTime - b._creationTime);
+    list.sort((a, b) => {
+      for (const field of fields) {
+        const order = compareValues(a[field], b[field]);
+        if (order !== 0) return order;
+      }
+      return a._creationTime - b._creationTime;
+    });
     return descending ? list.reverse() : list;
+  };
+  const range = (test) => (field, value) => {
+    predicates.push((row) => test(compareValues(row[field], value)));
+    return indexQuery;
   };
   const indexQuery = {
     eq(field, value) {
       predicates.push((row) => row[field] === value);
       return indexQuery;
     },
+    lt: range((order) => order < 0),
+    lte: range((order) => order <= 0),
+    gt: range((order) => order > 0),
+    gte: range((order) => order >= 0),
   };
   const filterQuery = {
     field: (name) => ({ __field: name }),
@@ -61,7 +117,8 @@ function queryBuilder(source) {
     neq: (a, b) => (row) => resolve(a, row) !== resolve(b, row),
   };
   const builder = {
-    withIndex(_name, build) {
+    withIndex(name, build) {
+      fields = indexFields(table, name);
       if (build) build(indexQuery);
       return builder;
     },
@@ -136,7 +193,7 @@ export function fakeCtx() {
       return typeof id === "string" && id.startsWith(`${table}|`) ? id : null;
     },
     query(table) {
-      return queryBuilder(() => rows(table).map((row) => structuredClone(row)));
+      return queryBuilder(table, () => rows(table).map((row) => structuredClone(row)));
     },
   };
   return {

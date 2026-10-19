@@ -2,9 +2,8 @@
 
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { useState } from "react";
-import { AtelierSection } from "@/components/atelier/common/atelier-section";
+import { AtelierSection, DisplayLine } from "@/components/atelier/common/atelier-section";
 import { Mono } from "@/components/atelier/common/mono";
 import { OrderBook, OrderBookRow } from "@/components/atelier/common/order-book";
 import { StatusLine } from "@/components/atelier/common/status-line";
@@ -31,12 +30,43 @@ import type { AppointmentView } from "@convex/atelier/appointments";
 import { APPOINTMENT_STATUS_LABELS } from "@convex/shared/atelier/enums";
 import { HOUSE, SHOWROOMS } from "@convex/shared/house";
 
-/** S23 (C18): one appointment, its truthful state, its history, and the ways to change it. */
+/**
+ * S23 (C18): one appointment, its truthful state, its history, and the ways to change it. An unknown or
+ * someone else's id is not found inline, so the live subscription can still replace it with the answer.
+ */
 export function AppointmentPage({ appointmentId }: { appointmentId: string }) {
   const appointment = useQuery(api.atelier.appointments.get, useOwnerArgs({ appointmentId }));
   if (appointment === undefined) return <AppointmentSkeleton />;
-  if (appointment === null) notFound();
+  if (appointment === null) return <AppointmentNotFound />;
   return <AppointmentDetail appointment={appointment} />;
+}
+
+/** The one not-found copy for a fitting, used inline here and by the route's not-found file. */
+export function AppointmentNotFound() {
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 py-16">
+      <DisplayLine>This fitting could not be found.</DisplayLine>
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        The link may be incomplete, the appointment may belong to another browser or account, or it never existed. Your
+        fittings are listed under Fittings; sign in if you asked for this one from your account.
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          className="h-11 rounded-none px-5"
+          render={<Link href={routes.atelier.fittings} />}
+          nativeButton={false}
+        >
+          Your fittings
+        </Button>
+        <Link
+          href={routes.atelier.home}
+          className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4 hover:text-muted-foreground"
+        >
+          The Atelier
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 function AppointmentDetail({ appointment }: { appointment: AppointmentView }) {

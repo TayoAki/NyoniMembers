@@ -674,6 +674,23 @@ test("a brief that fixes the cloth keeps the participant to it", async () => {
   );
 });
 
+test("a participant the organizer removed is no longer held to the brief", async () => {
+  const f = fakeCtx();
+  await makeDraft(f, otherGuestActor);
+  const { organizer, participantId, draftId } = await groupDraft(f, guestActor);
+  const draft = await f.ctx.db.get(draftId);
+  await assert.rejects(
+    drafts.commitChange(f.ctx, draft, { garment: "tuxedo" }, true, NOW + 2),
+    isAppError("INVALID_STATE"),
+  );
+
+  await groups.removeParticipant(f.ctx, organizer, participantId, NOW + 3);
+  assert.equal((await f.ctx.db.get(participantId)).status, "declined");
+  const result = await drafts.commitChange(f.ctx, await f.ctx.db.get(draftId), { garment: "tuxedo" }, true, NOW + 4);
+  assert.equal(result.applied, true, "the design is the client's own once the group has let it go");
+  assert.equal((await f.ctx.db.get(draftId)).spec.garment, "tuxedo");
+});
+
 test("link carries a guest's group participation to the account, and no one else's (C28)", async () => {
   const f = fakeCtx();
   const { organizer, group, participantId, draftId } = await groupDraft(f, guestActor);

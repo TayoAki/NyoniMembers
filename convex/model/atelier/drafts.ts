@@ -661,12 +661,20 @@ async function writeSpec(
  * other line this change moves away from the shared design is refused, naming the line, before anything
  * is proposed or written. Lines already apart from the brief are not re-litigated, so a permitted change
  * always goes through and a line can be brought back into agreement. A design that has left its group
- * carries no `groupId` and is private again.
+ * carries no `groupId` and is private again, as is one whose participation the organizer removed.
  */
 async function requireWithinGroupBrief(ctx: Ctx, draft: Draft, next: SuitSpec): Promise<void> {
-  if (!draft.groupId) return;
-  const group = await ctx.db.get(draft.groupId);
-  if (!group) return;
+  const groupId = draft.groupId;
+  if (!groupId) return;
+  const [group, participant] = await Promise.all([
+    ctx.db.get(groupId),
+    ctx.db
+      .query("atelierGroupParticipants")
+      .withIndex("by_group", (q) => q.eq("groupId", groupId))
+      .filter((q) => q.eq(q.field("draftId"), draft._id))
+      .first(),
+  ]);
+  if (!group || !participant || participant.status === "declined") return;
   const permitted = new Set<string>(group.permittedIndividual);
   if (group.sharedSpec.clothCode === null) permitted.add("clothCode");
   const apartFromBrief = new Set<string>(specDifferences(group.sharedSpec, next));

@@ -463,8 +463,8 @@ test("leaving marks the participant declined, drops consent and takes the design
 
   // Someone who has ordered cannot be removed by either side without the house.
   const nia = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Nia" }, NOW);
-  await groups.joinGroup(f.ctx, accountActor, nia.inviteToken, NOW);
-  await f.ctx.db.patch(nia.participantId, { status: "ordered" });
+  const { draftId: niaDraft } = await groups.joinGroup(f.ctx, accountActor, nia.inviteToken, NOW);
+  assert.equal(await groups.markParticipantOrdered(f.ctx, niaDraft, NOW), nia.participantId);
   await assert.rejects(groups.leaveGroup(f.ctx, accountActor, nia.participantId, NOW), isAppError("INVALID_STATE"));
   await assert.rejects(groups.removeParticipant(f.ctx, organizer, nia.participantId, NOW), isAppError("INVALID_STATE"));
   const ordered = await groups.groupView(f.ctx, await f.ctx.db.get(group._id));
@@ -486,6 +486,7 @@ test("the group state machine: review words are the house's, and only lawful tra
   const { f, organizer, concierge } = await setup();
   const group = await groupWith(f, organizer);
   await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw" }, NOW);
+  assert.equal((await groups.groupView(f.ctx, await f.ctx.db.get(group._id))).staffReviewNote, undefined);
 
   await assert.rejects(
     groups.reviewGroup(f.ctx, concierge, group._id, { note: "", status: "approved" }, NOW),
@@ -511,6 +512,10 @@ test("the group state machine: review words are the house's, and only lawful tra
   assert.equal(auditRow.actorUserId, concierge._id);
   assert.equal(auditRow.actorKind, "staff");
   assert.deepEqual(auditRow.meta, { from: "inviting", to: "in_review", noted: true });
+  // The note is written for the organizer: their own group view carries it exactly as stored.
+  const organizerView = await groups.groupView(f.ctx, await f.ctx.db.get(group._id));
+  assert.equal(organizerView.statusLabel, "With the house for review");
+  assert.equal(organizerView.staffReviewNote, "Compatible; waiting on two fittings.");
 
   // Under review: the organizer may add to the brief but not change the design; invitations still go out.
   await groups.updateGroup(f.ctx, organizer, group._id, { brief: "Also: no ticket pockets." }, NOW);
@@ -597,4 +602,185 @@ test("effectiveStatus never claims a readiness the participant did not consent t
   assert.equal(groups.effectiveStatus("joined", { designReady: true, fitReady: true }), "fit_ready");
   assert.equal(groups.effectiveStatus("declined", { designReady: true, fitReady: true }), "declined");
   assert.equal(groups.effectiveStatus("ordered", { designReady: false, fitReady: false }), "ordered");
+});
+
+test("an order on a participant's design marks them ordered, and neither side can then take them out", async () => {
+  const { PARTICIPANT_STATUS_LABELS } = await import("../convex/shared/atelier/enums.ts");
+  const { f, organizer } = await setup();
+  const group = await groupWith(f, organizer);
+  const nia = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Nia" }, NOW);
+  const yaw = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw" }, NOW + 1);
+  const kofi = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Kofi" }, NOW + 2);
+  const { draftId: niaDraft } = await groups.joinGroup(f.ctx, accountActor, nia.inviteToken, NOW);
+  const { draftId: yawDraft } = await groups.joinGroup(f.ctx, guestActor, yaw.inviteToken, NOW);
+  const { draftId: kofiDraft } = await groups.joinGroup(f.ctx, otherGuestActor, kofi.inviteToken, NOW);
+
+  assert.equal(await groups.markParticipantOrdered(f.ctx, niaDraft, NOW + DAY), nia.participantId);
+  assert.equal((await f.ctx.db.get(nia.participantId)).status, "ordered");
+  assert.equal((await f.ctx.db.get(group._id)).updatedAt, NOW + DAY, "the organizer's list moves the group up");
+  const audits = () => f.rowsOf("atelierAuditLog").filter((row) => row.action === "group.participant.ordered");
+  assert.equal(audits().length, 1);
+  assert.equal(audits()[0].actorKind, "system");
+  assert.deepEqual(audits()[0].meta, { groupId: group._id, draftId: niaDraft, from: "joined" });
+
+  // A second order event on the same design is a no-op.
+  assert.equal(await groups.markParticipantOrdered(f.ctx, niaDraft, NOW + 2 * DAY), nia.participantId);
+  assert.equal(audits().length, 1);
+
+  // The guards that read `ordered` now hold on a recorded order.
+  await assert.rejects(groups.removeParticipant(f.ctx, organizer, nia.participantId, NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(groups.leaveGroup(f.ctx, accountActor, nia.participantId, NOW), isAppError("INVALID_STATE"));
+  assert.equal((await f.ctx.db.get(nia.participantId)).status, "ordered");
+  const view = await groups.groupView(f.ctx, await f.ctx.db.get(group._id));
+  const row = view.participants.find((p) => p.name === "Nia");
+  assert.deepEqual([row.status, row.statusLabel], ["ordered", PARTICIPANT_STATUS_LABELS.ordered]);
+  assert.equal((await groups.participationForDraft(f.ctx, await f.ctx.db.get(niaDraft))).status, "ordered");
+  assert.equal(
+    (await groups.reviewView(f.ctx, await f.ctx.db.get(group._id))).participants.find((p) => p.name === "Nia").status,
+    "ordered",
+  );
+
+  // Someone who left (the design left the group with them) or was removed is not marked.
+  await groups.leaveGroup(f.ctx, guestActor, yaw.participantId, NOW);
+  assert.equal(await groups.markParticipantOrdered(f.ctx, yawDraft, NOW), null);
+  assert.equal((await f.ctx.db.get(yaw.participantId)).status, "declined");
+  await groups.removeParticipant(f.ctx, organizer, kofi.participantId, NOW);
+  assert.equal((await f.ctx.db.get(kofiDraft)).groupId, group._id, "a removed participant's design keeps its group id");
+  assert.equal(await groups.markParticipantOrdered(f.ctx, kofiDraft, NOW), null);
+  assert.equal((await f.ctx.db.get(kofi.participantId)).status, "declined");
+
+  // A design outside any group, or one that no longer exists, changes nothing.
+  const patches = f.log.patches.length;
+  const privateDraft = await f.ctx.db.insert("atelierDrafts", {
+    guestKey: GUEST_KEY,
+    name: "Private",
+    spec: { ...DEFAULT_SPEC, clothCode: CLOTH },
+    status: "draft",
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  assert.equal(await groups.markParticipantOrdered(f.ctx, privateDraft, NOW), null);
+  await f.ctx.db.delete("atelierDrafts", privateDraft);
+  assert.equal(await groups.markParticipantOrdered(f.ctx, privateDraft, NOW), null);
+  assert.equal(f.log.patches.length, patches);
+  assert.equal(audits().length, 1);
+});
+
+test("a guest who joined and later linked the design to an account shows the fit readiness they share", async () => {
+  const { f, organizer } = await setup();
+  const group = await groupWith(f, organizer);
+  const yaw = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw" }, NOW);
+  const { draftId } = await groups.joinGroup(f.ctx, guestActor, yaw.inviteToken, NOW);
+  await f.ctx.db.patch(draftId, { spec: { ...DEFAULT_SPEC, clothCode: CLOTH } });
+  await groups.setParticipantConsent(
+    f.ctx,
+    guestActor,
+    yaw.participantId,
+    { shareStyleStatus: true, shareFitStatus: true },
+    NOW,
+  );
+  await f.ctx.db.insert("atelierFitProfiles", {
+    userId: accountUser._id,
+    version: 1,
+    units: "cm",
+    measurements: { chest: 98.5 },
+    comfort: { jacket: "tailored", trousers: "tailored", movement: [] },
+    provenance: "atelier",
+    uncertainFields: [],
+    status: "approved",
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  const yawView = async () =>
+    (await groups.groupView(f.ctx, await f.ctx.db.get(group._id))).participants.find((p) => p.name === "Yaw");
+
+  // As a guest there is no account, so no approved profile can be theirs yet.
+  let row = await yawView();
+  assert.deepEqual([row.status, row.designReady, row.fitReady], ["design_ready", true, false]);
+
+  // The design is linked to an account (as drafts.link does); a row written before the link names no account.
+  await f.ctx.db.patch(draftId, { userId: accountUser._id, guestKey: undefined });
+  assert.equal((await f.ctx.db.get(yaw.participantId)).userId, undefined);
+  row = await yawView();
+  assert.deepEqual([row.status, row.statusLabel, row.fitReady], ["fit_ready", "Fit ready", true]);
+  assert.ok(!JSON.stringify(row).includes("98.5"), "readiness only, never the measurements");
+
+  // Withdrawn fit consent withdraws the status, and the fit table is not opened for it.
+  await groups.setParticipantConsent(
+    f.ctx,
+    accountActor,
+    yaw.participantId,
+    { shareStyleStatus: true, shareFitStatus: false },
+    NOW,
+  );
+  const touched = withTableLog(f);
+  row = await yawView();
+  assert.deepEqual([row.status, row.fitReady], ["design_ready", false]);
+  assert.ok(!touched.has("atelierFitProfiles"));
+
+  // A design that has left this group lends its account to nothing.
+  await groups.setParticipantConsent(
+    f.ctx,
+    accountActor,
+    yaw.participantId,
+    { shareStyleStatus: false, shareFitStatus: true },
+    NOW,
+  );
+  assert.equal((await yawView()).fitReady, true);
+  f.row(draftId).groupId = "atelierGroups|999";
+  assert.equal((await yawView()).fitReady, false);
+});
+
+test("the review desk reads open groups by status, so an old group under review never falls off", async () => {
+  const { f, organizer, concierge } = await setup();
+  const waiting = await groupWith(f, organizer, { name: "Asante wedding" });
+  await groups.inviteParticipant(f.ctx, organizer, waiting._id, { name: "Yaw" }, NOW);
+  await groups.reviewGroup(f.ctx, concierge, waiting._id, { note: "Waiting on the date.", status: "in_review" }, NOW);
+  const inviting = await groupWith(f, organizer, { name: "Board dinner" });
+  await groups.inviteParticipant(f.ctx, organizer, inviting._id, { name: "Kofi" }, NOW + 5);
+
+  // More newer groups than the desk reads at once, none of them the house's business.
+  for (let i = 0; i < 205; i += 1) {
+    await f.ctx.db.insert("atelierGroups", {
+      organizerUserId: organizer._id,
+      name: `Later group ${i}`,
+      occasion: "wedding",
+      brief: "",
+      sharedSpec: { ...DEFAULT_SPEC, clothCode: null },
+      permittedIndividual: [],
+      status: i % 2 === 0 ? "draft" : "closed",
+      createdAt: NOW + DAY + i,
+      updatedAt: NOW + DAY + i,
+    });
+  }
+
+  const indexes = [];
+  const { query } = f.ctx.db;
+  f.ctx.db.query = (table) => {
+    const builder = query.call(f.ctx.db, table);
+    const withIndex = builder.withIndex;
+    builder.withIndex = (name, build) => {
+      if (table === "atelierGroups") indexes.push(name);
+      return withIndex.call(builder, name, build);
+    };
+    if (table === "atelierGroups") {
+      const take = builder.take;
+      builder.take = (n) => {
+        assert.ok(indexes.length > 0, "atelierGroups is never read without an index");
+        return take.call(builder, n);
+      };
+    }
+    return builder;
+  };
+  const listed = await groups.listGroupsForReview(f.ctx);
+  f.ctx.db.query = query;
+  assert.deepEqual(
+    listed.map((group) => [group.name, group.status]),
+    [
+      ["Board dinner", "inviting"],
+      ["Asante wedding", "in_review"],
+    ],
+    "latest first; drafts and closed groups are not listed",
+  );
+  assert.deepEqual([...new Set(indexes)], ["by_status"]);
 });

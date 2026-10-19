@@ -133,7 +133,7 @@ function CloseAccount({ privacy }: { privacy: UsePrivacyRequest }) {
           </Button>
         }
         title="Close your account?"
-        description={`Your export is written first; then photographs, previews and designs are removed as recorded steps, and a privacy staff member removes your sign-in. ${RECORDED_STEPS_SENTENCE}`}
+        description={`Your export is written first; then photographs (posture photographs included), previews and designs are removed as recorded steps, and a privacy staff member removes your sign-in and records it. ${RECORDED_STEPS_SENTENCE}`}
         confirmLabel="Close my account"
         confirmDisabled={!confirmed}
         destructive
@@ -150,9 +150,7 @@ function CloseAccount({ privacy }: { privacy: UsePrivacyRequest }) {
             spellCheck={false}
             className="h-11 rounded-none font-mono tracking-[0.16em] uppercase"
           />
-          <FieldDescription>
-            Your requests to the house and the record of this request are kept as service and audit records.
-          </FieldDescription>
+          <FieldDescription>{CLOSE_ACCOUNT_WORDS.at(-1)}</FieldDescription>
         </Field>
       </ConfirmDialog>
     </div>

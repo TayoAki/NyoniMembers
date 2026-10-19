@@ -31,6 +31,8 @@ const CHOICE_EFFECT: Record<Exclude<PreviewQuality, "pending">, string> = {
   rejected: "The result is no longer shown to the client; their design and the studio illustration are unchanged.",
 };
 
+const SHOWN_AGAIN = "The result is shown to the client again as their preview.";
+
 /**
  * O06 step 2: judge a finished result. Only a finished job can be flagged. What each outcome does for the
  * client is shown; only a result set aside carries a word the client reads.
@@ -45,6 +47,8 @@ export function QualityDialog({ job }: { job: StaffPreviewJobView }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ready = quality !== null && (quality === "accepted" || note.trim().length > 0);
+  const effectOf = (choice: Exclude<PreviewQuality, "pending">) =>
+    choice === "accepted" && job.quality === "rejected" ? SHOWN_AGAIN : CHOICE_EFFECT[choice];
 
   async function submit() {
     if (!quality) return;
@@ -55,7 +59,7 @@ export function QualityDialog({ job }: { job: StaffPreviewJobView }) {
       toast.success(
         quality === "rejected"
           ? `Flagged. The client reads “${PREVIEW_QUALITY_LABELS.rejected}”.`
-          : `Flagged. ${CHOICE_EFFECT.accepted}`,
+          : `Flagged. ${effectOf("accepted")}`,
       );
       setOpen(false);
     } catch (caught) {
@@ -89,7 +93,7 @@ export function QualityDialog({ job }: { job: StaffPreviewJobView }) {
               <RadioGroupItem id={`quality-${job.jobId}-${choice}`} value={choice} className="mt-1" />
               <Label htmlFor={`quality-${job.jobId}-${choice}`} className="flex flex-col gap-0.5 text-sm font-normal">
                 <span className="font-medium">{PREVIEW_QUALITY_LABELS[choice]}</span>
-                <span className="text-xs text-muted-foreground">{CHOICE_EFFECT[choice]}</span>
+                <span className="text-xs text-muted-foreground">{effectOf(choice)}</span>
               </Label>
             </div>
           ))}

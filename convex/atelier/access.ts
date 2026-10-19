@@ -82,14 +82,20 @@ export function hasStaffRole(user: Doc<"users">, role?: StaffRoleRequirement): b
 /**
  * Staff gate. An admin (role in Convex and in the Clerk session, as `requireAdmin` checks) holds every
  * role; anyone else needs one of the named roles in `users.staffRoles`. Throws FORBIDDEN.
+ *
+ * An admin flag in Convex that the Clerk session no longer carries (demoted, not yet re-synced by
+ * `users.ensure`) grants nothing: the user is returned with `role: "user"`, so this gate and every check
+ * made on the returned user afterwards (`hasStaffRole`, `requireAdminStaff`) see only `staffRoles`.
  */
 export async function requireStaff(ctx: Ctx, role?: StaffRoleRequirement): Promise<Doc<"users">> {
-  const user = await getCurrentUser(ctx);
-  if (!user) throw appError("UNAUTHENTICATED", "Sign in to continue.");
-  if (user.role === "admin") {
+  const stored = await getCurrentUser(ctx);
+  if (!stored) throw appError("UNAUTHENTICATED", "Sign in to continue.");
+  let user = stored;
+  if (stored.role === "admin") {
     const identity = await ctx.auth.getUserIdentity();
     const current = roleFromClerkMetadata(identity?.public_metadata ?? identity?.metadata);
-    if (current === "admin") return user;
+    if (current === "admin") return stored;
+    user = { ...stored, role: "user" };
   }
   if (!hasStaffRole(user, role)) {
     const wanted = role === undefined ? [] : typeof role === "string" ? [role] : [...role];

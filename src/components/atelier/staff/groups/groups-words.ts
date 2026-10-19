@@ -38,9 +38,11 @@ export const REVIEW_STATUSES: readonly GroupReviewStatus[] = ["approved", "in_re
 
 export const REVIEW_STATUS_EFFECT: Record<GroupReviewStatus, string> = {
   approved:
-    "The organizer reads that the house has approved the brief; invitations stop and participants finish their designs.",
-  in_review: "Keeps or returns the group to review, with your note as the house's question.",
-  closed: "Closes the group. Participants keep their own designs; nothing is ordered.",
+    "The organizer reads that the house has approved the brief, with your note on their group page; invitations stop and participants finish their designs.",
+  in_review:
+    "Keeps or returns the group to review; the organizer reads your note on their group page as the house's question.",
+  closed:
+    "Closes the group; the organizer reads your note on their group page. Participants keep their own designs and any commission already placed.",
 };
 
 /** What a reviewing concierge may set from the group's current status. */

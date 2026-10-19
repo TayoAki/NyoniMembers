@@ -74,6 +74,8 @@ export const vGroupView = v.object({
   permittedIndividual: v.array(vPermittedIndividualPath),
   status: vGroupStatus,
   statusLabel: v.string(),
+  /** The concierge's note from the latest review that wrote one, exactly as written; it names no participant. */
+  staffReviewNote: v.optional(v.string()),
   participants: v.array(vGroupParticipantView),
   createdAt: v.number(),
   updatedAt: v.number(),

@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { AtelierSection } from "@/components/atelier/common/atelier-section";
-import { DELETE_DESIGNS_WORDS, RECORDED_STEPS_SENTENCE, scopeWords } from "@/components/atelier/privacy/privacy-words";
+import {
+  browserOnlyWords,
+  DELETE_DESIGNS_WORDS,
+  RECORDED_STEPS_SENTENCE,
+  scopeWords,
+} from "@/components/atelier/privacy/privacy-words";
 import type { UsePrivacyRequest } from "@/components/atelier/privacy/use-privacy-request";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { ErrorAlert } from "@/components/common/error-alert";
@@ -20,12 +25,16 @@ type Props = {
 /**
  * S34 · Designs (C27): how many designs this browser or account holds, and their deletion as a recorded
  * request — with the exception for designs tied to a commission or a request said before anything runs.
+ * Signed in, a request covers the account only, so designs this browser holds unlinked are counted apart
+ * and the way to cover them is named.
  */
 export function DesignsSection({ drafts, signedIn, privacy }: Props) {
-  const live = drafts.filter((draft) => draft.status !== "archived").length;
-  const archived = drafts.length - live;
+  const covered = signedIn ? drafts.filter((draft) => draft.ownedByAccount) : drafts;
+  const browserOnly = drafts.length - covered.length;
+  const live = covered.filter((draft) => draft.status !== "archived").length;
+  const archived = covered.length - live;
   const failure = privacy.failure?.kind === "delete_designs" ? privacy.failure.error : null;
-  const nothing = drafts.length === 0;
+  const nothing = covered.length === 0;
 
   return (
     <AtelierSection
@@ -47,6 +56,14 @@ export function DesignsSection({ drafts, signedIn, privacy }: Props) {
             Your drafts
           </Link>
         </p>
+        {browserOnly > 0 ? (
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {browserOnlyWords(browserOnly)}{" "}
+            <Link href={routes.atelier.link} className="underline underline-offset-4 hover:text-foreground">
+              Link this browser&rsquo;s designs
+            </Link>
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <ConfirmDialog
             trigger={

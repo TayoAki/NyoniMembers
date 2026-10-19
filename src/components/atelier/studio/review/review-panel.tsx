@@ -13,6 +13,7 @@ import { ExportActions } from "./export-actions";
 import { RequestForm } from "./request-form";
 import { ReviewEligibility } from "./review-eligibility";
 import { ReviewOrderBook } from "./review-sections";
+import { ShareLinks } from "./share-links";
 import {
   BLOCKING_WARNINGS,
   ReviewBlockers,
@@ -120,6 +121,15 @@ export function ReviewPanel() {
           holds={holds}
           alreadySubmitted={draft.status === "submitted"}
         />
+      </AtelierSection>
+
+      <AtelierSection
+        id="review-share"
+        level={3}
+        title="Share the design"
+        description="A read-only link to the design and its cloth, for someone you name and for as long as you choose. It never carries your photographs, previews, measurements or contact details, and you can revoke it at any time."
+      >
+        <ShareLinks />
       </AtelierSection>
 
       <AtelierSection

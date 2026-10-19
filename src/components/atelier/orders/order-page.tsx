@@ -39,7 +39,8 @@ export function OrderPage({ orderId }: { orderId: string }) {
 function OrderLoader({ orderId }: { orderId: Id<"atelierOrders"> }) {
   const order = useQuery(api.atelier.orders.get, useOwnerArgs({ orderId }));
   if (order === undefined) return <OrderSkeleton />;
-  if (order === null) notFound();
+  // Inline, not notFound(): the subscription stays live, so the account's answer can replace it.
+  if (order === null) return <OrderNotFound />;
   return <OrderDetail order={order} />;
 }
 

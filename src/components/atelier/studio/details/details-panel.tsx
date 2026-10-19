@@ -1,7 +1,9 @@
 "use client";
 
 import { AtelierSection } from "@/components/atelier/common/atelier-section";
+import { useStudio } from "@/components/atelier/studio/panel-contract";
 import { CommitError } from "@/components/atelier/studio/style/commit-error";
+import { LockedNote } from "@/components/atelier/studio/style/locked-note";
 import { SavingIndicator } from "@/components/atelier/studio/style/saving-indicator";
 import { usePanelCommit } from "@/components/atelier/studio/style/use-panel-commit";
 import { ButtonPicker } from "./button-picker";
@@ -13,8 +15,10 @@ import { MonogramForm } from "./monogram-form";
  * shows what is saving and keeps the choice on screen when the server could not take it.
  */
 export function DetailsPanel() {
+  const { draft } = useStudio();
   const { pending, failure, run, retry } = usePanelCommit();
-  const busy = pending !== null;
+  const locked = draft.status !== "draft";
+  const busy = pending !== null || locked;
 
   return (
     <div>
@@ -22,6 +26,8 @@ export function DetailsPanel() {
         The buttons, the lining and, if you like, your initials. Each choice is saved as you make it and carries the
         supplier&apos;s reference into your order book.
       </p>
+
+      <LockedNote status={draft.status} what="buttons, lining and monogram" className="mb-6" />
 
       <AtelierSection
         id="details-buttons"

@@ -31,6 +31,8 @@ export function PrivacyRequestDetail({ requestId }: { requestId: Id<"atelierPriv
 
 export function PrivacyRequestDetailView({ request }: { request: StaffPrivacyRequestView }) {
   const unsettled = request.steps.filter((step) => step.status === "pending" || step.status === "failed");
+  const awaiting = unsettled.find((step) => step.awaitsStaff) ?? null;
+  const blocking = unsettled.filter((step) => !step.awaitsStaff);
   const terminal = request.status === "completed" || request.status === "rejected";
   return (
     <div className="space-y-6">
@@ -60,6 +62,7 @@ export function PrivacyRequestDetailView({ request }: { request: StaffPrivacyReq
                     {PRIVACY_STEP_STATUS_LABELS[step.status]}
                   </StatusLine>
                   <span>{step.label}</span>
+                  {step.awaitsStaff ? <span className="text-xs font-medium">Yours to record</span> : null}
                   {step.at !== null ? (
                     <Mono upper={false} className="text-[10px]">
                       {formatDateTime(step.at)}
@@ -116,8 +119,8 @@ export function PrivacyRequestDetailView({ request }: { request: StaffPrivacyReq
         <p className="text-sm text-muted-foreground">This request is “{request.statusLabel}”; nothing further runs.</p>
       ) : (
         <div className="grid gap-8 sm:grid-cols-2">
-          <AdvanceControl request={request} pendingCount={unsettled.length} />
-          <CompleteOrRejectForm request={request} blocked={unsettled.length > 0} />
+          <AdvanceControl request={request} pendingCount={unsettled.length} awaiting={awaiting} />
+          <CompleteOrRejectForm request={request} blocked={blocking.length > 0} awaiting={awaiting} />
         </div>
       )}
     </div>
@@ -179,7 +182,21 @@ function ExportAccess({ requestId }: { requestId: Id<"atelierPrivacyRequests"> }
   );
 }
 
-function AdvanceControl({ request, pendingCount }: { request: StaffPrivacyRequestView; pendingCount: number }) {
+type StepView = StaffPrivacyRequestView["steps"][number];
+
+/**
+ * Runs the next step. When that step rests with the staff member (the account's removal at the identity
+ * provider), the control says plainly that pressing it is their record that the removal has been done.
+ */
+function AdvanceControl({
+  request,
+  pendingCount,
+  awaiting,
+}: {
+  request: StaffPrivacyRequestView;
+  pendingCount: number;
+  awaiting: StepView | null;
+}) {
   const advance = useMutation(api.atelier.privacy.staffAdvance);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -202,14 +219,18 @@ function AdvanceControl({ request, pendingCount }: { request: StaffPrivacyReques
     }
   }
 
+  const recording = awaiting !== null && pendingCount === 1;
+
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <h3 className="text-base font-medium">Run the next step</h3>
+        <h3 className="text-base font-medium">{recording ? "Record the account removal" : "Run the next step"}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {pendingCount === 0
             ? "Every step has settled."
-            : `${pluralize(pendingCount, "step")} pending or failed. Runs the next one now, including one that failed, and records it under your name.`}
+            : recording
+              ? `“${awaiting?.label}” waits on you. Remove the account at the identity provider first; pressing this records that it was done, under your name, and the request then reads “${PRIVACY_STATUS_LABELS.completed}”.`
+              : `${pluralize(pendingCount, "step")} pending or failed. Runs the next one now, including one that failed, and records it under your name.`}
         </p>
       </div>
       {error ? <ErrorAlert title="The step did not run" message={error} /> : null}
@@ -221,13 +242,21 @@ function AdvanceControl({ request, pendingCount }: { request: StaffPrivacyReques
         className="h-10 rounded-none px-4"
       >
         {pending ? <Spinner data-icon="inline-start" /> : null}
-        Advance
+        {recording ? "Record the account removed" : "Advance"}
       </Button>
     </div>
   );
 }
 
-function CompleteOrRejectForm({ request, blocked }: { request: StaffPrivacyRequestView; blocked: boolean }) {
+function CompleteOrRejectForm({
+  request,
+  blocked,
+  awaiting,
+}: {
+  request: StaffPrivacyRequestView;
+  blocked: boolean;
+  awaiting: StepView | null;
+}) {
   const complete = useMutation(api.atelier.privacy.complete);
   const reject = useMutation(api.atelier.privacy.reject);
   const [note, setNote] = useState("");
@@ -268,6 +297,9 @@ function CompleteOrRejectForm({ request, blocked }: { request: StaffPrivacyReque
         <p className="text-sm leading-relaxed text-muted-foreground">
           Complete once every step has settled; reject with a documented reason when a legal or policy exception stands.
           Both need a note.
+          {awaiting
+            ? ` Completing also records “${awaiting.label}” as done under your name, so remove the account at the identity provider first.`
+            : ""}
         </p>
       </div>
       <Field>

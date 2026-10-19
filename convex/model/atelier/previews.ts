@@ -43,6 +43,9 @@ const KEY_SCAN = 20;
 export const PREVIEWS_UNAVAILABLE_MESSAGE =
   "Personal previews are not switched on for this atelier yet. Your design is saved, the studio illustration shows every choice you have made, and a concierge can still review it.";
 
+export const LINK_BEFORE_PREVIEW_MESSAGE =
+  "This design is saved to this browser and your photograph to your account. Save the design to your account first (Drafts → Save to my account), then ask for the preview: a preview stays with its photograph, so removing the photograph always removes it too.";
+
 export type PreviewEnv = { OPENAI_API_KEY?: string; AI_GATEWAY_API_KEY?: string };
 
 /** Previews run only when the deployment holds a key for the image provider; otherwise the feature says so. */
@@ -70,6 +73,19 @@ function jobOwner(doc: Owned, actor: Actor): Owned {
   if (doc.userId !== undefined) return { userId: doc.userId };
   if (doc.guestKey !== undefined) return { guestKey: doc.guestKey };
   return ownerFieldsFor(actor);
+}
+
+/**
+ * A job is stamped with its design's owner and made from a photograph; both must be the same owner, or
+ * deleting the photograph (which retires jobs by the photograph's owner) would leave the result behind.
+ * A signed-in client on a design still held by this browser is asked to link it first (C11, C13).
+ */
+export function assertSameOwner(owner: Owned, photo: Photo): void {
+  const same =
+    owner.userId !== undefined
+      ? photo.userId === owner.userId
+      : owner.guestKey !== undefined && photo.userId === undefined && photo.guestKey === owner.guestKey;
+  if (!same) throw appError("INVALID_STATE", LINK_BEFORE_PREVIEW_MESSAGE, { linkRequired: true });
 }
 
 function ownerJobsSince(ctx: Ctx, owner: Owned, since: number) {
@@ -143,6 +159,8 @@ export async function startPreview(
   }
   const photo = input.photo;
   if (!photo || photo.status !== "active") throw appError("INVALID_STATE", "Add a photo first.");
+  const owner = jobOwner(draft, actor);
+  assertSameOwner(owner, photo);
 
   const revision = await createRevision(ctx, draft, "preview", now);
   const key = idempotencyKey(draft._id, revision.specHash, photo._id);
@@ -152,7 +170,6 @@ export async function startPreview(
     return { jobId: existing._id, reused: true };
   }
 
-  const owner = jobOwner(draft, actor);
   await assertDailyBudget(ctx, owner, now);
   const jobId = await ctx.db.insert("atelierPreviewJobs", {
     ...owner,
@@ -235,12 +252,13 @@ export async function retryPreview(
   const draft = await ctx.db.get(job.draftId);
   if (!draft) throw appError("NOT_FOUND", "That design doesn't exist.");
 
+  const owner = jobOwner(job, actor);
+  assertSameOwner(owner, photo);
   const live = (await jobsForKey(ctx, job.idempotencyKey)).find(
     (other) => other.status === "queued" || other.status === "processing",
   );
   if (live) return { jobId: live._id, reused: true };
 
-  const owner = jobOwner(job, actor);
   await assertDailyBudget(ctx, owner, now);
   const attempt =
     Math.max(job.attempt, ...(await jobsForKey(ctx, job.idempotencyKey)).map((other) => other.attempt)) + 1;

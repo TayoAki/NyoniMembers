@@ -22,7 +22,7 @@ import { STAFF_ROLE_LABELS, type StaffRole } from "@convex/shared/atelier/enums"
  */
 
 export const DESK_LINKS = [
-  { href: routes.staffAtelier.queue, label: "Queue", also: ["/admin/atelier/cases"] },
+  { href: routes.staffAtelier.queue, label: "Queue", also: [routes.staffAtelier.caseBase] },
   { href: routes.staffAtelier.catalogue, label: "Catalogue" },
   { href: routes.staffAtelier.fit, label: "Fit" },
   { href: routes.staffAtelier.quotes, label: "Quotes" },
@@ -33,11 +33,22 @@ export const DESK_LINKS = [
   { href: routes.staffAtelier.groups, label: "Groups" },
 ] as const;
 
-function isActive(pathname: string, link: (typeof DESK_LINKS)[number]): boolean {
+export type DeskLink = (typeof DESK_LINKS)[number];
+
+function isUnder(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+function isActive(pathname: string, link: DeskLink): boolean {
   if (link.href === routes.staffAtelier.queue) {
-    return pathname === link.href || ("also" in link && link.also.some((prefix) => pathname.startsWith(prefix)));
+    return pathname === link.href || ("also" in link && link.also.some((base) => isUnder(pathname, base)));
   }
-  return pathname === link.href || pathname.startsWith(`${link.href}/`);
+  return isUnder(pathname, link.href);
+}
+
+/** The desk a staff path belongs to (a case page belongs to the queue); null outside the desk. */
+export function deskLinkFor(pathname: string): DeskLink | null {
+  return DESK_LINKS.find((link) => isActive(pathname, link)) ?? null;
 }
 
 /** The desk's destinations. Scrolls sideways on phones instead of wrapping into a second row. */

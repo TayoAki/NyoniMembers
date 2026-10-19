@@ -19,14 +19,16 @@ import {
   PAYMENT_STATE_LABELS,
   PRIVACY_KIND_LABELS,
   PRIVACY_STATUS_LABELS,
+  PRIVACY_STEP_STATUS_LABELS,
   type CaseStatus,
   type PrivacyKind,
   type PrivacyStatus,
 } from "../../shared/atelier/enums";
 import { PROVIDER_DISCLOSURE_VERSION } from "../../shared/atelier/policy";
 import { describeSpec, specSummary } from "../../shared/atelier/spec";
-import { clothSummary, specNames } from "./catalogue";
 import { appendMessage, createCase, findBySubmissionKey, touchCase, type CaseContactInput } from "./case_core";
+import { clothSummary, specNames } from "./catalogue";
+import { isReleasedOrder } from "./fit";
 
 type Ctx = QueryCtx | MutationCtx;
 type Request = Doc<"atelierPrivacyRequests">;
@@ -41,7 +43,9 @@ type Job = Doc<"atelierPreviewJobs">;
  * client reads what has actually happened: "Access removed", "Deleting", "Waiting on a provider", "Completed
  * with exceptions". Nothing here touches `atelierOrders`: a commission's specification and fit profile stay
  * with the commission, and that is disclosed up front rather than discovered later (C27 acceptance: removing
- * a photo never cancels an order). Only the owner's rows are ever read, through the owner indexes.
+ * a photo never cancels an order). Only the owner's rows are ever read, through the owner indexes. A request
+ * made while signed in is the account's alone: a browser's unlinked guest rows are not swept into it, since
+ * linking hands every guest-keyed row to whichever account links next (the Privacy page says so).
  *
  *   requested ─▶ access_revoked ─▶ primary_deleted ─▶ downstream_pending ─▶ completed
  *                                                                        └─▶ rejected (staff, with a note)
@@ -54,6 +58,7 @@ export const PRIVACY_STEP_KEYS = [
   "revoke_preview_links",
   "cancel_preview_jobs",
   "delete_photos",
+  "delete_fit_photos",
   "notify_provider",
   "revoke_shares",
   "archive_drafts",
@@ -69,7 +74,8 @@ export const PRIVACY_STEP_LABELS: Record<PrivacyStepKey, string> = {
   revoke_preview_links: "Revoke preview links",
   cancel_preview_jobs: "Cancel preview jobs",
   delete_photos: "Delete photographs and preview results",
-  notify_provider: "Notify the preview provider",
+  delete_fit_photos: "Delete posture photographs",
+  notify_provider: "Record the preview provider's retention",
   revoke_shares: "Revoke shared links",
   archive_drafts: "Archive drafts",
   delete_unreferenced_drafts: "Delete designs not tied to a commission or a request",
@@ -81,6 +87,7 @@ export const PHOTO_STEPS: readonly PrivacyStepKey[] = [
   "revoke_preview_links",
   "cancel_preview_jobs",
   "delete_photos",
+  "delete_fit_photos",
   "notify_provider",
 ];
 export const DESIGN_STEPS: readonly PrivacyStepKey[] = [
@@ -99,7 +106,13 @@ export const PRIVACY_STEPS_BY_KIND: Record<PrivacyKind, readonly PrivacyStepKey[
 /** Steps whose completion means the client's data can no longer be reached from outside. */
 const REVOCATION_KEYS: readonly PrivacyStepKey[] = ["revoke_shares", "revoke_preview_links", "revoke_access"];
 /** Steps whose completion means primary copies are gone from the house's systems. */
-const DELETION_KEYS: readonly PrivacyStepKey[] = ["delete_photos", "delete_unreferenced_drafts"];
+const DELETION_KEYS: readonly PrivacyStepKey[] = ["delete_photos", "delete_fit_photos", "delete_unreferenced_drafts"];
+/**
+ * Steps that rest with someone outside the house's systems: the account at the identity provider is removed
+ * by a privacy staff member, who records it. While such a step is all that remains, the request reads
+ * "Waiting on a provider" and stays on the A08 queue; it is never called completed on the system's say-so.
+ */
+const DOWNSTREAM_KEYS: readonly PrivacyStepKey[] = ["revoke_access"];
 
 export const OPEN_PRIVACY_STATUSES: readonly PrivacyStatus[] = [
   "requested",
@@ -109,11 +122,13 @@ export const OPEN_PRIVACY_STATUSES: readonly PrivacyStatus[] = [
 ];
 export const SETTLED_STEP_STATUSES: readonly Step["status"][] = ["done", "exception"];
 
-export const PROVIDER_RETENTION_EXCEPTION = `The preview provider (${PROVIDER_DISCLOSURE_VERSION}) holds its own copy under its retention terms. The house has recorded your deletion with it but cannot confirm the provider's deletion from here.`;
-export const ACCESS_REVOCATION_EXCEPTION =
-  "Sign-in is managed by the house's identity provider. A privacy staff member removes the account there and records it when they complete this request.";
+/** The house sends the provider no deletion request (PHOTO_CONSENT promises none), and says so as an exception. */
+export const PROVIDER_RETENTION_EXCEPTION = `Anything sent to the preview provider (${PROVIDER_DISCLOSURE_VERSION}) is held under the provider's own retention terms. The house sends it no deletion request and cannot confirm its deletion from here.`;
+/** On the step while it waits on a privacy staff member; the words are the status the client reads, never a date. */
+export const ACCESS_REVOCATION_PENDING_NOTE = `Sign-in is managed by the house's identity provider. A privacy staff member removes the account there and records it here; until then this request reads “${PRIVACY_STATUS_LABELS.downstream_pending}”.`;
+export const ACCESS_REMOVED_NOTE = "Account removed at the identity provider, recorded by a privacy staff member.";
 export const RECORDS_EXCEPTION =
-  "Your requests to the house and the record of this privacy request are kept as service and audit records.";
+  "Your requests to the house, your fit profiles' measurements and the record of this privacy request are kept as service and audit records.";
 
 const OWNER_SCAN = 200;
 const PHOTOS_SCAN = 100;
@@ -121,6 +136,8 @@ const SHARES_PER_DRAFT = 50;
 const REVISIONS_PER_DRAFT = 200;
 const JOBS_PER_DRAFT = 100;
 const PROFILES_MAX = 50;
+const FIT_PHOTOS_PER_PROFILE = 20;
+const COMMISSIONS_NAMED = 5;
 const QUEUE_MAX = 100;
 export const AUDIT_LIMIT_MAX = 200;
 /** An export still being written after this long is treated as abandoned and may be started again. */
@@ -138,16 +155,22 @@ export function isSettled(step: Pick<Step, "status">): boolean {
   return SETTLED_STEP_STATUSES.includes(step.status);
 }
 
+/** A step that has run what it can and now rests with a privacy staff member: pending, stamped, and theirs to record. */
+export function awaitsStaff(step: Pick<Step, "key" | "status" | "at">): boolean {
+  return DOWNSTREAM_KEYS.includes(step.key as PrivacyStepKey) && step.status === "pending" && step.at !== undefined;
+}
+
 /**
  * The status is a reading of the steps, never a promise: completed only when every step is settled;
- * "waiting on a provider" only when the provider notice is all that remains; deleted or revoked only
- * once such a step has actually finished. A failed step holds the status where it is.
+ * "waiting on a provider" only when what remains rests outside the house's systems (the identity-provider
+ * removal a privacy staff member records); deleted or revoked only once such a step has actually finished.
+ * A failed step holds the status where it is.
  */
 export function deriveStatus(steps: readonly Step[], current: PrivacyStatus): PrivacyStatus {
   if (current === "rejected") return current;
   if (steps.length > 0 && steps.every(isSettled)) return "completed";
   const unsettled = steps.filter((step) => !isSettled(step));
-  if (unsettled.length === 1 && unsettled[0].key === "notify_provider") return "downstream_pending";
+  if (unsettled.length > 0 && unsettled.every(awaitsStaff)) return "downstream_pending";
   const finished = new Set(steps.filter(isSettled).map((step) => step.key));
   if (DELETION_KEYS.some((key) => finished.has(key))) return "primary_deleted";
   if (REVOCATION_KEYS.some((key) => finished.has(key))) return "access_revoked";
@@ -290,6 +313,7 @@ async function ownerRequests(ctx: Ctx, owner: Owned): Promise<Request[]> {
   return [];
 }
 
+/** Fit profiles, and the posture photographs on them, live only on an account (C17). */
 async function ownerProfiles(ctx: Ctx, owner: Owned): Promise<Doc<"atelierFitProfiles">[]> {
   if (owner.userId === undefined) return [];
   const userId = owner.userId;
@@ -298,6 +322,13 @@ async function ownerProfiles(ctx: Ctx, owner: Owned): Promise<Doc<"atelierFitPro
     .withIndex("by_user_version", (q) => q.eq("userId", userId))
     .order("desc")
     .take(PROFILES_MAX);
+}
+
+async function fitPhotosOf(ctx: Ctx, profileId: Id<"atelierFitProfiles">): Promise<Doc<"atelierFitPhotos">[]> {
+  return ctx.db
+    .query("atelierFitPhotos")
+    .withIndex("by_profile", (q) => q.eq("profileId", profileId))
+    .take(FIT_PHOTOS_PER_PROFILE);
 }
 
 async function sharesForDraft(ctx: Ctx, draftId: Id<"atelierDrafts">): Promise<Doc<"atelierShares">[]> {
@@ -327,30 +358,63 @@ async function retainedDraftIds(ctx: Ctx, owner: Owned): Promise<Set<Id<"atelier
   return retained;
 }
 
+type RetainedDesign = { draft: Draft; order: Doc<"atelierOrders"> | null };
+
+/**
+ * The owner's designs the house keeps, each once, with the record that keeps it: a commission first (its quote
+ * case refers to the same design), else a request. Read from the same owner rows and the same `retainedDraftIds`
+ * rule the steps use, so the disclosure before anything runs and a step's "kept" count name the same designs.
+ */
+async function retainedDesigns(ctx: Ctx, owner: Owned): Promise<RetainedDesign[]> {
+  const [drafts, orders, retained] = await Promise.all([
+    ownerDrafts(ctx, owner),
+    ownerOrders(ctx, owner),
+    retainedDraftIds(ctx, owner),
+  ]);
+  const orderFor = new Map<Id<"atelierDrafts">, Doc<"atelierOrders">>();
+  for (const order of orders) if (!orderFor.has(order.draftId)) orderFor.set(order.draftId, order);
+  return drafts
+    .filter((draft) => retained.has(draft._id))
+    .map((draft) => ({ draft, order: orderFor.get(draft._id) ?? null }));
+}
+
 function plural(n: number, singular: string, pluralWord = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : pluralWord}`;
 }
 
-/** What the client is told before anything runs: the records the house keeps, named truthfully. */
+/** "1 design stays … as it is" or "2 designs stay … as they are": the kept-design sentence agrees with its count. */
+function keptDesignsWords(count: number, record: string): string {
+  const one = count === 1;
+  return `${plural(count, "design")} ${one ? "stays" : "stay"} with ${record}, as ${one ? "it is" : "they are"}; ${one ? "its" : "their"} shared links are revoked and nothing else about ${one ? "it" : "them"} changes.`;
+}
+
+/** What the client is told before anything runs: the records the house keeps, each design named once. */
 export async function retentionExceptions(ctx: Ctx, owner: Owned, kind: PrivacyKind): Promise<string[]> {
   if (kind === "export") return [];
   const lines: string[] = [];
   if (kind === "delete_designs" || kind === "close_account") {
-    const orders = (await ownerOrders(ctx, owner)).filter((order) => order.status !== "cancelled");
-    for (const order of orders.slice(0, 5)) {
+    const retained = await retainedDesigns(ctx, owner);
+    const commissioned = retained.flatMap((entry) => (entry.order ? [entry.order] : []));
+    for (const order of commissioned.slice(0, COMMISSIONS_NAMED)) {
       const cloth = await clothSummary(ctx, order.spec.clothCode);
+      const name = `"${specSummary(order.spec, cloth?.name)}"`;
       lines.push(
-        `Your commission "${specSummary(order.spec, cloth?.name)}" (${ORDER_STATUS_LABELS[order.status].toLowerCase()}) keeps its specification and fit profile so the house can make and service the suit.`,
+        order.status === "cancelled"
+          ? `Your cancelled commission ${name} keeps its design and specification as the record of that commission.`
+          : `Your commission ${name} (${ORDER_STATUS_LABELS[order.status].toLowerCase()}) keeps its design, specification and fit profile so the house can make and service the suit.`,
       );
     }
-    if (orders.length > 5)
+    if (commissioned.length > COMMISSIONS_NAMED)
       lines.push(
-        `${plural(orders.length - 5, "further commission")} keep their specification and fit profile for the same reason.`,
+        `${plural(commissioned.length - COMMISSIONS_NAMED, "further commission")} keep their design and specification for the same reason.`,
       );
-    const requested = (await ownerCases(ctx, owner)).filter((c) => c.draftId !== undefined);
-    if (requested.length > 0)
+    const requested = retained.length - commissioned.length;
+    if (requested > 0)
       lines.push(
-        `${plural(requested.length, "design")} you sent the house stay with that request's record; their shared links are revoked.`,
+        keptDesignsWords(
+          requested,
+          requested === 1 ? "the request you sent the house" : "the requests you sent the house",
+        ),
       );
   }
   if (kind === "close_account") lines.push(RECORDS_EXCEPTION);
@@ -396,7 +460,14 @@ export function statusLabelFor(request: Pick<Request, "status" | "exceptions" | 
 }
 
 export function toStepView(step: Step): PrivacyStepView {
-  return { key: step.key, label: step.label, status: step.status, at: step.at ?? null, note: step.note ?? null };
+  return {
+    key: step.key,
+    label: step.label,
+    status: step.status,
+    at: step.at ?? null,
+    note: step.note ?? null,
+    awaitsStaff: awaitsStaff(step),
+  };
 }
 
 async function requestViewFields(ctx: Ctx, request: Request): Promise<Omit<PrivacyRequestView, "exportUrl">> {
@@ -582,7 +653,8 @@ export async function requestPrivacy(
 // Steps
 // ------------------------------------------------------------------------------------------------
 
-type StepOutcome = { status: "done" | "exception"; note: string; exceptions?: string[] };
+/** `pending` is a step that ran what it could and now rests with a privacy staff member to record. */
+type StepOutcome = { status: "done" | "exception" | "pending"; note: string; exceptions?: string[] };
 
 async function revokeShares(ctx: MutationCtx, owner: Owned, now: number): Promise<number> {
   let revoked = 0;
@@ -626,7 +698,17 @@ async function purgeDraft(ctx: MutationCtx, draft: Draft, now: number): Promise<
   await ctx.db.delete(draft._id);
 }
 
-async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, now: number): Promise<StepOutcome> {
+/**
+ * `byStaff` is the privacy staff member recording a step that rests with the house's people (`awaitsStaff`);
+ * it is null on every automatic run and on a staff re-run of any other step.
+ */
+async function runStep(
+  ctx: MutationCtx,
+  request: Request,
+  key: PrivacyStepKey,
+  now: number,
+  byStaff: User | null = null,
+): Promise<StepOutcome> {
   const owner = ownerOf(request);
   switch (key) {
     case "collect_designs": {
@@ -678,6 +760,34 @@ async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, 
       }
       return { status: "done", note: `${plural(deleted, "photograph")} deleted` };
     }
+    case "delete_fit_photos": {
+      // Posture photographs are the fitter's to read and the client's to take back at any time (C17, C11):
+      // every one goes, whatever its profile's status. A profile a released commission was cut from keeps
+      // its measurements with that commission, and that is said here rather than left to be discovered.
+      if (owner.userId === undefined)
+        return { status: "done", note: "Posture photographs belong to an account; this browser holds none." };
+      const releasedProfiles = new Set(
+        (await ownerOrders(ctx, owner)).flatMap((order) =>
+          order.fitProfileId !== undefined && isReleasedOrder(order) ? [order.fitProfileId] : [],
+        ),
+      );
+      let deleted = 0;
+      const exceptions: string[] = [];
+      for (const profile of await ownerProfiles(ctx, owner)) {
+        for (const photo of await fitPhotosOf(ctx, profile._id)) {
+          if (photo.status === "deleted") continue;
+          await deleteFile(ctx, photo.storageId);
+          await ctx.db.patch(photo._id, { status: "deleted" });
+          deleted += 1;
+        }
+        if (releasedProfiles.has(profile._id))
+          exceptions.push(
+            `The measurements of fit profile v${profile.version} stay with your released commission so the house can make and service the suit.`,
+          );
+      }
+      const note = `${plural(deleted, "posture photograph")} deleted`;
+      return exceptions.length > 0 ? { status: "exception", note, exceptions } : { status: "done", note };
+    }
     case "notify_provider": {
       const photos = await ownerPhotos(ctx, owner);
       if (photos.length === 0) return { status: "done", note: "No photograph was ever sent to the preview provider." };
@@ -686,7 +796,7 @@ async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, 
         {
           actor: null,
           actorKind: "system",
-          action: "privacy.providerNotice",
+          action: "privacy.providerRetention",
           targetTable: "atelierPrivacyRequests",
           targetId: request._id,
           meta: { photos: photos.length, disclosure: PROVIDER_DISCLOSURE_VERSION },
@@ -727,20 +837,20 @@ async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, 
         deleted += 1;
       }
       if (kept === 0) return { status: "done", note: `${plural(deleted, "design")} deleted` };
-      const exception = `${plural(kept, "design")} stay with a commission or a request to the house; they are archived and no longer shared.`;
+      // A kept design is left as it is, not archived: its request may still be answered on it.
       return {
         status: "exception",
         note: `${plural(deleted, "design")} deleted · ${kept} kept`,
-        exceptions: [exception],
+        exceptions: [keptDesignsWords(kept, "a commission or a request to the house")],
       };
     }
     case "revoke_access": {
+      // What the house's systems can do runs now; the account at the identity provider is removed by a privacy
+      // staff member, and only their record of it settles the step, so nothing reads "Completed" before then.
       const revoked = await revokeShares(ctx, owner, now);
-      return {
-        status: "exception",
-        note: `${plural(revoked, "remaining shared link")} revoked. ${ACCESS_REVOCATION_EXCEPTION}`,
-        exceptions: [ACCESS_REVOCATION_EXCEPTION],
-      };
+      const links = `${plural(revoked, "remaining shared link")} revoked.`;
+      if (byStaff) return { status: "done", note: `${links} ${ACCESS_REMOVED_NOTE}` };
+      return { status: "pending", note: `${links} ${ACCESS_REVOCATION_PENDING_NOTE}` };
     }
   }
 }
@@ -764,7 +874,10 @@ async function recordStep(
   for (const line of newExceptions) if (!exceptions.includes(line)) exceptions.push(line);
   const status = deriveStatus(steps, request.status);
   const completedAt = status === "completed" ? (request.completedAt ?? now) : request.completedAt;
-  await ctx.db.patch(request._id, { steps, exceptions, status, completedAt });
+  // A staff member whose own record completes the request is the one who handled it.
+  const handledByStaffId =
+    status === "completed" && actor ? (request.handledByStaffId ?? actor._id) : request.handledByStaffId;
+  await ctx.db.patch(request._id, { steps, exceptions, status, completedAt, handledByStaffId });
   const step = steps[index];
   await audit(
     ctx,
@@ -778,17 +891,13 @@ async function recordStep(
     },
     now,
   );
-  const updated: Request = { ...request, steps, exceptions, status, completedAt };
+  const updated: Request = { ...request, steps, exceptions, status, completedAt, handledByStaffId };
   if (status !== request.status) {
     const caseDoc = await caseFor(ctx, request);
     if (caseDoc) {
       const label = statusLabelFor(updated);
-      await appendMessage(
-        ctx,
-        caseDoc._id,
-        { author: "system", body: `${label}. ${step.label}: ${step.note ?? step.status}.` },
-        now,
-      );
+      const outcome = (step.note ?? PRIVACY_STEP_STATUS_LABELS[step.status]).replace(/\.$/, "");
+      await appendMessage(ctx, caseDoc._id, { author: "system", body: `${label}. ${step.label}: ${outcome}.` }, now);
       if (status === "completed") await touchCase(ctx, caseDoc._id, { status: "completed", closedAt: now }, now);
     }
   }
@@ -804,8 +913,9 @@ export type AdvanceResult = { ran: string | null; status: PrivacyStatus; schedul
 
 /**
  * Runs the next step in its own transaction and schedules the one after it. Automatic runs stop at a failed
- * step, which waits for staff (`manual: true` re-runs it). The export step is handed to the `writeExport`
- * action, since only an action can store a file; it reports back through `recordExport`.
+ * step, which waits for staff (`manual: true` re-runs it), and at a step that rests with a privacy staff
+ * member (`awaitsStaff`), which only that member's manual run records. The export step is handed to the
+ * `writeExport` action, since only an action can store a file; it reports back through `recordExport`.
  */
 export async function advance(
   ctx: MutationCtx,
@@ -824,7 +934,10 @@ export async function advance(
   }
   const step = request.steps[index];
   if (step.status === "failed" && !options.manual) return { ran: null, status: request.status, scheduled: false };
+  if (awaitsStaff(step) && !options.manual) return { ran: null, status: request.status, scheduled: false };
   const key = step.key as PrivacyStepKey;
+  // Only a step already resting with staff is theirs to record as done; a re-run of a failed one runs as the system would.
+  const recorder = options.manual && awaitsStaff(step) ? (options.actor ?? null) : null;
 
   if (key === "write_export") {
     const inFlight = step.status === "pending" && step.at !== undefined && now - step.at < EXPORT_IN_FLIGHT_MS;
@@ -838,7 +951,7 @@ export async function advance(
 
   let outcome: StepOutcome;
   try {
-    outcome = await runStep(ctx, request, key, now);
+    outcome = await runStep(ctx, request, key, now, recorder);
   } catch (error) {
     const note = error instanceof Error ? error.message : String(error);
     await recordStep(ctx, request, index, { status: "failed", at: now, note }, [], options.actor ?? null, now);
@@ -854,7 +967,11 @@ export async function advance(
     now,
   );
   const next = nextUnsettled(updated.steps);
-  const scheduled = next >= 0 && updated.steps[next].status === "pending" && updated.status !== "completed";
+  const scheduled =
+    next >= 0 &&
+    updated.steps[next].status === "pending" &&
+    !awaitsStaff(updated.steps[next]) &&
+    updated.status !== "completed";
   if (scheduled) await ctx.scheduler.runAfter(0, internal.atelier.privacy.advance, { requestId });
   return { ran: key, status: updated.status, scheduled };
 }
@@ -1001,7 +1118,11 @@ export async function exportPayload(
 // Staff (O08)
 // ------------------------------------------------------------------------------------------------
 
-/** Closes a request whose steps have all run; the note documents what the staff member did or reviewed. */
+/**
+ * Closes a request whose steps have all run; the note documents what the staff member did or reviewed. A step
+ * that rests with the staff member (the account's removal at the identity provider) is recorded as done by
+ * this completion, under their name: completing is their statement that it has been done.
+ */
 export async function complete(
   ctx: MutationCtx,
   staff: User,
@@ -1013,20 +1134,34 @@ export async function complete(
   if (!body) throw appError("INVALID_INPUT", "A note on what was reviewed or done is needed.");
   if (request.status === "rejected")
     throw appError("INVALID_STATE", "This request was rejected; it cannot be completed.", { status: request.status });
-  const unsettled = request.steps.filter((step) => !isSettled(step));
-  if (unsettled.length > 0) {
+  const blocking = request.steps.filter((step) => !isSettled(step) && !awaitsStaff(step));
+  if (blocking.length > 0) {
     throw appError(
       "INVALID_STATE",
-      `${plural(unsettled.length, "step")} still pending or failed: ${unsettled.map((step) => step.label).join(", ")}. Run them first.`,
+      `${plural(blocking.length, "step")} still pending or failed: ${blocking.map((step) => step.label).join(", ")}. Run them first.`,
       {
-        steps: unsettled.map((step) => step.key),
+        steps: blocking.map((step) => step.key),
       },
     );
   }
-  if (request.status !== "completed" || request.handledByStaffId !== staff._id) {
+  let current = request;
+  for (const [index, step] of request.steps.entries()) {
+    if (!awaitsStaff(step)) continue;
+    const outcome = await runStep(ctx, current, step.key as PrivacyStepKey, now, staff);
+    current = await recordStep(
+      ctx,
+      current,
+      index,
+      { status: outcome.status, at: now, note: outcome.note },
+      outcome.exceptions ?? [],
+      staff,
+      now,
+    );
+  }
+  if (current.status !== "completed" || current.handledByStaffId !== staff._id) {
     await ctx.db.patch(request._id, {
       status: "completed",
-      completedAt: request.completedAt ?? now,
+      completedAt: current.completedAt ?? now,
       handledByStaffId: staff._id,
     });
   }

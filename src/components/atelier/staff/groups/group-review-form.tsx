@@ -40,7 +40,7 @@ export function GroupReviewForm({ group }: { group: GroupReviewView }) {
     setError(null);
     try {
       await review({ groupId: group._id, status, note: note.trim() });
-      toast.success(`Recorded. The organizer reads “${organizerReads(status)}” and your note.`);
+      toast.success(`Recorded. The organizer reads “${organizerReads(status)}” and your note on their group page.`);
       setStatus(null);
     } catch (caught) {
       setError(reportError(caught).message);

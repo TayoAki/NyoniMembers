@@ -479,7 +479,8 @@ export default defineSchema({
     .index("by_user", ["userId", "createdAt"])
     .index("by_guestKey", ["guestKey", "createdAt"])
     .index("by_idempotencyKey", ["idempotencyKey"])
-    .index("by_status", ["status", "createdAt"]),
+    .index("by_status", ["status", "createdAt"])
+    .index("by_photo", ["personPhotoId", "createdAt"]),
 
   atelierFitProfiles: defineTable({
     userId: v.id("users"),
@@ -727,7 +728,9 @@ export default defineSchema({
     staffReviewNote: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_organizer", ["organizerUserId", "updatedAt"]),
+  })
+    .index("by_organizer", ["organizerUserId", "updatedAt"])
+    .index("by_status", ["status", "updatedAt"]),
 
   atelierGroupParticipants: defineTable({
     groupId: v.id("atelierGroups"),

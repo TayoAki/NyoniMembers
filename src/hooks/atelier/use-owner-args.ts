@@ -1,18 +1,21 @@
 "use client";
 
 import { useAtelierSession } from "@/components/atelier/shell/atelier-session";
+import { useAtelierViewer } from "@/hooks/atelier/use-atelier-viewer";
 
 /**
  * Arguments for a Convex read of something the visitor owns: the browser's guest key, or nothing
  * for a signed-in client (the server resolves the account). Returns "skip" until the session has
- * read storage, so a query never fires with the wrong identity on first paint.
+ * read storage and the backend knows who is asking, so a query never fires with the wrong identity:
+ * a signed-in client's request, commission or fitting is never answered "not found" on first paint.
  */
 export function useOwnerArgs<T extends Record<string, unknown>>(
   extra: T,
   enabled = true,
 ): (T & { guestKey?: string }) | "skip" {
   const { guestKey, ready } = useAtelierSession();
-  if (!ready || !enabled) return "skip";
+  const { authSettled } = useAtelierViewer();
+  if (!ready || !authSettled || !enabled) return "skip";
   return guestKey ? { ...extra, guestKey } : extra;
 }
 

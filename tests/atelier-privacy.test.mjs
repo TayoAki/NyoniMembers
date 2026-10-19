@@ -276,6 +276,7 @@ test("each kind plans the contract's steps, pending, in order; closing an accoun
     "revoke_preview_links",
     "cancel_preview_jobs",
     "delete_photos",
+    "delete_fit_photos",
     "notify_provider",
   ]);
   assert.deepEqual(keys("delete_designs"), ["revoke_shares", "archive_drafts", "delete_unreferenced_drafts"]);
@@ -314,17 +315,30 @@ test("the status is read from the steps: nothing is called deleted, revoked or c
   const allBut = Object.fromEntries(privacy.planSteps("close_account").map((step) => [step.key, "done"]));
   assert.equal(
     privacy.deriveStatus(steps({ ...allBut, notify_provider: "pending" }), "primary_deleted"),
-    "downstream_pending",
+    "primary_deleted",
+    "the house sends the preview provider nothing, so nothing waits on it",
+  );
+  const withAccess = (patch) =>
+    steps({ ...allBut, revoke_access: "pending" }).map((step) =>
+      step.key === "revoke_access" ? { ...step, ...patch } : step,
+    );
+  assert.equal(
+    privacy.deriveStatus(withAccess({}), "primary_deleted"),
+    "primary_deleted",
+    "a removal not yet started is not yet waiting on anyone",
   );
   assert.equal(
-    privacy.deriveStatus(steps({ ...allBut, notify_provider: "failed" }), "primary_deleted"),
+    privacy.deriveStatus(withAccess({ at: NOW, note: privacy.ACCESS_REVOCATION_PENDING_NOTE }), "primary_deleted"),
     "downstream_pending",
-    "still waiting on the provider",
+    "the identity-provider removal rests with a privacy staff member",
   );
+  assert.equal(privacy.awaitsStaff(withAccess({ at: NOW }).at(-1)), true);
   assert.equal(
-    privacy.deriveStatus(steps({ ...allBut, notify_provider: "exception" }), "downstream_pending"),
-    "completed",
+    privacy.deriveStatus(withAccess({ status: "failed", at: NOW }), "primary_deleted"),
+    "primary_deleted",
+    "a failed step holds the status",
   );
+  assert.equal(privacy.deriveStatus(withAccess({ status: "done", at: NOW }), "downstream_pending"), "completed");
   assert.equal(privacy.deriveStatus(steps(allBut), "rejected"), "rejected", "a rejection stands");
 });
 
@@ -344,11 +358,13 @@ test("a request records its plan, discloses what the house keeps, opens a privac
     ["pending", "pending", "pending"],
   );
   assert.ok(
-    r.exceptions.some((line) => /keeps its specification and fit profile/.test(line)),
+    r.exceptions.some((line) => /\(in the making\) keeps its design, specification and fit profile/.test(line)),
     r.exceptions.join(" | "),
   );
   assert.ok(
-    r.exceptions.some((line) => /stay with that request's record/.test(line)),
+    r.exceptions.includes(
+      "1 design stays with the request you sent the house, as it is; its shared links are revoked and nothing else about it changes.",
+    ),
     r.exceptions.join(" | "),
   );
   assert.ok(!r.exceptions.includes(privacy.RECORDS_EXCEPTION), "the records line belongs to account closure");
@@ -381,7 +397,7 @@ test("an export discloses nothing to keep, a closure also keeps the records, and
   assert.deepEqual((await row(s, (await request(s, "export")).requestId)).exceptions, []);
   const closure = await row(s, (await request(s, "close_account")).requestId);
   assert.ok(closure.exceptions.includes(privacy.RECORDS_EXCEPTION));
-  assert.equal(closure.steps.length, 11);
+  assert.equal(closure.steps.length, 12);
   const guest = await request(s, "delete_photos", guestActor);
   const guestRow = await row(s, guest.requestId);
   assert.equal(guestRow.guestKey, GUEST_KEY);
@@ -423,27 +439,71 @@ test("one open request per kind per owner; a guest has no account to close; a st
   assert.deepEqual(await privacy.listMine(s.h.f.ctx, otherGuestActor), []);
 });
 
+test("a request made while signed in is the account's alone: the browser's unlinked guest designs and photograph are not swept into it, so another account linking this browser later can never take it over", async () => {
+  const s = await setup();
+  const browser = await seedOwner(s.h, { guestKey: GUEST_KEY }, guestActor, { label: "g" });
+  const both = { user: s.client, guestKey: GUEST_KEY };
+  const { requestId } = await request(s, "delete_designs", both);
+  let r = await row(s, requestId);
+  assert.equal(r.userId, s.client._id);
+  assert.equal(r.guestKey, undefined, "no guest key is stamped on the account's request");
+  assert.equal(
+    r.exceptions.filter((line) => /^Your commission/.test(line)).length,
+    1,
+    "only the account's commission is disclosed",
+  );
+  await drain(s.h);
+  r = await row(s, requestId);
+  assert.equal(r.status, "completed");
+  assert.equal(r.steps.at(-1).note, "1 design deleted · 2 kept");
+  assert.equal(await row(s, s.mine.freeDraft), null, "the account's free design is gone");
+  assert.equal((await row(s, browser.freeDraft)).name, "Free design g", "the browser's unlinked design is not");
+  assert.equal((await row(s, browser.shareId)).revokedAt, undefined);
+
+  const photos = await request(s, "delete_photos", both, NOW + 10);
+  await drain(s.h, NOW + 10);
+  assert.equal((await row(s, photos.requestId)).status, "completed");
+  assert.equal((await row(s, s.mine.photoId)).status, "deleted");
+  assert.equal((await row(s, browser.photoId)).status, "active", "the browser's photograph is its own to remove");
+
+  const guestOwn = await request(s, "delete_designs", guestActor, NOW + 20);
+  assert.equal(guestOwn.duplicate, false, "the browser asks for its own designs separately");
+  assert.equal((await row(s, guestOwn.requestId)).guestKey, GUEST_KEY);
+  assert.deepEqual(await privacy.listMine(s.h.f.ctx, guestActor), [await row(s, guestOwn.requestId)]);
+  await assert.rejects(privacy.requireOwnedRequest(s.h.f.ctx, requestId, guestActor), isAppError("NOT_FOUND"));
+});
+
 // ------------------------------------------------------------------------------------------------
 // Removing photographs (C11, scenario 4) never touches a commission (C27 acceptance)
 // ------------------------------------------------------------------------------------------------
 
-test("removing photographs revokes result links, cancels the queue, deletes the files, waits on the provider and completes with that exception; the order is untouched", async () => {
+test("removing photographs revokes result links, cancels the queue, deletes the files, discloses the provider's own retention and completes with that exception; the order is untouched", async () => {
   const s = await setup();
   const { requestId } = await request(s, "delete_photos");
   const trail = await drain(s.h);
   assert.deepEqual(trail, [
     ["revoke_preview_links", "access_revoked"],
     ["cancel_preview_jobs", "access_revoked"],
-    ["delete_photos", "downstream_pending"],
+    ["delete_photos", "primary_deleted"],
+    ["delete_fit_photos", "primary_deleted"],
     ["notify_provider", "completed"],
   ]);
   const r = await row(s, requestId);
   assert.deepEqual(
     r.steps.map((step) => step.status),
-    ["done", "done", "done", "exception"],
+    ["done", "done", "done", "done", "exception"],
+  );
+  const providerStep = r.steps.at(-1);
+  assert.equal(providerStep.label, "Record the preview provider's retention");
+  assert.equal(providerStep.note, privacy.PROVIDER_RETENTION_EXCEPTION);
+  assert.match(privacy.PROVIDER_RETENTION_EXCEPTION, /The house sends it no deletion request/);
+  assert.doesNotMatch(
+    `${providerStep.label} ${providerStep.note}`,
+    /notif|recorded your deletion/i,
+    "nothing claims the provider was told",
   );
   assert.ok(r.exceptions.includes(privacy.PROVIDER_RETENTION_EXCEPTION));
-  assert.equal(r.completedAt, NOW + 4);
+  assert.equal(r.completedAt, NOW + 5);
   assert.equal(privacy.statusLabelFor(r), "Completed with exceptions");
 
   const photo = await row(s, s.mine.photoId);
@@ -474,7 +534,7 @@ test("removing photographs revokes result links, cancels the queue, deletes the 
   const stepAudits = s.h.f
     .rowsOf("atelierAuditLog")
     .filter((a) => a.action === "privacy.step" && a.targetId === requestId);
-  assert.equal(stepAudits.length, 4);
+  assert.equal(stepAudits.length, 5);
   assert.ok(stepAudits.every((a) => a.actorKind === "system"));
 });
 
@@ -490,12 +550,87 @@ test("a client who never added a photograph has nothing to notify the provider a
   assert.equal(privacy.statusLabelFor(r), PRIVACY_STATUS_LABELS.completed);
 });
 
+/** A fit profile on the account with posture photographs, each with a stored file. */
+async function seedFitProfile(s, userId, version, poses) {
+  const profileId = await s.h.f.ctx.db.insert("atelierFitProfiles", {
+    userId,
+    version,
+    units: "in",
+    measurements: { chest: 101.6 },
+    comfort: { jacket: "easy", trousers: "easy", movement: [] },
+    provenance: "remote_guided",
+    uncertainFields: [],
+    status: "approved",
+    createdAt: NOW - 30 * DAY,
+    updatedAt: NOW - 30 * DAY,
+  });
+  const photos = [];
+  for (const [pose, status = "active"] of poses) {
+    const storageId = s.h.addFile(`_storage|fit-${version}-${pose}-${userId}`);
+    const photoId = await s.h.f.ctx.db.insert("atelierFitPhotos", {
+      userId,
+      profileId,
+      storageId,
+      pose,
+      consentAt: NOW - 30 * DAY,
+      status,
+      createdAt: NOW - 30 * DAY,
+    });
+    photos.push({ photoId, storageId });
+  }
+  return { profileId, photos };
+}
+
+test("posture photographs on the account's fit profiles are deleted with the photographs; a profile a released commission was cut from keeps its measurements, disclosed", async () => {
+  const s = await setup();
+  const released = await seedFitProfile(s, s.client._id, 1, [["front"], ["side"]]);
+  const later = await seedFitProfile(s, s.client._id, 2, [["back"], ["front", "deleted"]]);
+  await s.h.f.ctx.db.patch(s.mine.orderId, { fitProfileId: released.profileId });
+  const stranger = await s.h.f.ctx.db.insert("users", { clerkId: "clerk_x", role: "user", name: "X", createdAt: 1 });
+  const theirs = await seedFitProfile(s, stranger, 1, [["front"]]);
+
+  const { requestId } = await request(s, "delete_photos");
+  await drain(s.h);
+  const r = await row(s, requestId);
+  const step = r.steps.find((entry) => entry.key === "delete_fit_photos");
+  assert.equal(step.label, "Delete posture photographs");
+  assert.equal(step.status, "exception");
+  assert.equal(step.note, "3 posture photographs deleted");
+  const kept =
+    "The measurements of fit profile v1 stay with your released commission so the house can make and service the suit.";
+  assert.ok(r.exceptions.includes(kept), r.exceptions.join(" | "));
+  assert.ok(!r.exceptions.some((line) => /fit profile v2/.test(line)), "an unreleased profile is not a commission's");
+  for (const photo of [...released.photos, later.photos[0]]) {
+    assert.equal((await row(s, photo.photoId)).status, "deleted");
+    assert.ok(s.h.deletedFiles.includes(photo.storageId));
+  }
+  assert.ok(!s.h.deletedFiles.includes(later.photos[1].storageId), "a photograph already deleted is left alone");
+  assert.equal((await row(s, theirs.photos[0].photoId)).status, "active", "another client's posture photograph stays");
+  assert.ok(!s.h.deletedFiles.includes(theirs.photos[0].storageId));
+  assert.ok((await row(s, released.profileId)) !== null && (await row(s, later.profileId)) !== null);
+  assert.equal(r.status, "completed");
+
+  const guest = await request(s, "delete_photos", guestActor, NOW + 50);
+  await drain(s.h, NOW + 50);
+  const guestStep = (await row(s, guest.requestId)).steps.find((entry) => entry.key === "delete_fit_photos");
+  assert.equal(guestStep.status, "done");
+  assert.match(guestStep.note, /belong to an account/);
+});
+
 // ------------------------------------------------------------------------------------------------
 // Deleting designs
 // ------------------------------------------------------------------------------------------------
 
-test("deleting designs revokes links, archives and deletes the free design with its snapshots and previews, keeps the ones a commission or a request refers to, and never touches an order", async () => {
+test("deleting designs revokes links, archives and deletes the free design with its snapshots and previews, keeps the ones a commission or a request refers to as they are, and never touches an order", async () => {
   const s = await setup();
+  const keptShare = await s.h.f.ctx.db.insert("atelierShares", {
+    draftId: s.mine.orderedDraft,
+    token: "tok-kept",
+    ...s.owner,
+    audience: "Tailor friend",
+    expiresAt: NOW + 7 * DAY,
+    createdAt: NOW - DAY,
+  });
   const { requestId } = await request(s, "delete_designs");
   const trail = await drain(s.h);
   assert.deepEqual(trail, [
@@ -516,11 +651,22 @@ test("deleting designs revokes links, archives and deletes the free design with 
   );
   assert.equal((await row(s, s.theirs.freeDraft)).name, "Free design b", "another client's design is untouched");
   assert.equal((await row(s, s.theirs.shareId)).revokedAt, undefined);
+  assert.equal((await row(s, keptShare)).revokedAt, NOW + 1, "a kept design's shared link is revoked");
   const r = await row(s, requestId);
   assert.equal(privacy.statusLabelFor(r), "Completed with exceptions");
   assert.ok(
-    r.exceptions.some((line) => /2 designs stay with a commission or a request/.test(line)),
+    r.exceptions.includes(
+      "2 designs stay with a commission or a request to the house, as they are; their shared links are revoked and nothing else about them changes.",
+    ),
     r.exceptions.join(" | "),
+  );
+  assert.ok(
+    !r.exceptions.some((line) => /archived/.test(line)),
+    "a kept design is not called archived, because it is not",
+  );
+  assert.deepEqual(
+    r.steps.map((step) => step.note),
+    ["2 shared links revoked", "1 draft archived · 2 kept with a commission or a request", "1 design deleted · 2 kept"],
   );
   const touched = s.h.touchedSince(s.after);
   assert.ok(
@@ -528,6 +674,71 @@ test("deleting designs revokes links, archives and deletes the free design with 
     [...touched].join(","),
   );
   assert.equal((await row(s, s.mine.orderId)).status, "making");
+});
+
+test("the disclosure names each kept design once, a cancelled commission among them, and agrees with the step's kept count", async () => {
+  const s = await setup();
+  const { f } = s.h;
+  const spec = { ...DEFAULT_SPEC, clothCode: "C-a" };
+  const cancelledDraft = await f.ctx.db.insert("atelierDrafts", {
+    ...s.owner,
+    name: "Cancelled design a",
+    spec,
+    shortlist: [],
+    stage: "review",
+    completedSteps: [],
+    catalogueVersion: 1,
+    revision: 1,
+    status: "submitted",
+    createdAt: NOW - 40 * DAY,
+    updatedAt: NOW - 40 * DAY,
+    lastSavedAt: NOW - 40 * DAY,
+  });
+  const caseRow = (draftId, kind, key) => ({
+    kind,
+    ...s.owner,
+    draftId,
+    contact: { name: "Client", email: "a@example.test", channel: "email" },
+    submissionKey: key,
+    status: "completed",
+    priority: "normal",
+    lastActivityAt: NOW - 30 * DAY,
+    createdAt: NOW - 40 * DAY,
+  });
+  const cancelledCase = await f.ctx.db.insert("atelierCases", caseRow(cancelledDraft, "quote", "quote-cancelled"));
+  await f.ctx.db.insert("atelierOrders", {
+    ...s.owner,
+    caseId: cancelledCase,
+    quoteId: "atelierQuotes|2",
+    revisionId: "atelierRevisions|2",
+    draftId: cancelledDraft,
+    spec,
+    specHash: specHash(spec),
+    status: "cancelled",
+    payment: { state: "none" },
+    createdAt: NOW - 40 * DAY,
+    updatedAt: NOW - 35 * DAY,
+  });
+  // A second request about the commissioned design must not count it twice.
+  await f.ctx.db.insert("atelierCases", caseRow(s.mine.orderedDraft, "aftercare", "aftercare-a"));
+
+  const { requestId } = await request(s, "delete_designs");
+  const disclosed = (await row(s, requestId)).exceptions;
+  assert.equal(disclosed.length, 3, disclosed.join(" | "));
+  assert.match(disclosed[0] + disclosed[1], /Your commission "[^"]+" \(in the making\) keeps its design/);
+  assert.ok(
+    disclosed.some((line) =>
+      /^Your cancelled commission "[^"]+" keeps its design and specification as the record of that commission\.$/.test(
+        line,
+      ),
+    ),
+    disclosed.join(" | "),
+  );
+  assert.ok(disclosed.some((line) => line.startsWith("1 design stays with the request you sent the house")));
+  await drain(s.h);
+  const r = await row(s, requestId);
+  assert.equal(r.steps.at(-1).note, "1 design deleted · 3 kept", "two commissions and one request: three designs");
+  assert.ok(r.exceptions.some((line) => line.startsWith("3 designs stay with a commission or a request")));
 });
 
 test("the share-revocation step is idempotent and audited; a share already revoked keeps its time", async () => {
@@ -626,27 +837,107 @@ test("an export counts the owner's records, hands the file to the action, and co
   );
 });
 
-test("closing an account runs every step, ends completed with the disclosed exceptions and never touches a commission", async () => {
+test("closing an account runs every step the house's systems can, then waits on a privacy staff member to remove the sign-in; it stays on the queue and never reads completed before then", async () => {
   const s = await setup();
   const { requestId } = await request(s, "close_account");
   const trail = await drain(s.h);
-  assert.equal(trail.length, 12, "eleven steps, with the export handed off and then recorded");
-  assert.equal(trail.at(-1)[1], "completed");
-  const r = await row(s, requestId);
+  assert.equal(trail.length, 13, "twelve steps, with the export handed off and then recorded");
+  assert.deepEqual(trail.at(-1), ["revoke_access", "downstream_pending"]);
+  assert.equal(s.h.scheduled.length, 0, "nothing schedules itself around a step that rests with staff");
+  let r = await row(s, requestId);
+  const access = r.steps.at(-1);
+  assert.equal(access.key, "revoke_access");
+  assert.equal(access.status, "pending");
+  assert.equal(access.note, `0 remaining shared links revoked. ${privacy.ACCESS_REVOCATION_PENDING_NOTE}`);
+  assert.equal(privacy.toStepView(access).awaitsStaff, true);
+  assert.equal(r.status, "downstream_pending");
+  assert.equal(privacy.statusLabelFor(r), PRIVACY_STATUS_LABELS.downstream_pending);
+  assert.equal(r.completedAt, undefined);
+  assert.equal(r.handledByStaffId, undefined);
+  assert.deepEqual(
+    (await privacy.queue(s.h.f.ctx)).map((q) => q._id),
+    [requestId],
+    "it waits on the A08 queue",
+  );
+  let caseDoc = await privacy.caseFor(s.h.f.ctx, r);
+  assert.notEqual(caseDoc.status, "completed");
+  assert.deepEqual(
+    await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 100),
+    { ran: null, status: "downstream_pending", scheduled: false },
+    "an automatic run never settles it",
+  );
   assert.deepEqual(
     r.steps.filter((step) => step.status === "exception").map((step) => step.key),
-    ["notify_provider", "delete_unreferenced_drafts", "revoke_access"],
+    ["notify_provider", "delete_unreferenced_drafts"],
   );
-  assert.ok(r.exceptions.includes(privacy.ACCESS_REVOCATION_EXCEPTION));
   assert.ok(r.exceptions.includes(privacy.PROVIDER_RETENTION_EXCEPTION));
   assert.ok(r.exceptions.includes(privacy.RECORDS_EXCEPTION));
   assert.ok(r.exportStorageId, "the export was written first");
   assert.equal(await row(s, s.mine.freeDraft), null);
   assert.equal((await row(s, s.mine.photoId)).status, "deleted");
+
+  await privacy.complete(
+    s.h.f.ctx,
+    s.privacyStaff,
+    r,
+    "Account removed in the identity provider's dashboard.",
+    NOW + 200,
+  );
+  r = await row(s, requestId);
+  assert.equal(r.steps.at(-1).status, "done");
+  assert.equal(r.steps.at(-1).at, NOW + 200);
+  assert.equal(r.steps.at(-1).note, `0 remaining shared links revoked. ${privacy.ACCESS_REMOVED_NOTE}`);
+  assert.equal(r.status, "completed");
+  assert.equal(r.completedAt, NOW + 200, "completed when the last step was recorded, not before");
+  assert.equal(r.handledByStaffId, s.privacyStaff._id);
+  assert.equal(privacy.statusLabelFor(r), "Completed with exceptions");
+  assert.deepEqual(await privacy.queue(s.h.f.ctx), []);
+  caseDoc = await privacy.caseFor(s.h.f.ctx, r);
+  assert.equal(caseDoc.status, "completed");
+  assert.ok(
+    s.h.f
+      .rowsOf("atelierAuditLog")
+      .some(
+        (a) => a.action === "privacy.step" && a.actorUserId === s.privacyStaff._id && a.meta.key === "revoke_access",
+      ),
+  );
+
   const touched = s.h.touchedSince(s.after);
   assert.ok(!touched.has("atelierOrders") && !touched.has("atelierOrderMilestones"), [...touched].join(","));
   assert.equal((await row(s, s.mine.orderId)).status, "making");
   assert.ok((await row(s, s.mine.orderedDraft)) !== null, "the commissioned design stays for the commission");
+});
+
+test("a privacy staff member can record the sign-in removal by running the step; a re-run of a failed removal only gets it back to waiting", async () => {
+  const s = await setup();
+  const { requestId } = await request(s, "close_account");
+  await drain(s.h);
+  const recorded = await privacy.advance(s.h.f.ctx, requestId, { manual: true, actor: s.privacyStaff }, NOW + 300);
+  assert.deepEqual(recorded, { ran: "revoke_access", status: "completed", scheduled: false });
+  const r = await row(s, requestId);
+  assert.equal(r.steps.at(-1).status, "done");
+  assert.equal(r.handledByStaffId, s.privacyStaff._id, "the staff member whose record completed it handled it");
+
+  const again = await setup();
+  const second = await request(again, "close_account");
+  await drain(again.h);
+  const current = await row(again, second.requestId);
+  const failedSteps = current.steps.map((step) =>
+    step.key === "revoke_access" ? { key: step.key, label: step.label, status: "failed", at: NOW, note: "x" } : step,
+  );
+  await again.h.f.ctx.db.patch(second.requestId, { steps: failedSteps, status: "primary_deleted" });
+  const rerun = await privacy.advance(
+    again.h.f.ctx,
+    second.requestId,
+    { manual: true, actor: again.privacyStaff },
+    NOW + 301,
+  );
+  assert.deepEqual(rerun, { ran: "revoke_access", status: "downstream_pending", scheduled: false });
+  assert.equal(
+    (await row(again, second.requestId)).steps.at(-1).status,
+    "pending",
+    "re-running a failed removal does not claim the account was removed",
+  );
 });
 
 // ------------------------------------------------------------------------------------------------
@@ -670,7 +961,7 @@ test("a step that fails is recorded as failed and holds the status; automatic ru
   assert.equal(r.status, "requested", "nothing was revoked, so nothing is called revoked");
   assert.deepEqual(
     r.steps.map((step) => step.status),
-    ["failed", "pending", "pending", "pending"],
+    ["failed", "pending", "pending", "pending", "pending"],
   );
   assert.equal(r.steps[0].note, "storage unavailable");
   assert.equal(
@@ -737,13 +1028,13 @@ test("staff complete only a request whose steps have all run, with a note on the
   await drain(s.h);
   r = await row(s, requestId);
   await assert.rejects(privacy.complete(s.h.f.ctx, s.privacyStaff, r, "  ", NOW + 20), isAppError("INVALID_INPUT"));
-  await privacy.complete(s.h.f.ctx, s.privacyStaff, r, "Provider notice filed under ticket OAI-4411.", NOW + 20);
+  await privacy.complete(s.h.f.ctx, s.privacyStaff, r, "Reviewed every step; nothing outstanding.", NOW + 20);
   r = await row(s, requestId);
   assert.equal(r.handledByStaffId, s.privacyStaff._id);
   assert.equal(r.status, "completed");
-  assert.equal(r.completedAt, NOW + 4, "the completion time is when the steps finished");
+  assert.equal(r.completedAt, NOW + 5, "the completion time is when the steps finished");
   const caseDoc = await privacy.caseFor(s.h.f.ctx, r);
-  assert.ok(caseMessages(s, caseDoc).includes("Provider notice filed under ticket OAI-4411."));
+  assert.ok(caseMessages(s, caseDoc).includes("Reviewed every step; nothing outstanding."));
   await assert.rejects(
     privacy.reject(s.h.f.ctx, s.privacyStaff, r, "No.", NOW + 21),
     isAppError("INVALID_STATE"),
@@ -817,8 +1108,13 @@ test("the audit log reads by target or by time, newest first, bounded, with the 
   const requestRow = byTarget.find((rowView) => rowView.action === "privacy.request");
   assert.equal(requestRow.actorName, "Nia Okafor");
   assert.equal(requestRow.actorKind, "client");
-  const providerRow = byTarget.find((rowView) => rowView.action === "privacy.providerNotice");
+  const providerRow = byTarget.find((rowView) => rowView.action === "privacy.providerRetention");
   assert.equal(providerRow.meta.photos, 1);
+  assert.equal(
+    byTarget.some((rowView) => rowView.action === "privacy.providerNotice"),
+    false,
+    "nothing is recorded as a notice to the provider",
+  );
   const byTable = await privacy.listAudit(s.h.f.ctx, { targetTable: "atelierCases", limit: 1 });
   assert.equal(byTable.length, 1);
   assert.equal(byTable[0].targetTable, "atelierCases");

@@ -35,6 +35,8 @@ export function SaveStatus({ className }: { className?: string }) {
 
   const failed = saving.state === "error";
   const needsSignIn = lastFailure?.code === "UNAUTHENTICATED";
+  // The house's rules refused the change (a design already sent, say): sending it again cannot succeed.
+  const refused = lastFailure?.code === "INVALID_STATE";
 
   return (
     <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1", className)}>
@@ -53,7 +55,7 @@ export function SaveStatus({ className }: { className?: string }) {
             >
               Sign in to keep working
             </Button>
-          ) : retrySave ? (
+          ) : retrySave && !refused ? (
             <Button variant="link" size="xs" className="min-h-11 px-1" onClick={retrySave}>
               Try again
             </Button>

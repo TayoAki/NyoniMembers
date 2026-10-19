@@ -191,3 +191,81 @@ test("auditLog: bounded, newest first, narrowed by target, actors by first name 
   assert.deepEqual(await staff.listAudit(f.ctx, { targetTable: "atelierCases", targetId: "atelierCases|2" }), []);
   await assert.rejects(staff.listAudit(f.ctx, { targetId: "atelierCases|1" }), isAppError("INVALID_INPUT"));
 });
+
+const { requireStaff, hasStaffRole } = await import("../convex/atelier/access.ts");
+
+/** The Clerk session the fake ctx reports: the user's subject and the role in its public metadata. */
+function signInAs(f, user, clerkRole) {
+  f.ctx.auth.getUserIdentity = async () => ({
+    subject: user.clerkId,
+    ...(clerkRole === undefined ? {} : { public_metadata: { role: clerkRole } }),
+  });
+}
+
+test("requireStaff: an admin in Convex and in the Clerk session passes every role", async () => {
+  const { f, admin } = await setup();
+  signInAs(f, admin, "admin");
+  for (const role of [undefined, ...STAFF_ROLES, ["finance", "operations"]]) {
+    const user = await requireStaff(f.ctx, role);
+    assert.equal(user._id, admin._id);
+    assert.equal(user.role, "admin");
+  }
+  assert.equal((await staff.requireAdminStaff(f.ctx))._id, admin._id);
+});
+
+test("requireStaff: an admin flag the Clerk session no longer carries grants only the roles explicitly held", async () => {
+  const { f, admin, insertUser } = await setup();
+  for (const claim of ["user", undefined]) {
+    signInAs(f, admin, claim);
+    await assert.rejects(requireStaff(f.ctx), isAppError("FORBIDDEN"), "no roles held: not staff at all");
+    await assert.rejects(requireStaff(f.ctx, "finance"), isAppError("FORBIDDEN"));
+    await assert.rejects(staff.requireAdminStaff(f.ctx), isAppError("FORBIDDEN"), "cannot grant roles");
+  }
+
+  const demoted = await insertUser({ name: "Former Admin", role: "admin", staffRoles: ["concierge"] });
+  signInAs(f, demoted, "user");
+  const user = await requireStaff(f.ctx, "concierge");
+  assert.equal(user._id, demoted._id);
+  assert.equal(user.role, "user", "the returned user carries the effective role");
+  assert.equal(hasStaffRole(user, "finance"), false, "later checks on the returned user see staffRoles only");
+  assert.equal(hasStaffRole(user, "concierge"), true);
+  await assert.rejects(requireStaff(f.ctx, "finance"), (error) => {
+    assert.equal(error.data.code, "FORBIDDEN");
+    assert.match(error.data.message, /finance/);
+    return true;
+  });
+  await assert.rejects(staff.requireAdminStaff(f.ctx), isAppError("FORBIDDEN"));
+  assert.equal((await f.ctx.db.get(demoted._id)).role, "admin", "nothing is written to the stored account");
+});
+
+test("requireStaff: a role holder passes for their roles only, a client never, a visitor is asked to sign in", async () => {
+  const { f, concierge, client } = await setup();
+  signInAs(f, concierge, "user");
+  assert.equal((await requireStaff(f.ctx, "concierge"))._id, concierge._id);
+  assert.equal((await requireStaff(f.ctx, ["fitter", "concierge"]))._id, concierge._id);
+  assert.equal((await requireStaff(f.ctx))._id, concierge._id);
+  await assert.rejects(requireStaff(f.ctx, "privacy"), isAppError("FORBIDDEN"));
+  // A Clerk admin claim without the Convex admin role is not an admin either, as requireAdmin holds.
+  signInAs(f, concierge, "admin");
+  await assert.rejects(requireStaff(f.ctx, "privacy"), isAppError("FORBIDDEN"));
+
+  signInAs(f, client, "user");
+  await assert.rejects(requireStaff(f.ctx), isAppError("FORBIDDEN"));
+  f.ctx.auth.getUserIdentity = async () => null;
+  await assert.rejects(requireStaff(f.ctx, "concierge"), isAppError("UNAUTHENTICATED"));
+});
+
+test("auditLog reads by_at in time order, not in the order rows were written", async () => {
+  const { f } = await setup();
+  for (const at of [NOW + 5, NOW + 1, NOW + 9, NOW + 3]) {
+    await audit(f.ctx, { actor: null, action: `at.${at - NOW}`, targetTable: "atelierCases", targetId: "c|1" }, at);
+  }
+  assert.deepEqual(
+    (await staff.listAudit(f.ctx, {})).map((entry) => entry.action),
+    ["at.9", "at.5", "at.3", "at.1"],
+  );
+  assert.deepEqual(
+    (await staff.listAudit(f.ctx, { targetTable: "atelierCases", targetId: "c|1" })).map((entry) => entry.action),
+    ["at.9", "at.5", "at.3", "at.1"],
+  );
+});

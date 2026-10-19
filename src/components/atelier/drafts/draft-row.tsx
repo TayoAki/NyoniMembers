@@ -7,7 +7,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
-import { DRAFT_STATUS_WORDS, savedScopeWords } from "@/components/atelier/drafts/draft-words";
+import { savedScopeWords } from "@/components/atelier/drafts/draft-words";
 import { RenameDialog } from "@/components/atelier/drafts/rename-dialog";
 import { ShadeChip } from "@/components/atelier/entry/shade-chip";
 import { useAtelierSession } from "@/components/atelier/shell/atelier-session";
@@ -19,7 +19,7 @@ import { formatRelative } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { DraftSummary } from "@convex/atelier/drafts";
-import { OCCASION_LABELS, STEP_LABELS } from "@convex/shared/atelier/enums";
+import { DRAFT_STATUS_LABELS, OCCASION_LABELS, STEP_LABELS } from "@convex/shared/atelier/enums";
 
 /** One design in the drafts list: what it is, where it is saved, and the four things you can do with it. */
 export function DraftRow({ draft }: { draft: DraftSummary }) {
@@ -57,7 +57,7 @@ export function DraftRow({ draft }: { draft: DraftSummary }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <ShadeChip hex={draft.cloth?.hex ?? null} />
           <h2 className="text-base font-medium">{draft.name}</h2>
-          {submitted ? <StatusLine tone="gold">{DRAFT_STATUS_WORDS.submitted}</StatusLine> : null}
+          {submitted ? <StatusLine tone="gold">{DRAFT_STATUS_LABELS.submitted}</StatusLine> : null}
         </div>
         <p className="text-sm text-muted-foreground">
           {draft.summary}

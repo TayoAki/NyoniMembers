@@ -13,6 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { findCatalogueEntry } from "@/hooks/atelier/use-catalogue";
 import { cn } from "@/lib/utils";
 import { useStudio, type StageMode, type StageView } from "./panel-contract";
+import { heldPreviewLabel } from "./preview/result-controls";
 import { useStudioCore } from "./studio-provider";
 import { SuitFigure } from "./suit-figure";
 
@@ -23,6 +24,41 @@ const VIEW_LABELS: Record<StageView, string> = { front: "Front", back: "Back" };
 const CROSSFADE = { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const };
 
 const TOGGLE_ITEM = "h-11 min-w-11 px-3 text-[13px]";
+
+/**
+ * When the stage is short (the phone header collapsed as the panel scrolls, or a short window) the
+ * figure keeps the full height and the caption's first words and the toggles stand beside it; the
+ * secondary words wait until there is room. Below 7.5rem the side toggle goes too. Plain CSS because
+ * these are container height queries, which Tailwind has no variant for.
+ */
+const COMPACT_CSS = `
+.atelier-stage-box { container: atelier-stage / size; }
+@container atelier-stage (max-height: 14rem) {
+  .atelier-stage-figure {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 0.75rem;
+    row-gap: 0.25rem;
+  }
+  .atelier-stage-layer { grid-column: 1; grid-row: 1 / span 2; }
+  .atelier-stage-caption { grid-column: 2; margin-top: 0; min-height: 0; overflow: hidden; contain: inline-size; }
+  .atelier-stage-controls {
+    grid-column: 2;
+    margin-top: 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.25rem;
+  }
+  .atelier-stage-detail { display: none; }
+  .atelier-stage-note { padding-block: 0.5rem; gap: 0.5rem; }
+}
+@container atelier-stage (max-height: 7.5rem) {
+  .atelier-stage-view { display: none; }
+}
+`;
 
 function isMode(value: unknown): value is StageMode {
   return typeof value === "string" && (MODES as readonly string[]).includes(value);
@@ -45,75 +81,83 @@ export function Stage({ className }: { className?: string }) {
     entry ?? (draft.cloth && draft.cloth.code === shown.clothCode ? draft.cloth : null);
 
   return (
-    <figure className={cn("flex h-full min-h-0 flex-col", className)}>
-      <div className="relative min-h-0 flex-1">
-        {stage.mode === "studio" ? (
-          <FigureLayer cloth={cloth} />
-        ) : stage.mode === "swatch" ? (
-          <SwatchView cloth={cloth} entry={entry} onChooseCloth={() => goToStep("cloth")} />
-        ) : (
-          <PersonalView job={currentPreview} onGoToPreview={() => goToStep("preview")} />
-        )}
-      </div>
-      <figcaption className="mt-3 flex min-h-5 flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        {stage.mode === "personal" ? (
-          <>
-            <span className="font-medium text-foreground">Illustrative preview — not a fitting</span>
-            {currentPreview?.specLabel ? <span>{currentPreview.specLabel}</span> : null}
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-foreground">
-              {stage.mode === "swatch" ? "Mill book photograph" : "Studio illustration"}
-            </span>
-            {cloth ? (
-              <>
-                <span className="font-display text-sm text-foreground">{cloth.name}</span>
-                {!cloth.shadeConfirmed ? <span>representative shade</span> : null}
-              </>
-            ) : (
-              <span>No cloth chosen yet</span>
-            )}
-          </>
-        )}
-      </figcaption>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <ToggleGroup
-          aria-label="What the stage shows"
-          variant="outline"
-          spacing={0}
-          value={[stage.mode]}
-          onValueChange={(values) => {
-            const next = values[0];
-            if (isMode(next)) stage.setMode(next);
-          }}
-        >
-          {MODES.map((mode) => (
-            <ToggleGroupItem key={mode} value={mode} className={TOGGLE_ITEM}>
-              {MODE_LABELS[mode]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {stage.mode === "studio" ? (
+    <div className={cn("atelier-stage-box h-full", className)}>
+      <style href="atelier-studio-stage-compact" precedence="default">
+        {COMPACT_CSS}
+      </style>
+      <figure className="atelier-stage-figure flex h-full min-h-0 flex-col">
+        <div className="atelier-stage-layer relative min-h-0 flex-1">
+          {stage.mode === "studio" ? (
+            <FigureLayer cloth={cloth} />
+          ) : stage.mode === "swatch" ? (
+            <SwatchView cloth={cloth} entry={entry} onChooseCloth={() => goToStep("cloth")} />
+          ) : (
+            <PersonalView job={currentPreview} onGoToPreview={() => goToStep("preview")} />
+          )}
+        </div>
+        <figcaption className="atelier-stage-caption mt-3 flex min-h-5 flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {stage.mode === "personal" ? (
+            <>
+              <span className="font-medium text-foreground">Illustrative preview — not a fitting</span>
+              {currentPreview?.specLabel ? (
+                <span className="atelier-stage-detail">{currentPreview.specLabel}</span>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <span className="font-medium text-foreground">
+                {stage.mode === "swatch" ? "Mill book photograph" : "Studio illustration"}
+              </span>
+              {cloth ? (
+                <>
+                  <span className="atelier-stage-detail font-display text-sm text-foreground">{cloth.name}</span>
+                  {!cloth.shadeConfirmed ? <span className="atelier-stage-detail">representative shade</span> : null}
+                </>
+              ) : (
+                <span className="atelier-stage-detail">No cloth chosen yet</span>
+              )}
+            </>
+          )}
+        </figcaption>
+        <div className="atelier-stage-controls mt-2 flex flex-wrap items-center justify-between gap-2">
           <ToggleGroup
-            aria-label="Side of the figure"
+            aria-label="What the stage shows"
             variant="outline"
             spacing={0}
-            value={[stage.view]}
+            value={[stage.mode]}
             onValueChange={(values) => {
               const next = values[0];
-              if (isView(next)) stage.setView(next);
+              if (isMode(next)) stage.setMode(next);
             }}
           >
-            {VIEWS.map((view) => (
-              <ToggleGroupItem key={view} value={view} className={TOGGLE_ITEM}>
-                {VIEW_LABELS[view]}
+            {MODES.map((mode) => (
+              <ToggleGroupItem key={mode} value={mode} className={TOGGLE_ITEM}>
+                {MODE_LABELS[mode]}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-        ) : null}
-      </div>
-    </figure>
+          {stage.mode === "studio" ? (
+            <ToggleGroup
+              aria-label="Side of the figure"
+              className="atelier-stage-view"
+              variant="outline"
+              spacing={0}
+              value={[stage.view]}
+              onValueChange={(values) => {
+                const next = values[0];
+                if (isView(next)) stage.setView(next);
+              }}
+            >
+              {VIEWS.map((view) => (
+                <ToggleGroupItem key={view} value={view} className={TOGGLE_ITEM}>
+                  {VIEW_LABELS[view]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          ) : null}
+        </div>
+      </figure>
+    </div>
   );
 }
 
@@ -180,7 +224,7 @@ function SwatchView({
           </div>
         )}
       </div>
-      <dl className="shrink-0 space-y-2 text-sm sm:w-56 sm:self-center">
+      <dl className="atelier-stage-detail shrink-0 space-y-2 text-sm sm:w-56 sm:self-center">
         <div>
           <dt className="sr-only">Cloth</dt>
           <dd className="font-display text-lg leading-tight">{cloth.name}</dd>
@@ -264,11 +308,15 @@ function PersonalView({ job, onGoToPreview }: { job: PreviewJobView | null; onGo
     );
   }
   const working = job.status === "queued" || job.status === "processing";
+  const held = heldPreviewLabel(job);
   return (
     <StageNote
       title={
-        <StatusLine live tone={working ? "gold" : job.status === "failed" ? "destructive" : "neutral"}>
-          {job.statusLabel}
+        <StatusLine
+          live
+          tone={working ? "gold" : job.status === "failed" ? "destructive" : held !== null ? "warning" : "neutral"}
+        >
+          {held ?? job.statusLabel}
         </StatusLine>
       }
       body={
@@ -276,7 +324,9 @@ function PersonalView({ job, onGoToPreview }: { job: PreviewJobView | null; onGo
           ? "Usually a minute or two. You can keep designing; the studio illustration shows every choice meanwhile."
           : job.status === "failed"
             ? (job.error ?? "The preview could not be finished. The studio illustration still shows every choice.")
-            : "The studio illustration still shows every choice."
+            : held !== null
+              ? "Its image is not shown. The studio illustration still shows every choice."
+              : "The studio illustration still shows every choice."
       }
     >
       <Button variant="outline" className="min-h-11" onClick={onGoToPreview}>
@@ -288,10 +338,10 @@ function PersonalView({ job, onGoToPreview }: { job: PreviewJobView | null; onGo
 
 function StageNote({ title, body, children }: { title: ReactNode; body: string; children?: ReactNode }) {
   return (
-    <div className="flex h-full flex-col items-start justify-center gap-3 border-y border-foreground/15 py-6 sm:px-2">
+    <div className="atelier-stage-note flex h-full flex-col items-start justify-center gap-3 border-y border-foreground/15 py-6 sm:px-2">
       {typeof title === "string" ? <p className="text-sm font-medium">{title}</p> : title}
-      <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{body}</p>
-      {children}
+      <p className="atelier-stage-detail max-w-sm text-sm leading-relaxed text-muted-foreground">{body}</p>
+      {children ? <div className="atelier-stage-detail">{children}</div> : null}
     </div>
   );
 }
