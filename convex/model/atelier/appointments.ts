@@ -1,20 +1,39 @@
 import type { Infer } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { audit, clientDisplayName, isOwner, ownerFieldsFor, requireOwned, staffDisplayName, type Actor } from "../../atelier/access";
+import {
+  audit,
+  clientDisplayName,
+  isOwner,
+  ownerFieldsFor,
+  requireOwned,
+  staffDisplayName,
+  type Actor,
+} from "../../atelier/access";
 import type { AppointmentView, PreferredWindowView, StaffAppointmentRow } from "../../atelier/appointments";
 import { appError } from "../../lib/errors";
 import {
   APPOINTMENT_PERIOD_LABELS,
   APPOINTMENT_SERVICE_LABELS,
   APPOINTMENT_STATUS_LABELS,
+  ATELIER_LIMITS,
   CASE_KIND_LABELS,
+  VIRTUAL_SERVICES,
   type AppointmentService,
   type AppointmentStatus,
 } from "../../shared/atelier/enums";
+import { APPOINTMENT_TRANSITIONS } from "../../shared/atelier/transitions";
 import type { vContact, vPreferredWindow } from "../../shared/atelier/validators";
 import { SHOWROOMS, type ShowroomId } from "../../shared/house";
-import { assertDailyCaseBudget, caseOwner, firstNameOf, isOpen, normalizeContact, notificationTarget, startOfUtcDay } from "./cases";
+import {
+  assertDailyCaseBudget,
+  caseOwner,
+  firstNameOf,
+  isOpen,
+  normalizeContact,
+  notificationTarget,
+  startOfUtcDay,
+} from "./cases";
 import { appendMessage, createCase, touchCase } from "./case_core";
 import { queueNotification } from "./notifications";
 
@@ -33,24 +52,21 @@ export type AppointmentLocation = Appointment["showroomId"];
  */
 
 export const WINDOWS_MIN = 1;
-export const WINDOWS_MAX = 3;
+export const WINDOWS_MAX: number = ATELIER_LIMITS.preferredWindowsMax;
 export const APPOINTMENT_TEXT_MAX = 1000;
 export const APPOINTMENT_LIST_MAX = 50;
 export const PENDING_MAX = 100;
 const DAY_MS = 86_400_000;
 
 export const TERMINAL_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = ["cancelled", "completed"];
-export const PENDING_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = ["requested", "awaiting_confirmation", "rescheduled"];
+export const PENDING_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
+  "requested",
+  "awaiting_confirmation",
+  "rescheduled",
+];
 
 /** Booking state machine: requested → awaiting confirmation → confirmed → rescheduled / cancelled / completed. */
-export const APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, readonly AppointmentStatus[]> = {
-  requested: ["awaiting_confirmation", "confirmed", "rescheduled", "cancelled"],
-  awaiting_confirmation: ["confirmed", "rescheduled", "cancelled"],
-  confirmed: ["confirmed", "rescheduled", "cancelled", "completed"],
-  rescheduled: ["awaiting_confirmation", "confirmed", "rescheduled", "cancelled"],
-  cancelled: [],
-  completed: [],
-};
+export { APPOINTMENT_TRANSITIONS };
 
 export function canTransition(from: AppointmentStatus, to: AppointmentStatus): boolean {
   return APPOINTMENT_TRANSITIONS[from].includes(to);
@@ -61,7 +77,7 @@ export function isTerminal(appointment: Pick<Appointment, "status">): boolean {
 }
 
 /** Services that can happen over a call; a fitting or measurements need the client in a showroom. */
-export const VIRTUAL_SERVICES: readonly AppointmentService[] = ["virtual", "consultation"];
+export { VIRTUAL_SERVICES };
 
 export function showroomLabel(location: AppointmentLocation): string {
   if (location === "virtual") return "Virtual";
@@ -71,10 +87,16 @@ export function showroomLabel(location: AppointmentLocation): string {
 function showroomOf(location: AppointmentLocation): AppointmentView["showroom"] {
   if (location === "virtual") return null;
   const showroom = SHOWROOMS.find((entry) => entry.id === location);
-  return showroom ? { id: showroom.id as ShowroomId, city: showroom.city, address: showroom.address, phone: showroom.phone } : null;
+  return showroom
+    ? { id: showroom.id as ShowroomId, city: showroom.city, address: showroom.address, phone: showroom.phone }
+    : null;
 }
 
-function cleanText(value: string | null | undefined, what: string, max: number = APPOINTMENT_TEXT_MAX): string | undefined {
+function cleanText(
+  value: string | null | undefined,
+  what: string,
+  max: number = APPOINTMENT_TEXT_MAX,
+): string | undefined {
   if (value === undefined || value === null) return undefined;
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -95,14 +117,19 @@ function assertTransition(appointment: Appointment, to: AppointmentStatus): void
 /** One to three distinct windows, each on a day after today (UTC). A window is a preference, not a slot. */
 export function normalizeWindows(windows: readonly PreferredWindow[], now: number): PreferredWindow[] {
   if (windows.length < WINDOWS_MIN) throw appError("INVALID_INPUT", "Give the house at least one preferred window.");
-  if (windows.length > WINDOWS_MAX) throw appError("INVALID_INPUT", `Choose up to ${WINDOWS_MAX} preferred windows.`, { max: WINDOWS_MAX });
+  if (windows.length > WINDOWS_MAX)
+    throw appError("INVALID_INPUT", `Choose up to ${WINDOWS_MAX} preferred windows.`, { max: WINDOWS_MAX });
   const today = startOfUtcDay(now);
   const seen = new Set<string>();
   const cleaned: PreferredWindow[] = [];
   for (const window of windows) {
     if (!Number.isFinite(window.date)) throw appError("INVALID_INPUT", "A preferred window needs a date.");
     const day = startOfUtcDay(window.date);
-    if (day <= today) throw appError("INVALID_INPUT", "Preferred windows need to be from tomorrow onward so the house can confirm a time.");
+    if (day <= today)
+      throw appError(
+        "INVALID_INPUT",
+        "Preferred windows need to be from tomorrow onward so the house can confirm a time.",
+      );
     const key = `${day}:${window.period}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -125,9 +152,13 @@ export function normalizeTimeZone(timeZone: string): string {
 
 export function assertLocationFits(service: AppointmentService, location: AppointmentLocation): void {
   if (location === "virtual" && !VIRTUAL_SERVICES.includes(service)) {
-    throw appError("INVALID_INPUT", `${APPOINTMENT_SERVICE_LABELS[service]} happens at a showroom; choose Charlotte, Atlanta or Houston.`, {
-      service,
-    });
+    throw appError(
+      "INVALID_INPUT",
+      `${APPOINTMENT_SERVICE_LABELS[service]} happens at a showroom; choose Charlotte, Atlanta or Houston.`,
+      {
+        service,
+      },
+    );
   }
 }
 
@@ -168,7 +199,11 @@ export type RequestInput = {
   submissionKey: string;
 };
 
-export type RequestResult = { appointmentId: Id<"atelierAppointments">; caseId: Id<"atelierCases">; duplicate: boolean };
+export type RequestResult = {
+  appointmentId: Id<"atelierAppointments">;
+  caseId: Id<"atelierCases">;
+  duplicate: boolean;
+};
 
 async function appointmentsForCase(ctx: Ctx, caseId: Id<"atelierCases">): Promise<Appointment[]> {
   return ctx.db
@@ -183,7 +218,12 @@ async function appointmentsForCase(ctx: Ctx, caseId: Id<"atelierCases">): Promis
  * retry with the same `submissionKey` returns the first request (scenario 8); with one, the appointment
  * joins that case and an identical open request on it is the duplicate.
  */
-export async function requestAppointment(ctx: MutationCtx, actor: Actor, input: RequestInput, now: number = Date.now()): Promise<RequestResult> {
+export async function requestAppointment(
+  ctx: MutationCtx,
+  actor: Actor,
+  input: RequestInput,
+  now: number = Date.now(),
+): Promise<RequestResult> {
   const owner = ownerFieldsFor(actor);
   const submissionKey = cleanText(input.submissionKey, "a submission key", 128);
   if (!submissionKey) throw appError("INVALID_INPUT", "Add a submission key.");
@@ -202,7 +242,10 @@ export async function requestAppointment(ctx: MutationCtx, actor: Actor, input: 
   let linked: Case | null = null;
   if (input.caseId !== undefined) {
     linked = requireOwned(await ctx.db.get(input.caseId), actor, "request");
-    if (!isOpen(linked)) throw appError("INVALID_STATE", "That request is closed. Ask for the fitting as a new request.", { status: linked.status });
+    if (!isOpen(linked))
+      throw appError("INVALID_STATE", "That request is closed. Ask for the fitting as a new request.", {
+        status: linked.status,
+      });
     const fingerprint = windowFingerprint(preferredWindows);
     const same = (await appointmentsForCase(ctx, linked._id)).find(
       (existing) =>
@@ -235,7 +278,9 @@ export async function requestAppointment(ctx: MutationCtx, actor: Actor, input: 
     );
     caseId = created.caseId;
     if (created.duplicate) {
-      const existing = (await appointmentsForCase(ctx, caseId)).find((appointment) => !isTerminal(appointment)) ?? (await appointmentsForCase(ctx, caseId))[0];
+      const existing =
+        (await appointmentsForCase(ctx, caseId)).find((appointment) => !isTerminal(appointment)) ??
+        (await appointmentsForCase(ctx, caseId))[0];
       if (existing) return { appointmentId: existing._id, caseId, duplicate: true };
     }
   }
@@ -259,8 +304,17 @@ export async function requestAppointment(ctx: MutationCtx, actor: Actor, input: 
   const theCase = linked ?? (await ctx.db.get(caseId));
   if (theCase && theCase.appointmentId === undefined) await ctx.db.patch(caseId, { appointmentId });
   if (linked) {
-    await appendMessage(ctx, caseId, { author: "system", body: `${summary} Requested · awaiting confirmation; a preferred date is not a reserved slot.` }, now);
-    if (linked.status === "assigned" || linked.status === "awaiting_client") await touchCase(ctx, caseId, { status: "awaiting_staff" }, now);
+    await appendMessage(
+      ctx,
+      caseId,
+      {
+        author: "system",
+        body: `${summary} Requested · awaiting confirmation; a preferred date is not a reserved slot.`,
+      },
+      now,
+    );
+    if (linked.status === "assigned" || linked.status === "awaiting_client")
+      await touchCase(ctx, caseId, { status: "awaiting_staff" }, now);
     await queueNotification(
       ctx,
       {
@@ -292,7 +346,11 @@ export async function requestAppointment(ctx: MutationCtx, actor: Actor, input: 
 // Reads
 // ------------------------------------------------------------------------------------------------
 
-export async function findOwnedAppointment(ctx: Ctx, appointmentId: Id<"atelierAppointments">, actor: Actor): Promise<Appointment | null> {
+export async function findOwnedAppointment(
+  ctx: Ctx,
+  appointmentId: Id<"atelierAppointments">,
+  actor: Actor,
+): Promise<Appointment | null> {
   const appointment = await ctx.db.get(appointmentId);
   return appointment && isOwner(appointment, actor) ? appointment : null;
 }
@@ -313,7 +371,11 @@ function toWindowView(window: PreferredWindow): PreferredWindowView {
 
 /** "Confirmed" is shown only with a calendar booking and a start time; anything else is a request. */
 export function isConfirmed(appointment: Appointment): boolean {
-  return appointment.status === "confirmed" && appointment.calendarRef !== undefined && appointment.confirmedStart !== undefined;
+  return (
+    appointment.status === "confirmed" &&
+    appointment.calendarRef !== undefined &&
+    appointment.confirmedStart !== undefined
+  );
 }
 
 export function toAppointmentView(appointment: Appointment): AppointmentView {
@@ -402,7 +464,10 @@ export async function listPending(ctx: Ctx): Promise<StaffAppointmentRow[]> {
         .take(PENDING_MAX),
     ),
   );
-  const rows = pages.flat().sort((a, b) => a.createdAt - b.createdAt).slice(0, PENDING_MAX);
+  const rows = pages
+    .flat()
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .slice(0, PENDING_MAX);
   return Promise.all(rows.map((appointment) => toStaffRow(ctx, appointment)));
 }
 
@@ -414,7 +479,13 @@ export async function staffGet(ctx: Ctx, appointmentId: Id<"atelierAppointments"
 // Client changes (C18 step 3)
 // ------------------------------------------------------------------------------------------------
 
-async function noteOnCase(ctx: MutationCtx, appointment: Appointment, body: string, now: number, wakeStaff: boolean): Promise<void> {
+async function noteOnCase(
+  ctx: MutationCtx,
+  appointment: Appointment,
+  body: string,
+  now: number,
+  wakeStaff: boolean,
+): Promise<void> {
   if (appointment.caseId === undefined) return;
   const theCase = await ctx.db.get(appointment.caseId);
   if (!theCase) return;
@@ -435,9 +506,13 @@ export async function reschedule(
 ): Promise<void> {
   requireOwnedAppointment(appointment, actor);
   if (isTerminal(appointment)) {
-    throw appError("INVALID_STATE", `This appointment is ${APPOINTMENT_STATUS_LABELS[appointment.status].toLowerCase()}; request a new one instead.`, {
-      status: appointment.status,
-    });
+    throw appError(
+      "INVALID_STATE",
+      `This appointment is ${APPOINTMENT_STATUS_LABELS[appointment.status].toLowerCase()}; request a new one instead.`,
+      {
+        status: appointment.status,
+      },
+    );
   }
   assertTransition(appointment, "rescheduled");
   const preferredWindows = normalizeWindows(windows, now);
@@ -448,7 +523,10 @@ export async function reschedule(
     confirmedStart: undefined,
     confirmedEnd: undefined,
     calendarRef: undefined,
-    history: [...appointment.history, { at: now, from: appointment.status, to: "rescheduled", by: "client", note: cleanNote }],
+    history: [
+      ...appointment.history,
+      { at: now, from: appointment.status, to: "rescheduled", by: "client", note: cleanNote },
+    ],
     updatedAt: now,
   });
   await noteOnCase(
@@ -460,20 +538,36 @@ export async function reschedule(
   );
   await audit(
     ctx,
-    { actor, actorKind: "client", action: "appointment.reschedule", targetTable: "atelierAppointments", targetId: appointment._id, meta: { from: appointment.status } },
+    {
+      actor,
+      actorKind: "client",
+      action: "appointment.reschedule",
+      targetTable: "atelierAppointments",
+      targetId: appointment._id,
+      meta: { from: appointment.status },
+    },
     now,
   );
 }
 
 /** Cancelling is final for this request; a cancelled one is left alone, a completed one cannot be undone. */
-export async function cancel(ctx: MutationCtx, actor: Actor, appointment: Appointment, note: string | undefined, now: number = Date.now()): Promise<void> {
+export async function cancel(
+  ctx: MutationCtx,
+  actor: Actor,
+  appointment: Appointment,
+  note: string | undefined,
+  now: number = Date.now(),
+): Promise<void> {
   requireOwnedAppointment(appointment, actor);
   if (appointment.status === "cancelled") return;
   assertTransition(appointment, "cancelled");
   const cleanNote = cleanText(note, "your note", 500);
   await ctx.db.patch(appointment._id, {
     status: "cancelled",
-    history: [...appointment.history, { at: now, from: appointment.status, to: "cancelled", by: "client", note: cleanNote }],
+    history: [
+      ...appointment.history,
+      { at: now, from: appointment.status, to: "cancelled", by: "client", note: cleanNote },
+    ],
     updatedAt: now,
   });
   const wasConfirmed = isConfirmed(appointment);
@@ -481,7 +575,9 @@ export async function cancel(ctx: MutationCtx, actor: Actor, appointment: Appoin
     ctx,
     appointment,
     `You cancelled your ${APPOINTMENT_SERVICE_LABELS[appointment.service].toLowerCase()}${
-      wasConfirmed && appointment.confirmedStart !== undefined ? ` confirmed for ${formatWhen(appointment.confirmedStart, appointment.timeZone)}` : ""
+      wasConfirmed && appointment.confirmedStart !== undefined
+        ? ` confirmed for ${formatWhen(appointment.confirmedStart, appointment.timeZone)}`
+        : ""
     }.${cleanNote ? ` ${cleanNote}` : ""}${wasConfirmed ? " The house will clear the booking." : ""}`,
     now,
     true,
@@ -507,7 +603,13 @@ export async function cancel(ctx: MutationCtx, actor: Actor, appointment: Appoin
 export type ConfirmInput = { confirmedStart: number; confirmedEnd: number; calendarRef: string; note?: string };
 
 /** All three facts or nothing: the start, the end and the Square booking reference. */
-export async function confirm(ctx: MutationCtx, staff: User, appointmentId: Id<"atelierAppointments">, input: ConfirmInput, now: number = Date.now()): Promise<void> {
+export async function confirm(
+  ctx: MutationCtx,
+  staff: User,
+  appointmentId: Id<"atelierAppointments">,
+  input: ConfirmInput,
+  now: number = Date.now(),
+): Promise<void> {
   const appointment = await staffAppointment(ctx, appointmentId);
   assertTransition(appointment, "confirmed");
   const calendarRef = cleanText(input.calendarRef, "the booking reference", 120);
@@ -515,8 +617,10 @@ export async function confirm(ctx: MutationCtx, staff: User, appointmentId: Id<"
   if (!Number.isFinite(input.confirmedStart) || !Number.isFinite(input.confirmedEnd)) {
     throw appError("INVALID_INPUT", "A confirmation needs a start and an end time.");
   }
-  if (input.confirmedEnd <= input.confirmedStart) throw appError("INVALID_INPUT", "The appointment must end after it starts.");
-  if (input.confirmedEnd - input.confirmedStart > DAY_MS) throw appError("INVALID_INPUT", "An appointment is shorter than a day.");
+  if (input.confirmedEnd <= input.confirmedStart)
+    throw appError("INVALID_INPUT", "The appointment must end after it starts.");
+  if (input.confirmedEnd - input.confirmedStart > DAY_MS)
+    throw appError("INVALID_INPUT", "An appointment is shorter than a day.");
   const note = cleanText(input.note, "the note", 500);
   await ctx.db.patch(appointment._id, {
     status: "confirmed",
@@ -527,9 +631,16 @@ export async function confirm(ctx: MutationCtx, staff: User, appointmentId: Id<"
     updatedAt: now,
   });
   const when = formatWhen(input.confirmedStart, appointment.timeZone);
-  const where = appointment.showroomId === "virtual" ? "by video" : `at the ${showroomLabel(appointment.showroomId)} showroom`;
+  const where =
+    appointment.showroomId === "virtual" ? "by video" : `at the ${showroomLabel(appointment.showroomId)} showroom`;
   const serviceLabel = APPOINTMENT_SERVICE_LABELS[appointment.service];
-  await noteOnCase(ctx, appointment, `Confirmed for ${when} (${appointment.timeZone}): ${serviceLabel.toLowerCase()} ${where}. Booking reference ${calendarRef}.${note ? ` ${note}` : ""}`, now, false);
+  await noteOnCase(
+    ctx,
+    appointment,
+    `Confirmed for ${when} (${appointment.timeZone}): ${serviceLabel.toLowerCase()} ${where}. Booking reference ${calendarRef}.${note ? ` ${note}` : ""}`,
+    now,
+    false,
+  );
   const theCase = appointment.caseId !== undefined ? await ctx.db.get(appointment.caseId) : null;
   if (theCase) {
     await queueNotification(
@@ -552,22 +663,38 @@ export async function confirm(ctx: MutationCtx, staff: User, appointmentId: Id<"
       action: "appointment.confirm",
       targetTable: "atelierAppointments",
       targetId: appointment._id,
-      meta: { from: appointment.status, confirmedStart: input.confirmedStart, confirmedEnd: input.confirmedEnd, calendarRef },
+      meta: {
+        from: appointment.status,
+        confirmedStart: input.confirmedStart,
+        confirmedEnd: input.confirmedEnd,
+        calendarRef,
+      },
     },
     now,
   );
 }
 
 /** Only a confirmed appointment can have taken place. */
-export async function complete(ctx: MutationCtx, staff: User, appointmentId: Id<"atelierAppointments">, note: string | undefined, now: number = Date.now()): Promise<void> {
+export async function complete(
+  ctx: MutationCtx,
+  staff: User,
+  appointmentId: Id<"atelierAppointments">,
+  note: string | undefined,
+  now: number = Date.now(),
+): Promise<void> {
   const appointment = await staffAppointment(ctx, appointmentId);
   if (appointment.status !== "confirmed") {
-    throw appError("INVALID_STATE", "Only a confirmed appointment can be marked as completed.", { status: appointment.status });
+    throw appError("INVALID_STATE", "Only a confirmed appointment can be marked as completed.", {
+      status: appointment.status,
+    });
   }
   const cleanNote = cleanText(note, "the note", 500);
   await ctx.db.patch(appointment._id, {
     status: "completed",
-    history: [...appointment.history, { at: now, from: appointment.status, to: "completed", by: "staff", note: cleanNote }],
+    history: [
+      ...appointment.history,
+      { at: now, from: appointment.status, to: "completed", by: "staff", note: cleanNote },
+    ],
     updatedAt: now,
   });
   await noteOnCase(
@@ -577,5 +704,15 @@ export async function complete(ctx: MutationCtx, staff: User, appointmentId: Id<
     now,
     false,
   );
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "appointment.complete", targetTable: "atelierAppointments", targetId: appointment._id }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "appointment.complete",
+      targetTable: "atelierAppointments",
+      targetId: appointment._id,
+    },
+    now,
+  );
 }

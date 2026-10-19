@@ -1,7 +1,13 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
 import type { CorrectionView } from "@convex/atelier/corrections";
 import type { OrderView } from "@convex/atelier/orders";
-import type { CorrectionKind, CorrectionStatus, FitRegion, RefundState } from "@convex/shared/atelier/enums";
+import {
+  ATELIER_LIMITS,
+  type CorrectionKind,
+  type CorrectionStatus,
+  type FitRegion,
+  type RefundState,
+} from "@convex/shared/atelier/enums";
 import { HOUSE_POLICY } from "@convex/shared/atelier/policy";
 
 /** Gold for what waits on the client (a remedy to accept, a reassessment to give), warning for an escalation. */
@@ -26,8 +32,8 @@ export const REFUND_TONES: Record<RefundState, StatusTone> = {
 };
 
 /** Mirror `CORRECTION_TEXT_MAX` and `CORRECTION_PHOTOS_MAX` in convex/model/atelier/corrections.ts (not imported into the client bundle). */
-export const CORRECTION_TEXT_MAX = 2000;
-export const CORRECTION_PHOTOS_MAX = 6;
+export const CORRECTION_TEXT_MAX: number = ATELIER_LIMITS.correctionTextMax;
+export const CORRECTION_PHOTOS_MAX: number = ATELIER_LIMITS.correctionPhotosMax;
 
 /** The two kinds raised from the first-fit checklist (S31) and the four the policy section offers (S32). */
 export const AFTERCARE_KINDS: readonly CorrectionKind[] = ["alteration", "remake"];

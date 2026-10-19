@@ -17,6 +17,7 @@ import {
   FIT_PROFILE_STATUS_LABELS,
   FIT_REGION_LABELS,
   FIT_REGIONS,
+  MILESTONE_SOURCE_LABELS,
   ORDER_STATUS_LABELS,
   ORDER_STATUSES,
   PAYMENT_STATE_LABELS,
@@ -104,13 +105,7 @@ export const PAYMENT_TRANSITIONS: Record<PaymentState, readonly PaymentState[]> 
   refunded: [],
 };
 
-export const MILESTONE_SOURCE_LABELS: Record<MilestoneSource, string> = {
-  staff: "The house",
-  maker: "The maker",
-  carrier: "Carrier",
-  client: "You",
-  system: "Recorded by the system",
-};
+export { MILESTONE_SOURCE_LABELS };
 
 /** Payment states that let a commission be released; "none" and "failed" block it. */
 const RELEASABLE_PAYMENT_STATES: readonly PaymentState[] = ["pending", "confirmed"];
@@ -129,7 +124,20 @@ export const ORDER_TEXT_MAX = 2000;
 // Words for messages
 // ------------------------------------------------------------------------------------------------
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 /** "$2,773.50"; negative amounts keep their sign. Runs the same in Convex and in the browser. */
 export function formatUsd(amount: number): string {
@@ -228,7 +236,11 @@ export async function correctionsFor(ctx: Ctx, orderId: Id<"atelierOrders">): Pr
 }
 
 /** The commission an accepted quote produced, found through the quote's case. */
-export async function orderForQuote(ctx: Ctx, caseId: Id<"atelierCases">, quoteId: Id<"atelierQuotes">): Promise<Order | null> {
+export async function orderForQuote(
+  ctx: Ctx,
+  caseId: Id<"atelierCases">,
+  quoteId: Id<"atelierQuotes">,
+): Promise<Order | null> {
   const orders = await ctx.db
     .query("atelierOrders")
     .withIndex("by_case", (q) => q.eq("caseId", caseId))
@@ -384,7 +396,11 @@ export type MilestoneRow = {
   estimated: boolean;
 };
 
-export async function insertMilestone(ctx: MutationCtx, orderId: Id<"atelierOrders">, row: MilestoneRow): Promise<Id<"atelierOrderMilestones">> {
+export async function insertMilestone(
+  ctx: MutationCtx,
+  orderId: Id<"atelierOrders">,
+  row: MilestoneRow,
+): Promise<Id<"atelierOrderMilestones">> {
   return ctx.db.insert("atelierOrderMilestones", {
     orderId,
     kind: row.kind,
@@ -410,7 +426,11 @@ export type CreateOrderInput = {
 };
 
 /** A commission in preflight with no payment recorded and "Quote accepted" as its first milestone. */
-export async function createOrder(ctx: MutationCtx, input: CreateOrderInput, now: number = Date.now()): Promise<Id<"atelierOrders">> {
+export async function createOrder(
+  ctx: MutationCtx,
+  input: CreateOrderInput,
+  now: number = Date.now(),
+): Promise<Id<"atelierOrders">> {
   const orderId = await ctx.db.insert("atelierOrders", {
     ...input.owner,
     caseId: input.caseId,
@@ -426,7 +446,13 @@ export async function createOrder(ctx: MutationCtx, input: CreateOrderInput, now
     createdAt: now,
     updatedAt: now,
   });
-  await insertMilestone(ctx, orderId, { kind: "quote_accepted", label: "Quote accepted", at: now, source: "client", estimated: false });
+  await insertMilestone(ctx, orderId, {
+    kind: "quote_accepted",
+    label: "Quote accepted",
+    at: now,
+    source: "client",
+    estimated: false,
+  });
   return orderId;
 }
 
@@ -449,16 +475,23 @@ export async function preflightBlockers(ctx: Ctx, order: Order, now: number = Da
   ]);
 
   if (!quote) blockers.push("The accepted quote could not be found.");
-  else if (quote.status !== "accepted") blockers.push(`Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()}, not accepted.`);
-  else if (quote.acceptedSpecHash !== order.specHash) blockers.push("The accepted quote prices a different design from this commission.");
+  else if (quote.status !== "accepted")
+    blockers.push(
+      `Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()}, not accepted.`,
+    );
+  else if (quote.acceptedSpecHash !== order.specHash)
+    blockers.push("The accepted quote prices a different design from this commission.");
 
   if (!revision) blockers.push("The design revision could not be found.");
-  else if (revision.specHash !== order.specHash) blockers.push(`Design revision ${revision.revision} does not match the commission's specification.`);
+  else if (revision.specHash !== order.specHash)
+    blockers.push(`Design revision ${revision.revision} does not match the commission's specification.`);
 
   for (const error of validateSpec(order.spec)) blockers.push(`Design: ${error}`);
   if (order.spec.clothCode) {
     if (!cloth || cloth.status !== "approved") {
-      blockers.push(`Cloth ${cloth?.name ?? order.spec.clothCode} is no longer approved; the client must choose another cloth and accept a new quote.`);
+      blockers.push(
+        `Cloth ${cloth?.name ?? order.spec.clothCode} is no longer approved; the client must choose another cloth and accept a new quote.`,
+      );
     } else if (!cloth.inStock) {
       blockers.push(`Cloth ${cloth.name} is out of stock; confirm it can be sourced before release.`);
     }
@@ -468,16 +501,22 @@ export async function preflightBlockers(ctx: Ctx, order: Order, now: number = Da
   const measuredAtFitting = draft?.fitRoute === "atelier";
   if (!fitApproved && !measuredAtFitting) {
     if (profile) {
-      blockers.push(`Fit profile version ${profile.version} is ${FIT_PROFILE_STATUS_LABELS[profile.status].toLowerCase()}; a fitter must approve it, or record a showroom fitting.`);
+      blockers.push(
+        `Fit profile version ${profile.version} is ${FIT_PROFILE_STATUS_LABELS[profile.status].toLowerCase()}; a fitter must approve it, or record a showroom fitting.`,
+      );
     } else if (draft?.fitRoute === "remote") {
-      blockers.push("No approved fit profile: the client chose guided measurements from home and none has been approved yet.");
+      blockers.push(
+        "No approved fit profile: the client chose guided measurements from home and none has been approved yet.",
+      );
     } else {
       blockers.push("No fit route recorded: an approved fit profile or a showroom fitting is needed before release.");
     }
   }
 
   if (!RELEASABLE_PAYMENT_STATES.includes(order.payment.state)) {
-    blockers.push(order.payment.state === "none" ? "Payment not recorded." : `${PAYMENT_STATE_LABELS[order.payment.state]}.`);
+    blockers.push(
+      order.payment.state === "none" ? "Payment not recorded." : `${PAYMENT_STATE_LABELS[order.payment.state]}.`,
+    );
   }
 
   const readiness = eventReadiness(order.eventDate, now);
@@ -492,7 +531,13 @@ export async function preflightBlockers(ctx: Ctx, order: Order, now: number = Da
 }
 
 /** The released package is immutable: the same ids the client approved go to the maker (O05). */
-export async function releaseOrder(ctx: MutationCtx, staff: User, order: Order, makerRef: string, now: number = Date.now()): Promise<void> {
+export async function releaseOrder(
+  ctx: MutationCtx,
+  staff: User,
+  order: Order,
+  makerRef: string,
+  now: number = Date.now(),
+): Promise<void> {
   if (order.status === "cancelled") throw appError("INVALID_STATE", "This commission was cancelled.");
   if (order.status !== "preflight") {
     throw appError(
@@ -506,7 +551,13 @@ export async function releaseOrder(ctx: MutationCtx, staff: User, order: Order, 
   if (blockers.length > 0) {
     throw appError("RELEASE_BLOCKED", `This commission cannot be released yet. ${blockers.join(" ")}`, { blockers });
   }
-  await ctx.db.patch(order._id, { status: "released", releasedAt: now, releasedByStaffId: staff._id, makerRef: ref, updatedAt: now });
+  await ctx.db.patch(order._id, {
+    status: "released",
+    releasedAt: now,
+    releasedByStaffId: staff._id,
+    makerRef: ref,
+    updatedAt: now,
+  });
   await insertMilestone(ctx, order._id, {
     kind: "released",
     label: ORDER_STATUS_LABELS.released,
@@ -524,7 +575,17 @@ export async function releaseOrder(ctx: MutationCtx, staff: User, order: Order, 
     },
     now,
   );
-  await audit(ctx, { actor: staff, action: "order.release", targetTable: "atelierOrders", targetId: order._id, meta: { makerRef: ref, specHash: order.specHash } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      action: "order.release",
+      targetTable: "atelierOrders",
+      targetId: order._id,
+      meta: { makerRef: ref, specHash: order.specHash },
+    },
+    now,
+  );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -539,9 +600,15 @@ function assertProductionOpen(order: Order): void {
     case "preflight":
       throw appError("INVALID_STATE", "Release the commission before recording production.");
     case "correction_open":
-      throw appError("INVALID_STATE", "A correction is open on this commission; resolve it before recording production progress.");
+      throw appError(
+        "INVALID_STATE",
+        "A correction is open on this commission; resolve it before recording production progress.",
+      );
     case "accepted":
-      throw appError("INVALID_STATE", "The fit on this commission has been accepted; there is no production left to record.");
+      throw appError(
+        "INVALID_STATE",
+        "The fit on this commission has been accepted; there is no production left to record.",
+      );
     default:
       return;
   }
@@ -576,7 +643,10 @@ export async function addMilestone(
   if (target) {
     assertProductionOpen(order);
     if (STATUS_RANK[target] < STATUS_RANK[order.status]) {
-      throw appError("INVALID_STATE", `A commission that is ${statusWord(order.status)} cannot go back to ${statusWord(target)}.`);
+      throw appError(
+        "INVALID_STATE",
+        `A commission that is ${statusWord(order.status)} cannot go back to ${statusWord(target)}.`,
+      );
     }
   }
   const id = await insertMilestone(ctx, order._id, {
@@ -593,7 +663,13 @@ export async function addMilestone(
   await ctx.db.patch(order._id, patch);
   await audit(
     ctx,
-    { actor: staff, action: "order.milestone", targetTable: "atelierOrders", targetId: order._id, meta: { kind: input.kind, estimated: input.estimated, status: patch.status ?? order.status } },
+    {
+      actor: staff,
+      action: "order.milestone",
+      targetTable: "atelierOrders",
+      targetId: order._id,
+      meta: { kind: input.kind, estimated: input.estimated, status: patch.status ?? order.status },
+    },
     now,
   );
   return id;
@@ -602,11 +678,18 @@ export async function addMilestone(
 export type ShipmentInput = { carrier: string; trackingRef: string; at: number };
 
 /** Shipped is a carrier fact: the fit review opens on arrival and is never closed by shipping. */
-export async function markShipped(ctx: MutationCtx, staff: User, order: Order, input: ShipmentInput, now: number = Date.now()): Promise<void> {
+export async function markShipped(
+  ctx: MutationCtx,
+  staff: User,
+  order: Order,
+  input: ShipmentInput,
+  now: number = Date.now(),
+): Promise<void> {
   const carrier = input.carrier.trim();
   const trackingRef = input.trackingRef.trim();
   if (!carrier || !trackingRef) throw appError("INVALID_INPUT", "Give the carrier and the tracking reference.");
-  if (!Number.isFinite(input.at)) throw appError("INVALID_INPUT", "Give the date the parcel was handed to the carrier.");
+  if (!Number.isFinite(input.at))
+    throw appError("INVALID_INPUT", "Give the date the parcel was handed to the carrier.");
   if (order.status === "shipped" && order.carrier === carrier && order.trackingRef === trackingRef) return;
   if (!SHIPPABLE_STATUSES.includes(order.status)) {
     assertProductionOpen(order);
@@ -631,13 +714,33 @@ export async function markShipped(ctx: MutationCtx, staff: User, order: Order, i
     },
     now,
   );
-  await audit(ctx, { actor: staff, action: "order.ship", targetTable: "atelierOrders", targetId: order._id, meta: { carrier, trackingRef } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      action: "order.ship",
+      targetTable: "atelierOrders",
+      targetId: order._id,
+      meta: { carrier, trackingRef },
+    },
+    now,
+  );
 }
 
 /** A carrier's "Delivered" opens the fit review (C23); only the client's acceptance closes it. */
-export async function markDelivered(ctx: MutationCtx, staff: User, order: Order, at: number, now: number = Date.now()): Promise<void> {
+export async function markDelivered(
+  ctx: MutationCtx,
+  staff: User,
+  order: Order,
+  at: number,
+  now: number = Date.now(),
+): Promise<void> {
   if (!Number.isFinite(at)) throw appError("INVALID_INPUT", "Give the delivery date.");
-  if (order.deliveredAt !== undefined && (order.status === "fit_review" || order.status === "accepted" || order.status === "correction_open")) return;
+  if (
+    order.deliveredAt !== undefined &&
+    (order.status === "fit_review" || order.status === "accepted" || order.status === "correction_open")
+  )
+    return;
   if (order.status !== "shipped" && order.status !== "collected") {
     assertProductionOpen(order);
     throw appError("INVALID_STATE", "Record shipping before delivery.");
@@ -660,7 +763,11 @@ export async function markDelivered(ctx: MutationCtx, staff: User, order: Order,
     },
     now,
   );
-  await audit(ctx, { actor: staff, action: "order.deliver", targetTable: "atelierOrders", targetId: order._id, meta: { at } }, now);
+  await audit(
+    ctx,
+    { actor: staff, action: "order.deliver", targetTable: "atelierOrders", targetId: order._id, meta: { at } },
+    now,
+  );
 }
 
 export type PaymentInput = { state: PaymentState; amountUsd: number; reference: string; provider: string };
@@ -698,8 +805,10 @@ export async function recordPayment(
   const reference = input.reference.trim();
   const provider = input.provider.trim();
   if (!reference || !provider) throw appError("INVALID_INPUT", "Give the payment provider and its reference.");
-  if (!Number.isFinite(input.amountUsd) || input.amountUsd < 0) throw appError("INVALID_INPUT", "Give the amount recorded by the provider.");
-  if (input.state === "none") throw appError("INVALID_INPUT", "Record what the provider reported: pending, confirmed, failed or a refund.");
+  if (!Number.isFinite(input.amountUsd) || input.amountUsd < 0)
+    throw appError("INVALID_INPUT", "Give the amount recorded by the provider.");
+  if (input.state === "none")
+    throw appError("INVALID_INPUT", "Record what the provider reported: pending, confirmed, failed or a refund.");
   const current = order.payment;
   if (current.reference === reference && current.state === input.state) return { changed: false, payment: current };
   if (!PAYMENT_TRANSITIONS[current.state].includes(input.state)) {
@@ -713,7 +822,11 @@ export async function recordPayment(
     amountUsd: input.amountUsd,
     reference,
     provider,
-    ...(input.state === "confirmed" ? { confirmedAt: now } : current.confirmedAt !== undefined ? { confirmedAt: current.confirmedAt } : {}),
+    ...(input.state === "confirmed"
+      ? { confirmedAt: now }
+      : current.confirmedAt !== undefined
+        ? { confirmedAt: current.confirmedAt }
+        : {}),
   };
   await ctx.db.patch(order._id, { payment, updatedAt: now });
   await insertMilestone(ctx, order._id, {
@@ -729,7 +842,13 @@ export async function recordPayment(
   if (body) await appendMessage(ctx, order.caseId, { author: "system", body }, now);
   await audit(
     ctx,
-    { actor: staff, action: "order.payment", targetTable: "atelierOrders", targetId: order._id, meta: { state: input.state, reference, provider, amountUsd: input.amountUsd } },
+    {
+      actor: staff,
+      action: "order.payment",
+      targetTable: "atelierOrders",
+      targetId: order._id,
+      meta: { state: input.state, reference, provider, amountUsd: input.amountUsd },
+    },
     now,
   );
   return { changed: true, payment };
@@ -738,13 +857,22 @@ export async function recordPayment(
 export type RiskInput = { riskNote: string; estimatedReadyAt?: number };
 
 /** C22: a risk to the date is told to the client and recorded, with any new estimate labelled as one. */
-export async function setRisk(ctx: MutationCtx, staff: User, order: Order, input: RiskInput, now: number = Date.now()): Promise<void> {
+export async function setRisk(
+  ctx: MutationCtx,
+  staff: User,
+  order: Order,
+  input: RiskInput,
+  now: number = Date.now(),
+): Promise<void> {
   const riskNote = input.riskNote.trim();
   if (!riskNote) throw appError("INVALID_INPUT", "Say what the risk to the date is.");
-  if (riskNote.length > ORDER_TEXT_MAX) throw appError("INVALID_INPUT", `Keep the risk note under ${ORDER_TEXT_MAX} characters.`);
-  if (input.estimatedReadyAt !== undefined && !Number.isFinite(input.estimatedReadyAt)) throw appError("INVALID_INPUT", "Give the estimate as a date.");
+  if (riskNote.length > ORDER_TEXT_MAX)
+    throw appError("INVALID_INPUT", `Keep the risk note under ${ORDER_TEXT_MAX} characters.`);
+  if (input.estimatedReadyAt !== undefined && !Number.isFinite(input.estimatedReadyAt))
+    throw appError("INVALID_INPUT", "Give the estimate as a date.");
   if (order.status === "cancelled") throw appError("INVALID_STATE", "This commission was cancelled.");
-  if (order.status === "accepted") throw appError("INVALID_STATE", "The fit on this commission has been accepted; there is no date left at risk.");
+  if (order.status === "accepted")
+    throw appError("INVALID_STATE", "The fit on this commission has been accepted; there is no date left at risk.");
   await ctx.db.patch(order._id, {
     riskNote,
     ...(input.estimatedReadyAt !== undefined ? { estimatedReadyAt: input.estimatedReadyAt } : {}),
@@ -776,12 +904,21 @@ export async function setRisk(ctx: MutationCtx, staff: User, order: Order, input
   await appendMessage(
     ctx,
     order.caseId,
-    { author: "system", body: `The house has noted a risk to your date: ${riskNote}${estimate} Nothing in your design changes without your decision.` },
+    {
+      author: "system",
+      body: `The house has noted a risk to your date: ${riskNote}${estimate} Nothing in your design changes without your decision.`,
+    },
     now,
   );
   await audit(
     ctx,
-    { actor: staff, action: "order.risk", targetTable: "atelierOrders", targetId: order._id, meta: { estimatedReadyAt: input.estimatedReadyAt ?? null } },
+    {
+      actor: staff,
+      action: "order.risk",
+      targetTable: "atelierOrders",
+      targetId: order._id,
+      meta: { estimatedReadyAt: input.estimatedReadyAt ?? null },
+    },
     now,
   );
 }
@@ -807,7 +944,8 @@ export async function setFirstFitChecklist(
   now: number = Date.now(),
 ): Promise<void> {
   const unknownKeys = Object.keys(checklist).filter((key) => !isFitRegion(key));
-  if (unknownKeys.length > 0) throw appError("INVALID_INPUT", "The checklist names a region the house does not know.", { unknownKeys });
+  if (unknownKeys.length > 0)
+    throw appError("INVALID_INPUT", "The checklist names a region the house does not know.", { unknownKeys });
   if (!CHECKLIST_STATUSES.includes(order.status)) {
     throw appError(
       "INVALID_STATE",
@@ -826,11 +964,24 @@ export async function setFirstFitChecklist(
     ...(opensReview ? { status: "fit_review" as const } : {}),
   });
   if (opensReview) {
-    await insertMilestone(ctx, order._id, { kind: "fit_review", label: ORDER_STATUS_LABELS.fit_review, at: now, source: "client", estimated: false });
+    await insertMilestone(ctx, order._id, {
+      kind: "fit_review",
+      label: ORDER_STATUS_LABELS.fit_review,
+      at: now,
+      source: "client",
+      estimated: false,
+    });
   }
   await audit(
     ctx,
-    { actor, actorKind: "client", action: "order.checklist", targetTable: "atelierOrders", targetId: order._id, meta: { regions: Object.keys(checklist) } },
+    {
+      actor,
+      actorKind: "client",
+      action: "order.checklist",
+      targetTable: "atelierOrders",
+      targetId: order._id,
+      meta: { regions: Object.keys(checklist) },
+    },
     now,
   );
 }
@@ -860,7 +1011,13 @@ export async function acceptFit(ctx: MutationCtx, actor: Actor, order: Order, no
     );
   }
   await ctx.db.patch(order._id, { status: "accepted", fitAcceptedAt: now, updatedAt: now });
-  await insertMilestone(ctx, order._id, { kind: "fit_accepted", label: ORDER_STATUS_LABELS.accepted, at: now, source: "client", estimated: false });
+  await insertMilestone(ctx, order._id, {
+    kind: "fit_accepted",
+    label: ORDER_STATUS_LABELS.accepted,
+    at: now,
+    source: "client",
+    estimated: false,
+  });
   await appendMessage(
     ctx,
     order.caseId,
@@ -870,5 +1027,9 @@ export async function acceptFit(ctx: MutationCtx, actor: Actor, order: Order, no
     },
     now,
   );
-  await audit(ctx, { actor, actorKind: "client", action: "order.acceptFit", targetTable: "atelierOrders", targetId: order._id }, now);
+  await audit(
+    ctx,
+    { actor, actorKind: "client", action: "order.acceptFit", targetTable: "atelierOrders", targetId: order._id },
+    now,
+  );
 }

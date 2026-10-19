@@ -27,7 +27,8 @@ export const OCCASION_LABELS: Record<Occasion, string> = {
 };
 /** The house's own words for each collection (site copy, verified 18 October 2026). */
 export const OCCASION_BLURBS: Record<Occasion, string> = {
-  wedding: "Impeccably tailored for your most important day. Every detail crafted for confidence, comfort and timeless style.",
+  wedding:
+    "Impeccably tailored for your most important day. Every detail crafted for confidence, comfort and timeless style.",
   business: "Sharp, versatile tailoring built for the boardroom and beyond, refined enough to command any room.",
   black_tie: "Formal evening wear with hand-finished detail: satin trims, refined lapels and a flawless silhouette.",
   corporate: "A considered wardrobe for the modern professional: cohesive, durable and effortlessly polished.",
@@ -142,19 +143,48 @@ export const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
 };
 export const CASE_PRIORITIES = ["normal", "high"] as const;
 export type CasePriority = (typeof CASE_PRIORITIES)[number];
+export const CASE_PRIORITY_LABELS: Record<CasePriority, string> = {
+  normal: "Normal",
+  high: "High priority",
+};
 export const MESSAGE_AUTHORS = ["client", "staff", "system"] as const;
 export type MessageAuthor = (typeof MESSAGE_AUTHORS)[number];
 export const PROPOSAL_STATUSES = ["proposed", "accepted", "rejected", "withdrawn"] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
+export const PROPOSAL_STATUS_LABELS: Record<ProposalStatus, string> = {
+  proposed: "Proposed · awaiting your decision",
+  accepted: "Accepted",
+  rejected: "Declined",
+  withdrawn: "Withdrawn by the house",
+};
 export const COMMERCIAL_IMPACTS = ["none", "new_quote"] as const;
 export type CommercialImpact = (typeof COMMERCIAL_IMPACTS)[number];
 export const CONTACT_CHANNELS = ["email", "sms", "either"] as const;
 export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
+export const CONTACT_CHANNEL_LABELS: Record<ContactChannel, string> = {
+  email: "Email",
+  sms: "Text message",
+  either: "Either",
+};
 export const SAMPLE_STATES = ["requested", "accepted", "shipped", "declined"] as const;
 export type SampleState = (typeof SAMPLE_STATES)[number];
+export const SAMPLE_STATE_LABELS: Record<SampleState, string> = {
+  requested: "Requested · awaiting the house",
+  accepted: "Accepted · being prepared",
+  shipped: "Shipped",
+  declined: "Not available",
+};
 
-export const APPOINTMENT_SERVICES = ["consultation", "first_fitting", "final_fitting", "measurement", "virtual"] as const;
+export const APPOINTMENT_SERVICES = [
+  "consultation",
+  "first_fitting",
+  "final_fitting",
+  "measurement",
+  "virtual",
+] as const;
 export type AppointmentService = (typeof APPOINTMENT_SERVICES)[number];
+/** The services the house will hold by video; everything else needs a showroom. */
+export const VIRTUAL_SERVICES: readonly AppointmentService[] = ["virtual", "consultation"];
 export const APPOINTMENT_SERVICE_LABELS: Record<AppointmentService, string> = {
   consultation: "Private consultation",
   first_fitting: "First fitting",
@@ -201,6 +231,15 @@ export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
 };
 export const QUOTE_LINE_KINDS = ["commission", "cloth", "option", "shipping", "tax", "benefit", "discount"] as const;
 export type QuoteLineKind = (typeof QUOTE_LINE_KINDS)[number];
+export const QUOTE_LINE_KIND_LABELS: Record<QuoteLineKind, string> = {
+  commission: "Commission",
+  cloth: "Cloth",
+  option: "Option",
+  shipping: "Delivery",
+  tax: "Tax",
+  benefit: "Membership benefit",
+  discount: "Adjustment",
+};
 export const REDEMPTION_STATUSES = ["reserved", "redeemed", "released"] as const;
 export type RedemptionStatus = (typeof REDEMPTION_STATUSES)[number];
 export const REDEMPTION_STATUS_LABELS: Record<RedemptionStatus, string> = {
@@ -246,6 +285,13 @@ export const PAYMENT_STATE_LABELS: Record<PaymentState, string> = {
 };
 export const MILESTONE_SOURCES = ["staff", "maker", "carrier", "client", "system"] as const;
 export type MilestoneSource = (typeof MILESTONE_SOURCES)[number];
+export const MILESTONE_SOURCE_LABELS: Record<MilestoneSource, string> = {
+  staff: "The house",
+  maker: "The maker",
+  carrier: "Carrier",
+  client: "You",
+  system: "Recorded by the system",
+};
 export const CHECKLIST_STATES = ["unchecked", "ok", "issue"] as const;
 export type ChecklistState = (typeof CHECKLIST_STATES)[number];
 /** The first-fit checklist regions, which are also the regions a correction can name. */
@@ -361,6 +407,12 @@ export const PREVIEW_STATUS_LABELS: Record<PreviewStatus, string> = {
 };
 export const PREVIEW_QUALITIES = ["pending", "accepted", "rejected"] as const;
 export type PreviewQuality = (typeof PREVIEW_QUALITIES)[number];
+/** How the house judged a finished preview. "Set aside" is the client's word for a rejected result. */
+export const PREVIEW_QUALITY_LABELS: Record<PreviewQuality, string> = {
+  pending: "Not yet reviewed",
+  accepted: "Accepted by the house",
+  rejected: "Set aside by the house",
+};
 export const PHOTO_STATUSES = ["active", "pending_deletion", "deleted"] as const;
 export type PhotoStatus = (typeof PHOTO_STATUSES)[number];
 export const PHOTO_STATUS_LABELS: Record<PhotoStatus, string> = {
@@ -399,6 +451,13 @@ export type PrivacyStepStatus = (typeof PRIVACY_STEP_STATUSES)[number];
 
 export const GROUP_STATUSES = ["draft", "inviting", "in_review", "approved", "closed"] as const;
 export type GroupStatus = (typeof GROUP_STATUSES)[number];
+export const GROUP_STATUS_LABELS: Record<GroupStatus, string> = {
+  draft: "Being prepared",
+  inviting: "Inviting participants",
+  in_review: "With the house for review",
+  approved: "Approved by the house",
+  closed: "Closed",
+};
 export const PARTICIPANT_STATUSES = ["invited", "joined", "design_ready", "fit_ready", "ordered", "declined"] as const;
 export type ParticipantStatus = (typeof PARTICIPANT_STATUSES)[number];
 export const PARTICIPANT_STATUS_LABELS: Record<ParticipantStatus, string> = {
@@ -440,4 +499,10 @@ export const ATELIER_LIMITS = {
   /** Days before an event the house needs for a made-to-measure commission, per the site's "about six weeks". */
   eventBufferDays: 42,
   monogramMaxChars: 4,
+  /** Free text a client writes on a case or an aftercare request. */
+  caseTextMax: 2000,
+  correctionTextMax: 2000,
+  correctionPhotosMax: 6,
+  /** Preferred windows a fitting request may name. */
+  preferredWindowsMax: 3,
 } as const;

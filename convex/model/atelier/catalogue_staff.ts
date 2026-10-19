@@ -5,6 +5,7 @@ import { audit } from "../../atelier/access";
 import type { vCatalogueEntryInput, vCatalogueStaffEntryView, vCatalogueVersionView } from "../../atelier/catalogue";
 import { appError } from "../../lib/errors";
 import { CATALOGUE_KINDS, type CatalogueKind, type CatalogueStatus } from "../../shared/atelier/enums";
+import { CATALOGUE_TRANSITIONS } from "../../shared/atelier/transitions";
 import { ensureCatalogueSeeded, getEntry, toEntryView } from "./catalogue";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -32,11 +33,7 @@ const HEX_PATTERN = /^#[0-9a-f]{6}$/i;
 const CODE_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
 /** `draft → approved → withdrawn`, with a way back for a cloth that returns to the range. */
-export const CATALOGUE_TRANSITIONS: Record<CatalogueStatus, readonly CatalogueStatus[]> = {
-  draft: ["approved", "withdrawn"],
-  approved: ["withdrawn"],
-  withdrawn: ["approved", "draft"],
-};
+export { CATALOGUE_TRANSITIONS };
 
 export function canTransition(from: CatalogueStatus, to: CatalogueStatus): boolean {
   return CATALOGUE_TRANSITIONS[from].includes(to);

@@ -10,7 +10,7 @@ import type {
   QuoteLineKind,
   QuoteStatus,
 } from "@convex/shared/atelier/enums";
-import { QUOTE_LINE_KINDS } from "@convex/shared/atelier/enums";
+import { ATELIER_LIMITS, QUOTE_LINE_KINDS } from "@convex/shared/atelier/enums";
 import { HOUSE_POLICY } from "@convex/shared/atelier/policy";
 import type { DescribedLine } from "@convex/shared/atelier/spec";
 import type { Infer } from "convex/values";
@@ -60,7 +60,7 @@ export const CHANNEL_WORDS: Record<ContactChannel, string> = {
 };
 
 /** The client's own message cap; mirrors `CASE_TEXT_MAX` in convex/model/atelier/cases.ts, which is not exported to the client. */
-export const MESSAGE_MAX_CHARS = 2000;
+export const MESSAGE_MAX_CHARS: number = ATELIER_LIMITS.caseTextMax;
 
 /** The exact words of the state-language table (contract §6) and of the requests brief. */
 export const QUOTE_ACCEPTED_WORDS = "Quote accepted · payment not yet recorded";

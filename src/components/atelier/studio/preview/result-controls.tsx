@@ -2,7 +2,7 @@
 
 import type { PersonPhotoView } from "@convex/atelier/photos";
 import type { PreviewJobView } from "@convex/atelier/previews";
-import { ATELIER_LIMITS } from "@convex/shared/atelier/enums";
+import { ATELIER_LIMITS, PREVIEW_QUALITY_LABELS } from "@convex/shared/atelier/enums";
 import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
 import { ItemImage } from "@/components/common/item-image";
@@ -143,7 +143,7 @@ export function ResultControls({
     return (
       <div className="space-y-4">
         <StatusLine live tone="warning">
-          Set aside by the house
+          {PREVIEW_QUALITY_LABELS.rejected}
         </StatusLine>
         <p className="max-w-xl text-sm leading-relaxed text-pretty text-muted-foreground">
           This preview was finished, but the house&apos;s preview review did not accept its quality, so it is not shown.

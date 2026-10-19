@@ -40,10 +40,10 @@ import {
   CONTACT_CHANNELS,
   type AppointmentService,
   type ContactChannel,
+  CONTACT_CHANNEL_LABELS,
 } from "@convex/shared/atelier/enums";
 import { HOUSE, SHOWROOMS } from "@convex/shared/house";
 
-const CHANNEL_LABELS: Record<ContactChannel, string> = { email: "Email", sms: "Text message", either: "Either" };
 const VIRTUAL = "virtual" satisfies AppointmentLocation;
 
 const noSubscription = () => () => {};
@@ -379,7 +379,7 @@ export function RequestFittingForm({ draftId, caseId, onRequested, onCancel }: P
               {CONTACT_CHANNELS.map((channel) => (
                 <FieldLabel key={channel} className="min-h-11 items-center font-normal">
                   <RadioGroupItem value={channel} disabled={pending} />
-                  {CHANNEL_LABELS[channel]}
+                  {CONTACT_CHANNEL_LABELS[channel]}
                 </FieldLabel>
               ))}
             </RadioGroup>

@@ -14,6 +14,7 @@ import type {
 import { appError } from "../../lib/errors";
 import {
   ATELIER_LIMITS,
+  GROUP_STATUS_LABELS,
   isStudioStep,
   OCCASION_LABELS,
   PARTICIPANT_STATUS_LABELS,
@@ -63,14 +64,7 @@ export function isPermittedIndividualPath(value: string): value is PermittedIndi
   return (PERMITTED_INDIVIDUAL_PATHS as readonly string[]).includes(value);
 }
 
-/** Belongs beside the other label maps in convex/shared/atelier/enums.ts; kept here until the lead adds it. */
-export const GROUP_STATUS_LABELS: Record<GroupStatus, string> = {
-  draft: "Being prepared",
-  inviting: "Inviting participants",
-  in_review: "With the house for review",
-  approved: "Approved by the house",
-  closed: "Closed",
-};
+export { GROUP_STATUS_LABELS };
 
 export const GROUP_TRANSITIONS: Record<GroupStatus, readonly GroupStatus[]> = {
   draft: ["inviting", "in_review", "closed"],
@@ -373,9 +367,13 @@ export async function createGroup(
 ): Promise<Id<"atelierGroups">> {
   const existing = await listGroupsOf(ctx, organizer._id);
   if (existing.filter((group) => group.status !== "closed").length >= GROUPS_PER_ORGANIZER_MAX) {
-    throw appError("INVALID_INPUT", `You already organize ${GROUPS_PER_ORGANIZER_MAX} groups. Ask your concierge to close one.`, {
-      max: GROUPS_PER_ORGANIZER_MAX,
-    });
+    throw appError(
+      "INVALID_INPUT",
+      `You already organize ${GROUPS_PER_ORGANIZER_MAX} groups. Ask your concierge to close one.`,
+      {
+        max: GROUPS_PER_ORGANIZER_MAX,
+      },
+    );
   }
   const name = normalizeText(input.name, "group", GROUP_NAME_MAX, true);
   const brief = normalizeText(input.brief, "brief", GROUP_BRIEF_MAX, false);
@@ -453,7 +451,13 @@ export async function updateGroup(
   await ctx.db.patch(group._id, { ...patch, updatedAt: now });
   await audit(
     ctx,
-    { actor: organizer, action: "group.update", targetTable: "atelierGroups", targetId: group._id, meta: { fields: Object.keys(patch) } },
+    {
+      actor: organizer,
+      action: "group.update",
+      targetTable: "atelierGroups",
+      targetId: group._id,
+      meta: { fields: Object.keys(patch) },
+    },
     now,
   );
 }
@@ -503,7 +507,10 @@ export async function inviteParticipant(
     consent: { shareStyleStatus: false, shareFitStatus: false },
     createdAt: now,
   });
-  await ctx.db.patch(group._id, { ...(group.status === "draft" ? { status: "inviting" as const } : {}), updatedAt: now });
+  await ctx.db.patch(group._id, {
+    ...(group.status === "draft" ? { status: "inviting" as const } : {}),
+    updatedAt: now,
+  });
   if (email) {
     await queueNotification(
       ctx,
@@ -609,7 +616,9 @@ export async function joinGroup(
     spec,
     shortlist: [],
     stage: spec.clothCode ? "style" : "cloth",
-    completedSteps: completedStepsFor(spec, { occasionSet: true, previewDone: false, fitRouteSet: false }).filter(isStudioStep),
+    completedSteps: completedStepsFor(spec, { occasionSet: true, previewDone: false, fitRouteSet: false }).filter(
+      isStudioStep,
+    ),
     catalogueVersion,
     revision: 1,
     status: "draft",
@@ -671,10 +680,16 @@ export async function setParticipantConsent(
 ): Promise<void> {
   const { participant, group } = await requireParticipantAccess(ctx, participantId, actor);
   if (participant.status === "declined") {
-    throw appError("INVALID_STATE", "You have left this group; there is nothing to share.", { status: participant.status });
+    throw appError("INVALID_STATE", "You have left this group; there is nothing to share.", {
+      status: participant.status,
+    });
   }
   const next: Consent = { shareStyleStatus: consent.shareStyleStatus, shareFitStatus: consent.shareFitStatus };
-  if (next.shareStyleStatus === participant.consent.shareStyleStatus && next.shareFitStatus === participant.consent.shareFitStatus) return;
+  if (
+    next.shareStyleStatus === participant.consent.shareStyleStatus &&
+    next.shareFitStatus === participant.consent.shareFitStatus
+  )
+    return;
   await ctx.db.patch(participant._id, { consent: next });
   await ctx.db.patch(group._id, { updatedAt: now });
   await audit(
@@ -701,9 +716,13 @@ export async function leaveGroup(
   const { participant, group } = await requireParticipantAccess(ctx, participantId, actor);
   if (participant.status === "declined") return;
   if (participant.status === "ordered") {
-    throw appError("INVALID_STATE", "Your commission has been placed with the house. Speak to your concierge about it.", {
-      status: participant.status,
-    });
+    throw appError(
+      "INVALID_STATE",
+      "Your commission has been placed with the house. Speak to your concierge about it.",
+      {
+        status: participant.status,
+      },
+    );
   }
   await ctx.db.patch(participant._id, {
     status: "declined",

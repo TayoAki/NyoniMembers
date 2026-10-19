@@ -6,7 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CASE_KIND_LABELS, CONTACT_CHANNELS, type ContactChannel } from "@convex/shared/atelier/enums";
+import {
+  CASE_KIND_LABELS,
+  CONTACT_CHANNEL_LABELS,
+  CONTACT_CHANNELS,
+  type ContactChannel,
+} from "@convex/shared/atelier/enums";
 import { HOUSE_POLICY } from "@convex/shared/atelier/policy";
 import { SHOWROOMS, type ShowroomId } from "@convex/shared/house";
 import { Mono } from "@/components/atelier/common/mono";
@@ -26,7 +31,6 @@ import { cn } from "@/lib/utils";
 
 type RequestKind = "quote" | "design_review";
 
-const CHANNEL_LABELS: Record<ContactChannel, string> = { email: "Email", sms: "Text message", either: "Either" };
 const NO_PREFERENCE = "none";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MESSAGE_MAX = 2000;
@@ -286,7 +290,7 @@ export function RequestForm({ draftId, guestKeyArg, holds, alreadySubmitted }: P
             {CONTACT_CHANNELS.map((channel) => (
               <FieldLabel key={channel} className="flex min-h-11 cursor-pointer items-center gap-2 font-normal">
                 <RadioGroupItem value={channel} />
-                <span className="text-sm">{CHANNEL_LABELS[channel]}</span>
+                <span className="text-sm">{CONTACT_CHANNEL_LABELS[channel]}</span>
               </FieldLabel>
             ))}
           </RadioGroup>

@@ -3,7 +3,8 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { audit, isOwner, type Actor, type Owned } from "../../atelier/access";
 import type { QuoteInput, QuoteQueueItem, QuoteView } from "../../atelier/quotes";
 import { appError } from "../../lib/errors";
-import { ATELIER_LIMITS, QUOTE_STATUS_LABELS, type QuoteLineKind, type QuoteStatus } from "../../shared/atelier/enums";
+import { QUOTE_LINE_KIND_LABELS, QUOTE_STATUS_LABELS, type QuoteStatus } from "../../shared/atelier/enums";
+import { computeTotals, QUOTE_LINES_MAX, roundUsd, validateLines } from "../../shared/atelier/quote_lines";
 import { specHash } from "../../shared/atelier/spec";
 import type { Contact } from "./case_core";
 import { benefitDescription, moveReservation, redeemReservation, releaseReservation, tierLabel } from "./benefits";
@@ -34,65 +35,24 @@ type QuoteLine = Quote["lines"][number];
  * and in date. Accepting creates the commission in preflight; it records no payment and releases nothing.
  */
 
-export const QUOTE_LINE_KIND_LABELS: Record<QuoteLineKind, string> = {
-  commission: "Commission",
-  cloth: "Cloth",
-  option: "Option",
-  shipping: "Delivery",
-  tax: "Tax",
-  benefit: "Membership benefit",
-  discount: "Adjustment",
-};
+export { QUOTE_LINE_KIND_LABELS };
 
-/** Lines that make up the garment itself; delivery, tax, benefit and adjustments sit below the subtotal. */
-const SUBTOTAL_KINDS: readonly QuoteLineKind[] = ["commission", "cloth", "option"];
-/** Lines that take money off; every other kind adds. */
-const CREDIT_KINDS: readonly QuoteLineKind[] = ["benefit", "discount"];
 const OPEN_STATUSES: readonly QuoteStatus[] = ["draft", "offered"];
-
 const QUOTES_PER_CASE_MAX = 50;
 const QUEUE_MAX = 100;
 /** Offered quotes examined per cron run; the index orders them by expiry so the run stops at the first in date. */
 const EXPIRE_BATCH = 200;
 export const QUOTE_TERMS_MAX = 4000;
-export const QUOTE_LINES_MAX = 40;
-const LINE_TEXT_MAX = 120;
 
-function roundUsd(amount: number): number {
-  return Math.round(amount * 100) / 100;
-}
-
-// ------------------------------------------------------------------------------------------------
-// Lines and totals
-// ------------------------------------------------------------------------------------------------
-
-/** Subtotal is the garment; total is every line. Both rounded to the cent. */
-export function computeTotals(lines: readonly QuoteLine[]): { subtotalUsd: number; totalUsd: number } {
-  const subtotalUsd = roundUsd(lines.filter((line) => SUBTOTAL_KINDS.includes(line.kind)).reduce((sum, line) => sum + line.amountUsd, 0));
-  const totalUsd = roundUsd(lines.reduce((sum, line) => sum + line.amountUsd, 0));
-  return { subtotalUsd, totalUsd };
-}
-
-/** Field errors that stop a quote being saved; an empty array means the lines can be priced. */
-export function validateLines(lines: readonly QuoteLine[]): string[] {
-  const errors: string[] = [];
-  if (lines.length === 0) errors.push("A quote needs at least one line.");
-  if (lines.length > QUOTE_LINES_MAX) errors.push(`A quote has at most ${QUOTE_LINES_MAX} lines.`);
-  lines.forEach((line, index) => {
-    const where = `Line ${index + 1}`;
-    if (!line.code.trim()) errors.push(`${where} needs a code.`);
-    if (!line.label.trim()) errors.push(`${where} needs a label.`);
-    if (line.label.length > LINE_TEXT_MAX || line.code.length > LINE_TEXT_MAX) errors.push(`${where} is too long.`);
-    if (!Number.isFinite(line.amountUsd)) errors.push(`${where} needs an amount.`);
-    else if (CREDIT_KINDS.includes(line.kind) && line.amountUsd > 0) errors.push(`${where}: a ${QUOTE_LINE_KIND_LABELS[line.kind].toLowerCase()} takes money off, so its amount is zero or negative.`);
-    else if (!CREDIT_KINDS.includes(line.kind) && line.amountUsd < 0) errors.push(`${where}: a ${QUOTE_LINE_KIND_LABELS[line.kind].toLowerCase()} cannot be negative.`);
-  });
-  if (errors.length === 0 && computeTotals(lines).totalUsd < 0) errors.push("The total cannot be below zero.");
-  return errors;
-}
+export { computeTotals, QUOTE_LINES_MAX, validateLines };
 
 function normalizeLines(lines: readonly QuoteLine[]): QuoteLine[] {
-  return lines.map((line) => ({ code: line.code.trim(), label: line.label.trim(), amountUsd: roundUsd(line.amountUsd), kind: line.kind }));
+  return lines.map((line) => ({
+    code: line.code.trim(),
+    label: line.label.trim(),
+    amountUsd: roundUsd(line.amountUsd),
+    kind: line.kind,
+  }));
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -146,7 +106,9 @@ function caseOwner(caseDoc: Case): Owned {
 }
 
 function notifyTarget(contact: Contact): { channel: "email" | "sms"; to: string } {
-  return contact.channel === "sms" && contact.phone ? { channel: "sms", to: contact.phone } : { channel: "email", to: contact.email };
+  return contact.channel === "sms" && contact.phone
+    ? { channel: "sms", to: contact.phone }
+    : { channel: "email", to: contact.email };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -237,7 +199,13 @@ export async function listQueue(ctx: Ctx): Promise<QuoteQueueItem[]> {
  * submitted revision, and that revision must still be the draft's design: a quote for a design the
  * client has moved on from could never be accepted.
  */
-export async function createQuote(ctx: MutationCtx, staff: User, caseDoc: Case, input: QuoteInput, now: number = Date.now()): Promise<Id<"atelierQuotes">> {
+export async function createQuote(
+  ctx: MutationCtx,
+  staff: User,
+  caseDoc: Case,
+  input: QuoteInput,
+  now: number = Date.now(),
+): Promise<Id<"atelierQuotes">> {
   if (!caseDoc.revisionId || !caseDoc.draftId) {
     throw appError("INVALID_STATE", "This request has no submitted design to price yet.");
   }
@@ -254,20 +222,26 @@ export async function createQuote(ctx: MutationCtx, staff: User, caseDoc: Case, 
   if (lineErrors.length > 0) throw appError("INVALID_INPUT", lineErrors.join(" "), { errors: lineErrors });
   const terms = input.terms.trim();
   if (!terms) throw appError("INVALID_INPUT", "State the terms the client is agreeing to.");
-  if (terms.length > QUOTE_TERMS_MAX) throw appError("INVALID_INPUT", `Keep the terms under ${QUOTE_TERMS_MAX} characters.`);
-  if (!Number.isFinite(input.expiresAt) || input.expiresAt <= now) throw appError("INVALID_INPUT", "Choose an expiry in the future.");
+  if (terms.length > QUOTE_TERMS_MAX)
+    throw appError("INVALID_INPUT", `Keep the terms under ${QUOTE_TERMS_MAX} characters.`);
+  if (!Number.isFinite(input.expiresAt) || input.expiresAt <= now)
+    throw appError("INVALID_INPUT", "Choose an expiry in the future.");
   for (const [name, value] of [
     ["leadTimeWeeks", input.leadTimeWeeks],
     ["fittingsIncluded", input.fittingsIncluded],
   ] as const) {
-    if (value !== undefined && (!Number.isInteger(value) || value < 0)) throw appError("INVALID_INPUT", `${name} is a whole number of weeks or fittings.`);
+    if (value !== undefined && (!Number.isInteger(value) || value < 0))
+      throw appError("INVALID_INPUT", `${name} is a whole number of weeks or fittings.`);
   }
 
   let benefit: Quote["benefit"];
   if (input.benefitRedemptionId) {
     const redemption = await ctx.db.get(input.benefitRedemptionId);
     if (!redemption || redemption.status !== "reserved") {
-      throw appError("INVALID_STATE", "That benefit reservation is not live. Reserve the member's suit again before pricing it in.");
+      throw appError(
+        "INVALID_STATE",
+        "That benefit reservation is not live. Reserve the member's suit again before pricing it in.",
+      );
     }
     if (!caseDoc.userId || redemption.userId !== caseDoc.userId) {
       throw appError("NOT_ELIGIBLE", "That benefit reservation belongs to a different member than this request.");
@@ -301,7 +275,13 @@ export async function createQuote(ctx: MutationCtx, staff: User, caseDoc: Case, 
   }
   await audit(
     ctx,
-    { actor: staff, action: "quote.create", targetTable: "atelierQuotes", targetId: quoteId, meta: { caseId: caseDoc._id, version, totalUsd, revisionId: revision._id } },
+    {
+      actor: staff,
+      action: "quote.create",
+      targetTable: "atelierQuotes",
+      targetId: quoteId,
+      meta: { caseId: caseDoc._id, version, totalUsd, revisionId: revision._id },
+    },
     now,
   );
   return quoteId;
@@ -315,9 +295,13 @@ export async function createQuote(ctx: MutationCtx, staff: User, caseDoc: Case, 
 export async function offerQuote(ctx: MutationCtx, staff: User, quote: Quote, now: number = Date.now()): Promise<void> {
   if (quote.status === "offered") return;
   if (quote.status !== "draft") {
-    throw appError("INVALID_STATE", `Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()} and cannot be offered. Prepare a new version instead.`);
+    throw appError(
+      "INVALID_STATE",
+      `Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()} and cannot be offered. Prepare a new version instead.`,
+    );
   }
-  if (quote.expiresAt <= now) throw appError("INVALID_INPUT", "This quote's expiry has passed. Set a new expiry before offering it.");
+  if (quote.expiresAt <= now)
+    throw appError("INVALID_INPUT", "This quote's expiry has passed. Set a new expiry before offering it.");
   const caseDoc = await requireQuoteCase(ctx, quote);
   const previous = offeredAmong(await listForCase(ctx, caseDoc._id));
   let benefit = quote.benefit;
@@ -332,7 +316,13 @@ export async function offerQuote(ctx: MutationCtx, staff: User, quote: Quote, no
     }
     await audit(
       ctx,
-      { actor: staff, action: "quote.supersede", targetTable: "atelierQuotes", targetId: previous._id, meta: { by: quote._id, version: quote.version } },
+      {
+        actor: staff,
+        action: "quote.supersede",
+        targetTable: "atelierQuotes",
+        targetId: previous._id,
+        meta: { by: quote._id, version: quote.version },
+      },
       now,
     );
   }
@@ -351,7 +341,12 @@ export async function offerQuote(ctx: MutationCtx, staff: User, quote: Quote, no
     },
     now,
   );
-  await touchCase(ctx, caseDoc._id, { status: "awaiting_client", nextAction: "Client to approve the quote", nextActionDueAt: quote.expiresAt }, now);
+  await touchCase(
+    ctx,
+    caseDoc._id,
+    { status: "awaiting_client", nextAction: "Client to approve the quote", nextActionDueAt: quote.expiresAt },
+    now,
+  );
   const target = notifyTarget(caseDoc.contact);
   await queueNotification(
     ctx,
@@ -367,15 +362,30 @@ export async function offerQuote(ctx: MutationCtx, staff: User, quote: Quote, no
   );
   await audit(
     ctx,
-    { actor: staff, action: "quote.offer", targetTable: "atelierQuotes", targetId: quote._id, meta: { caseId: caseDoc._id, version: quote.version, totalUsd: quote.totalUsd } },
+    {
+      actor: staff,
+      action: "quote.offer",
+      targetTable: "atelierQuotes",
+      targetId: quote._id,
+      meta: { caseId: caseDoc._id, version: quote.version, totalUsd: quote.totalUsd },
+    },
     now,
   );
 }
 
 /** O04. A new version offered in one step; the quote it replaces keeps its history. */
-export async function supersedeQuote(ctx: MutationCtx, staff: User, previous: Quote, input: QuoteInput, now: number = Date.now()): Promise<Id<"atelierQuotes">> {
+export async function supersedeQuote(
+  ctx: MutationCtx,
+  staff: User,
+  previous: Quote,
+  input: QuoteInput,
+  now: number = Date.now(),
+): Promise<Id<"atelierQuotes">> {
   if (!OPEN_STATUSES.includes(previous.status)) {
-    throw appError("INVALID_STATE", `Quote version ${previous.version} is ${QUOTE_STATUS_LABELS[previous.status].toLowerCase()}; only a quote being prepared or offered can be replaced.`);
+    throw appError(
+      "INVALID_STATE",
+      `Quote version ${previous.version} is ${QUOTE_STATUS_LABELS[previous.status].toLowerCase()}; only a quote being prepared or offered can be replaced.`,
+    );
   }
   const caseDoc = await requireQuoteCase(ctx, previous);
   let carried = input.benefitRedemptionId;
@@ -387,7 +397,17 @@ export async function supersedeQuote(ctx: MutationCtx, staff: User, previous: Qu
   if (previous.status === "draft") {
     await ctx.db.patch(previous._id, { status: "superseded" });
     await ctx.db.patch(quoteId, { supersedesId: previous._id });
-    await audit(ctx, { actor: staff, action: "quote.supersede", targetTable: "atelierQuotes", targetId: previous._id, meta: { by: quoteId } }, now);
+    await audit(
+      ctx,
+      {
+        actor: staff,
+        action: "quote.supersede",
+        targetTable: "atelierQuotes",
+        targetId: previous._id,
+        meta: { by: quoteId },
+      },
+      now,
+    );
   }
   const created = await requireQuote(ctx, quoteId);
   await offerQuote(ctx, staff, created, now);
@@ -395,14 +415,24 @@ export async function supersedeQuote(ctx: MutationCtx, staff: User, previous: Qu
 }
 
 /** O04. Withdraws a quote being prepared or offered; a live benefit reservation is released. */
-export async function withdrawQuote(ctx: MutationCtx, staff: User, quote: Quote, note: string | undefined, now: number = Date.now()): Promise<void> {
+export async function withdrawQuote(
+  ctx: MutationCtx,
+  staff: User,
+  quote: Quote,
+  note: string | undefined,
+  now: number = Date.now(),
+): Promise<void> {
   if (!OPEN_STATUSES.includes(quote.status)) {
-    throw appError("INVALID_STATE", `Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()} and cannot be withdrawn.`);
+    throw appError(
+      "INVALID_STATE",
+      `Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()} and cannot be withdrawn.`,
+    );
   }
   await ctx.db.patch(quote._id, { status: "withdrawn" });
   if (quote.benefit) {
     const redemption = await ctx.db.get(quote.benefit.redemptionId);
-    if (redemption && redemption.status === "reserved") await releaseReservation(ctx, staff, redemption, `Quote version ${quote.version} withdrawn`, now);
+    if (redemption && redemption.status === "reserved")
+      await releaseReservation(ctx, staff, redemption, `Quote version ${quote.version} withdrawn`, now);
   }
   if (quote.status === "offered") {
     await appendMessage(
@@ -414,11 +444,26 @@ export async function withdrawQuote(ctx: MutationCtx, staff: User, quote: Quote,
       },
       now,
     );
-    await touchCase(ctx, quote.caseId, { status: "awaiting_staff", nextAction: "Concierge to follow up the withdrawn quote", nextActionDueAt: undefined }, now);
+    await touchCase(
+      ctx,
+      quote.caseId,
+      {
+        status: "awaiting_staff",
+        nextAction: "Concierge to follow up the withdrawn quote",
+        nextActionDueAt: undefined,
+      },
+      now,
+    );
   }
   await audit(
     ctx,
-    { actor: staff, action: "quote.withdraw", targetTable: "atelierQuotes", targetId: quote._id, meta: { version: quote.version, from: quote.status, note: note?.trim() ?? null } },
+    {
+      actor: staff,
+      action: "quote.withdraw",
+      targetTable: "atelierQuotes",
+      targetId: quote._id,
+      meta: { version: quote.version, from: quote.status, note: note?.trim() ?? null },
+    },
     now,
   );
 }
@@ -436,7 +481,8 @@ export async function expireQuotes(ctx: MutationCtx, now: number = Date.now()): 
     await ctx.db.patch(quote._id, { status: "expired" });
     if (quote.benefit) {
       const redemption = await ctx.db.get(quote.benefit.redemptionId);
-      if (redemption && redemption.status === "reserved") await releaseReservation(ctx, null, redemption, `Quote version ${quote.version} expired`, now);
+      if (redemption && redemption.status === "reserved")
+        await releaseReservation(ctx, null, redemption, `Quote version ${quote.version} expired`, now);
     }
     await appendMessage(
       ctx,
@@ -447,8 +493,23 @@ export async function expireQuotes(ctx: MutationCtx, now: number = Date.now()): 
       },
       now,
     );
-    await touchCase(ctx, quote.caseId, { status: "awaiting_staff", nextAction: "Concierge to re-quote or close", nextActionDueAt: undefined }, now);
-    await audit(ctx, { actor: null, action: "quote.expire", targetTable: "atelierQuotes", targetId: quote._id, meta: { version: quote.version, expiresAt: quote.expiresAt } }, now);
+    await touchCase(
+      ctx,
+      quote.caseId,
+      { status: "awaiting_staff", nextAction: "Concierge to re-quote or close", nextActionDueAt: undefined },
+      now,
+    );
+    await audit(
+      ctx,
+      {
+        actor: null,
+        action: "quote.expire",
+        targetTable: "atelierQuotes",
+        targetId: quote._id,
+        meta: { version: quote.version, expiresAt: quote.expiresAt },
+      },
+      now,
+    );
     count += 1;
   }
   return count;
@@ -472,7 +533,12 @@ const ACCEPT_REFUSALS: Record<Exclude<QuoteStatus, "offered">, string> = {
  * names a cloth the house no longer offers. Creates the commission in preflight with no payment recorded;
  * a second acceptance of the same quote returns the same commission.
  */
-export async function acceptQuote(ctx: MutationCtx, actor: Actor, quote: Quote, now: number = Date.now()): Promise<{ orderId: Id<"atelierOrders"> }> {
+export async function acceptQuote(
+  ctx: MutationCtx,
+  actor: Actor,
+  quote: Quote,
+  now: number = Date.now(),
+): Promise<{ orderId: Id<"atelierOrders"> }> {
   const caseDoc = await requireQuoteCase(ctx, quote);
   if (!isOwner(caseDoc, actor)) throw appError("NOT_FOUND", "That quote doesn't exist.");
   if (quote.status === "accepted") {
@@ -481,7 +547,10 @@ export async function acceptQuote(ctx: MutationCtx, actor: Actor, quote: Quote, 
   }
   if (quote.status !== "offered") throw appError("INVALID_STATE", ACCEPT_REFUSALS[quote.status]);
   if (quote.expiresAt <= now) {
-    throw appError("QUOTE_EXPIRED", `This quote expired on ${formatDay(quote.expiresAt)}. Ask your concierge for a fresh quote; your design is unchanged.`);
+    throw appError(
+      "QUOTE_EXPIRED",
+      `This quote expired on ${formatDay(quote.expiresAt)}. Ask your concierge for a fresh quote; your design is unchanged.`,
+    );
   }
   const [revision, draft] = await Promise.all([ctx.db.get(quote.revisionId), ctx.db.get(quote.draftId)]);
   if (!revision || !draft) throw appError("NOT_FOUND", "The design this quote prices could not be found.");
@@ -507,7 +576,10 @@ export async function acceptQuote(ctx: MutationCtx, actor: Actor, quote: Quote, 
   }
   const redemption = quote.benefit ? await ctx.db.get(quote.benefit.redemptionId) : null;
   if (quote.benefit && (!redemption || redemption.status !== "reserved")) {
-    throw appError("INVALID_STATE", "The membership benefit on this quote is no longer reserved. Your concierge will check your membership and prepare a fresh quote.");
+    throw appError(
+      "INVALID_STATE",
+      "The membership benefit on this quote is no longer reserved. Your concierge will check your membership and prepare a fresh quote.",
+    );
   }
 
   await ctx.db.patch(quote._id, { status: "accepted", acceptedAt: now, acceptedSpecHash: revision.specHash });
@@ -537,7 +609,12 @@ export async function acceptQuote(ctx: MutationCtx, actor: Actor, quote: Quote, 
     },
     now,
   );
-  await touchCase(ctx, caseDoc._id, { status: "awaiting_staff", nextAction: "Record payment and run preflight", nextActionDueAt: undefined }, now);
+  await touchCase(
+    ctx,
+    caseDoc._id,
+    { status: "awaiting_staff", nextAction: "Record payment and run preflight", nextActionDueAt: undefined },
+    now,
+  );
   await audit(
     ctx,
     {

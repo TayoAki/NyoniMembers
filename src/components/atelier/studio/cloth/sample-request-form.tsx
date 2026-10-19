@@ -25,13 +25,11 @@ import { toClientError, type ClientError } from "@/lib/errors";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CONTACT_CHANNELS, type ContactChannel } from "@convex/shared/atelier/enums";
+import { CONTACT_CHANNEL_LABELS, CONTACT_CHANNELS, type ContactChannel } from "@convex/shared/atelier/enums";
 import { HOUSE } from "@convex/shared/house";
 
 type SubmitArgs = FunctionArgs<typeof api.atelier.cases.submit>;
 type SubmitResult = FunctionReturnType<typeof api.atelier.cases.submit>;
-
-const CHANNEL_LABELS: Record<ContactChannel, string> = { email: "Email", sms: "Text message", either: "Either" };
 
 type FormValues = {
   name: string;
@@ -251,7 +249,7 @@ export function SampleRequestForm({ clothCode, clothName, draftId }: SampleReque
               {CONTACT_CHANNELS.map((channel) => (
                 <FieldLabel key={channel} className="min-h-11 items-center font-normal">
                   <RadioGroupItem value={channel} disabled={pending} />
-                  {CHANNEL_LABELS[channel]}
+                  {CONTACT_CHANNEL_LABELS[channel]}
                 </FieldLabel>
               ))}
             </RadioGroup>

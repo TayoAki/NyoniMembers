@@ -28,14 +28,24 @@ import {
   ATELIER_LIMITS,
   CASE_KIND_LABELS,
   CASE_STATUS_LABELS,
+  PROPOSAL_STATUS_LABELS,
   QUOTE_STATUS_LABELS,
+  SAMPLE_STATE_LABELS,
   type CaseStatus,
   type CommercialImpact,
   type ProposalStatus,
   type SampleState,
 } from "../../shared/atelier/enums";
 import { HOUSE_POLICY } from "../../shared/atelier/policy";
-import { applyChange, describeSpec, specHash, validateSpec, type DescribedLine, type SuitSpec } from "../../shared/atelier/spec";
+import { CASE_TRANSITIONS, SAMPLE_TRANSITIONS } from "../../shared/atelier/transitions";
+import {
+  applyChange,
+  describeSpec,
+  specHash,
+  validateSpec,
+  type DescribedLine,
+  type SuitSpec,
+} from "../../shared/atelier/spec";
 import type { vContact, vPostalAddress } from "../../shared/atelier/validators";
 import { getEntry, specNames } from "./catalogue";
 import { appendMessage, createCase, findBySubmissionKey, touchCase, type Contact } from "./case_core";
@@ -58,7 +68,7 @@ type ContactInput = Infer<typeof vContact>;
  * own case and their concierge's first name.
  */
 
-export const CASE_TEXT_MAX = 2000;
+export const CASE_TEXT_MAX: number = ATELIER_LIMITS.caseTextMax;
 export const SUBMISSION_KEY_MAX = 128;
 export const CASE_LIST_MAX = 50;
 export const MESSAGES_MAX = 200;
@@ -73,36 +83,9 @@ export const OPEN_CASE_STATUSES: readonly CaseStatus[] = ["received", "assigned"
 export const CLOSED_CASE_STATUSES: readonly CaseStatus[] = ["completed", "cancelled"];
 
 /** Service state machine (SCREENS-AND-STATES): received → assigned → awaiting client/staff → completed/cancelled. */
-export const CASE_TRANSITIONS: Record<CaseStatus, readonly CaseStatus[]> = {
-  received: ["assigned", "awaiting_client", "awaiting_staff", "completed", "cancelled"],
-  assigned: ["awaiting_client", "awaiting_staff", "completed", "cancelled"],
-  awaiting_client: ["assigned", "awaiting_staff", "completed", "cancelled"],
-  awaiting_staff: ["assigned", "awaiting_client", "completed", "cancelled"],
-  completed: [],
-  cancelled: [],
-};
+export { CASE_TRANSITIONS, SAMPLE_TRANSITIONS };
 
-/** Sample fulfilment (C04): requested → accepted → shipped, or declined at either step. */
-export const SAMPLE_TRANSITIONS: Record<SampleState, readonly SampleState[]> = {
-  requested: ["accepted", "declined"],
-  accepted: ["shipped", "declined"],
-  shipped: [],
-  declined: [],
-};
-
-export const SAMPLE_STATE_LABELS: Record<SampleState, string> = {
-  requested: "Requested · awaiting the house",
-  accepted: "Accepted · being prepared",
-  shipped: "Shipped",
-  declined: "Not available",
-};
-
-export const PROPOSAL_STATUS_LABELS: Record<ProposalStatus, string> = {
-  proposed: "Proposed · awaiting your decision",
-  accepted: "Accepted",
-  rejected: "Declined",
-  withdrawn: "Withdrawn by the house",
-};
+export { PROPOSAL_STATUS_LABELS, SAMPLE_STATE_LABELS };
 
 export function isOpen(c: Pick<Case, "status">): boolean {
   return OPEN_CASE_STATUSES.includes(c.status);
@@ -118,9 +101,13 @@ export function startOfUtcDay(now: number): number {
 
 function requireOpen(c: Case, verb: string): Case {
   if (!isOpen(c)) {
-    throw appError("INVALID_STATE", `This request is ${CASE_STATUS_LABELS[c.status].toLowerCase()}; it cannot be ${verb}.`, {
-      status: c.status,
-    });
+    throw appError(
+      "INVALID_STATE",
+      `This request is ${CASE_STATUS_LABELS[c.status].toLowerCase()}; it cannot be ${verb}.`,
+      {
+        status: c.status,
+      },
+    );
   }
   return c;
 }
@@ -201,7 +188,11 @@ export type SubmitInput = {
   submissionKey: string;
 };
 
-export type SubmitResult = { caseId: Id<"atelierCases">; revisionId: Id<"atelierRevisions"> | null; duplicate: boolean };
+export type SubmitResult = {
+  caseId: Id<"atelierCases">;
+  revisionId: Id<"atelierRevisions"> | null;
+  duplicate: boolean;
+};
 
 const RECEIPTS: Record<SubmitKind, string> = {
   design_review: `Design review received. A concierge will look over your design as submitted and reply here. ${HOUSE_POLICY.proposed.responseTime} Nothing is ordered and no price is set until you approve a quote.`,
@@ -245,7 +236,12 @@ export async function assertDailyCaseBudget(ctx: Ctx, owner: Owned, now: number)
  * the draft submitted; a sample names a cloth the house can send and where to; a question needs words.
  * No address is ever asked for anything but a sample.
  */
-export async function submitCase(ctx: MutationCtx, actor: Actor, input: SubmitInput, now: number = Date.now()): Promise<SubmitResult> {
+export async function submitCase(
+  ctx: MutationCtx,
+  actor: Actor,
+  input: SubmitInput,
+  now: number = Date.now(),
+): Promise<SubmitResult> {
   const owner = ownerFieldsFor(actor);
   const submissionKey = requireText(input.submissionKey, "a submission key", SUBMISSION_KEY_MAX);
   const existing = await findBySubmissionKey(ctx, submissionKey);
@@ -262,24 +258,35 @@ export async function submitCase(ctx: MutationCtx, actor: Actor, input: SubmitIn
   if (input.kind === "design_review" || input.kind === "quote") {
     if (!draft) throw appError("INVALID_INPUT", "Choose the design you would like the house to look at.");
     if (draft.status === "archived") {
-      throw appError("INVALID_STATE", "This design has been archived. Duplicate it to send it to the house.", { status: draft.status });
+      throw appError("INVALID_STATE", "This design has been archived. Duplicate it to send it to the house.", {
+        status: draft.status,
+      });
     }
     const errors = validateSpec(draft.spec);
     if (errors.length > 0) throw appError("INVALID_INPUT", errors.join(" "), { errors });
     const cloth = draft.spec.clothCode ? await getEntry(ctx, "cloth", draft.spec.clothCode) : null;
-    if (!cloth) throw appError("INVALID_INPUT", "The cloth on this design is no longer in the catalogue. Choose another before sending it.");
+    if (!cloth)
+      throw appError(
+        "INVALID_INPUT",
+        "The cloth on this design is no longer in the catalogue. Choose another before sending it.",
+      );
     await assertDailyCaseBudget(ctx, owner, now);
     const revision = await createRevision(ctx, draft, "submitted", now);
     revisionId = revision._id;
-    if (draft.status !== "submitted") await ctx.db.patch(draft._id, { status: "submitted", updatedAt: now, lastSavedAt: now });
+    if (draft.status !== "submitted")
+      await ctx.db.patch(draft._id, { status: "submitted", updatedAt: now, lastSavedAt: now });
   } else if (input.kind === "sample") {
     if (!input.sample) throw appError("INVALID_INPUT", "Tell us which cloth to send and where.");
     const cloth = await getEntry(ctx, "cloth", input.sample.clothCode.trim());
     if (!cloth || cloth.status !== "approved") throw appError("INVALID_INPUT", "That cloth is not in the catalogue.");
     if (!cloth.sampleAvailable) {
-      throw appError("INVALID_INPUT", `A sample of ${cloth.name} is not available right now. Your concierge can suggest something close.`, {
-        clothCode: cloth.code,
-      });
+      throw appError(
+        "INVALID_INPUT",
+        `A sample of ${cloth.name} is not available right now. Your concierge can suggest something close.`,
+        {
+          clothCode: cloth.code,
+        },
+      );
     }
     await assertDailyCaseBudget(ctx, owner, now);
     sample = { clothCode: cloth.code, address: normalizeAddress(input.sample.address), state: "requested" };
@@ -425,8 +432,15 @@ export function diffLines(before: DescribedLine[], after: DescribedLine[]): Prop
   return changes;
 }
 
-export async function toProposalView(ctx: Ctx, proposal: Proposal, draftRevision: number | null): Promise<ProposalView> {
-  const [namesBefore, namesAfter] = await Promise.all([specNames(ctx, proposal.beforeSpec), specNames(ctx, proposal.afterSpec)]);
+export async function toProposalView(
+  ctx: Ctx,
+  proposal: Proposal,
+  draftRevision: number | null,
+): Promise<ProposalView> {
+  const [namesBefore, namesAfter] = await Promise.all([
+    specNames(ctx, proposal.beforeSpec),
+    specNames(ctx, proposal.afterSpec),
+  ]);
   const before = describeSpec(proposal.beforeSpec, namesBefore);
   const after = describeSpec(proposal.afterSpec, namesAfter);
   return {
@@ -578,17 +592,30 @@ export async function listMine(ctx: Ctx, actor: Actor): Promise<CaseSummary[]> {
 // ------------------------------------------------------------------------------------------------
 
 /** A client's words. The house's clock starts: an assigned or waiting case becomes "with the house". */
-export async function sendClientMessage(ctx: MutationCtx, actor: Actor, c: Case, body: string, now: number = Date.now()): Promise<Id<"atelierCaseMessages">> {
+export async function sendClientMessage(
+  ctx: MutationCtx,
+  actor: Actor,
+  c: Case,
+  body: string,
+  now: number = Date.now(),
+): Promise<Id<"atelierCaseMessages">> {
   requireOwnedCase(c, actor);
   requireOpen(c, "replied to. Start a new request and the house will pick it up");
   const text = requireText(body, "your message");
   const id = await appendMessage(ctx, c._id, { author: "client", authorUserId: actor.user?._id, body: text }, now);
-  if (c.status === "assigned" || c.status === "awaiting_client") await touchCase(ctx, c._id, { status: "awaiting_staff" }, now);
+  if (c.status === "assigned" || c.status === "awaiting_client")
+    await touchCase(ctx, c._id, { status: "awaiting_staff" }, now);
   return id;
 }
 
 /** A concierge's words. The client's clock starts. */
-export async function staffReply(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, body: string, now: number = Date.now()): Promise<Id<"atelierCaseMessages">> {
+export async function staffReply(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  body: string,
+  now: number = Date.now(),
+): Promise<Id<"atelierCaseMessages">> {
   const c = requireOpen(await staffCase(ctx, caseId), "replied to");
   const text = requireText(body, "your reply");
   const id = await appendMessage(ctx, c._id, { author: "staff", authorUserId: staff._id, body: text }, now);
@@ -605,7 +632,11 @@ export async function staffReply(ctx: MutationCtx, staff: User, caseId: Id<"atel
     },
     now,
   );
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "case.reply", targetTable: "atelierCases", targetId: c._id }, now);
+  await audit(
+    ctx,
+    { actor: staff, actorKind: "staff", action: "case.reply", targetTable: "atelierCases", targetId: c._id },
+    now,
+  );
   return id;
 }
 
@@ -620,17 +651,28 @@ export type ProposeInput = { afterSpec: SuitSpec; rationale: string; commercialI
  * change through chat alone). The proposal is pinned to the draft's revision so a later edit makes it
  * stale rather than silently landing on a different design.
  */
-export async function propose(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, input: ProposeInput, now: number = Date.now()): Promise<Id<"atelierProposals">> {
+export async function propose(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  input: ProposeInput,
+  now: number = Date.now(),
+): Promise<Id<"atelierProposals">> {
   const c = requireOpen(await staffCase(ctx, caseId), "changed");
-  if (c.draftId === undefined) throw appError("INVALID_STATE", "Only a request about a design can carry a proposed change.");
+  if (c.draftId === undefined)
+    throw appError("INVALID_STATE", "Only a request about a design can carry a proposed change.");
   const draft = await ctx.db.get(c.draftId);
   if (!draft) throw appError("NOT_FOUND", "The design this request is about no longer exists.");
   const before = draft.spec;
   const baseline = applyChange(before, {});
   if (baseline.conflicts.length > 0 || specHash(baseline.spec) !== specHash(before)) {
-    throw appError("INVALID_STATE", "The current design is not self-consistent; ask the client to review it before proposing a change.", {
-      conflicts: baseline.conflicts.map((conflict) => conflict.field),
-    });
+    throw appError(
+      "INVALID_STATE",
+      "The current design is not self-consistent; ask the client to review it before proposing a change.",
+      {
+        conflicts: baseline.conflicts.map((conflict) => conflict.field),
+      },
+    );
   }
   const errors = validateSpec(input.afterSpec);
   if (errors.length > 0) throw appError("INVALID_INPUT", errors.join(" "), { errors });
@@ -640,7 +682,8 @@ export async function propose(ctx: MutationCtx, staff: User, caseId: Id<"atelier
       conflicts: resolved.conflicts.map((conflict) => `${conflict.field}: ${conflict.reason}`),
     });
   }
-  if (specHash(input.afterSpec) === specHash(before)) throw appError("INVALID_INPUT", "The proposed design is the same as the current one.");
+  if (specHash(input.afterSpec) === specHash(before))
+    throw appError("INVALID_INPUT", "The proposed design is the same as the current one.");
   const [cloth, button, lining] = await Promise.all([
     input.afterSpec.clothCode ? getEntry(ctx, "cloth", input.afterSpec.clothCode) : null,
     input.afterSpec.buttonCode ? getEntry(ctx, "button", input.afterSpec.buttonCode) : null,
@@ -691,15 +734,40 @@ export async function propose(ctx: MutationCtx, staff: User, caseId: Id<"atelier
   return proposalId;
 }
 
-export async function withdrawProposal(ctx: MutationCtx, staff: User, proposalId: Id<"atelierProposals">, now: number = Date.now()): Promise<void> {
+export async function withdrawProposal(
+  ctx: MutationCtx,
+  staff: User,
+  proposalId: Id<"atelierProposals">,
+  now: number = Date.now(),
+): Promise<void> {
   const proposal = await ctx.db.get(proposalId);
   if (!proposal) throw appError("NOT_FOUND", "That proposal doesn't exist.");
   if (proposal.status !== "proposed") {
-    throw appError("INVALID_STATE", `This proposal is already ${PROPOSAL_STATUS_LABELS[proposal.status].toLowerCase()}.`, { status: proposal.status });
+    throw appError(
+      "INVALID_STATE",
+      `This proposal is already ${PROPOSAL_STATUS_LABELS[proposal.status].toLowerCase()}.`,
+      { status: proposal.status },
+    );
   }
   await ctx.db.patch(proposal._id, { status: "withdrawn", decidedAt: now });
-  await appendMessage(ctx, proposal.caseId, { author: "system", body: "The house withdrew the proposed change. Your design stays as it is.", proposalId }, now);
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "proposal.withdraw", targetTable: "atelierProposals", targetId: proposal._id, meta: { caseId: proposal.caseId } }, now);
+  await appendMessage(
+    ctx,
+    proposal.caseId,
+    { author: "system", body: "The house withdrew the proposed change. Your design stays as it is.", proposalId },
+    now,
+  );
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "proposal.withdraw",
+      targetTable: "atelierProposals",
+      targetId: proposal._id,
+      meta: { caseId: proposal.caseId },
+    },
+    now,
+  );
 }
 
 export type RespondResult = { status: ProposalStatus; revision: number; revisionId: Id<"atelierRevisions"> | null };
@@ -709,19 +777,33 @@ export type RespondResult = { status: ProposalStatus; revision: number; revision
  * (`reason: "proposal_accepted"`), moves the case to that revision and, when the change has a price,
  * supersedes the quote on offer. A proposal made against an older revision is refused (STALE_REVISION).
  */
-export async function respondToProposal(ctx: MutationCtx, actor: Actor, proposalId: Id<"atelierProposals">, accept: boolean, now: number = Date.now()): Promise<RespondResult> {
+export async function respondToProposal(
+  ctx: MutationCtx,
+  actor: Actor,
+  proposalId: Id<"atelierProposals">,
+  accept: boolean,
+  now: number = Date.now(),
+): Promise<RespondResult> {
   const proposal = await ctx.db.get(proposalId);
   if (!proposal) throw appError("NOT_FOUND", "That proposal doesn't exist.");
   const c = requireOwnedCase(await ctx.db.get(proposal.caseId), actor);
   if (proposal.status !== "proposed") {
-    throw appError("INVALID_STATE", `This proposal is already ${PROPOSAL_STATUS_LABELS[proposal.status].toLowerCase()}.`, { status: proposal.status });
+    throw appError(
+      "INVALID_STATE",
+      `This proposal is already ${PROPOSAL_STATUS_LABELS[proposal.status].toLowerCase()}.`,
+      { status: proposal.status },
+    );
   }
   const draft = requireOwned(await ctx.db.get(proposal.draftId), actor, "design");
   if (draft.revision !== proposal.baseRevision) {
-    throw appError("STALE_REVISION", "Your design has changed since this was proposed. Ask your concierge to propose it again against the current design.", {
-      baseRevision: proposal.baseRevision,
-      currentRevision: draft.revision,
-    });
+    throw appError(
+      "STALE_REVISION",
+      "Your design has changed since this was proposed. Ask your concierge to propose it again against the current design.",
+      {
+        baseRevision: proposal.baseRevision,
+        currentRevision: draft.revision,
+      },
+    );
   }
   requireOpen(c, "decided");
 
@@ -730,18 +812,39 @@ export async function respondToProposal(ctx: MutationCtx, actor: Actor, proposal
     await appendMessage(
       ctx,
       c._id,
-      { author: "system", body: `You declined the proposed change. Your design stays as submitted (revision ${draft.revision}).`, proposalId },
+      {
+        author: "system",
+        body: `You declined the proposed change. Your design stays as submitted (revision ${draft.revision}).`,
+        proposalId,
+      },
       now,
     );
     await touchCase(ctx, c._id, { status: "awaiting_staff" }, now);
-    await audit(ctx, { actor, actorKind: "client", action: "proposal.reject", targetTable: "atelierProposals", targetId: proposal._id, meta: { caseId: c._id } }, now);
+    await audit(
+      ctx,
+      {
+        actor,
+        actorKind: "client",
+        action: "proposal.reject",
+        targetTable: "atelierProposals",
+        targetId: proposal._id,
+        meta: { caseId: c._id },
+      },
+      now,
+    );
     return { status: "rejected", revision: draft.revision, revisionId: c.revisionId ?? null };
   }
 
   const errors = validateSpec(proposal.afterSpec);
-  if (errors.length > 0) throw appError("INVALID_STATE", `The proposed design can no longer be accepted: ${errors.join(" ")}`, { errors });
+  if (errors.length > 0)
+    throw appError("INVALID_STATE", `The proposed design can no longer be accepted: ${errors.join(" ")}`, { errors });
   const revisionNumber = draft.revision + 1;
-  await ctx.db.patch(draft._id, { spec: proposal.afterSpec, revision: revisionNumber, updatedAt: now, lastSavedAt: now });
+  await ctx.db.patch(draft._id, {
+    spec: proposal.afterSpec,
+    revision: revisionNumber,
+    updatedAt: now,
+    lastSavedAt: now,
+  });
   const updated = await ctx.db.get(draft._id);
   if (!updated) throw appError("NOT_FOUND", "That design doesn't exist.");
   const revision = await createRevision(ctx, updated, "proposal_accepted", now);
@@ -820,7 +923,9 @@ export async function queueRows(ctx: Ctx, staff: User, filter: QueueFilter, now:
   let rows: Case[];
   switch (filter) {
     case "unassigned": {
-      const pages = await Promise.all(["received", "awaiting_staff", "awaiting_client"].map((status) => byStatus(ctx, status as CaseStatus)));
+      const pages = await Promise.all(
+        ["received", "awaiting_staff", "awaiting_client"].map((status) => byStatus(ctx, status as CaseStatus)),
+      );
       rows = pages.flat().filter((c) => c.ownerStaffId === undefined);
       break;
     }
@@ -838,7 +943,9 @@ export async function queueRows(ctx: Ctx, staff: User, filter: QueueFilter, now:
       rows = await byStatus(ctx, "awaiting_client");
       break;
     case "all": {
-      const pages = await Promise.all([...OPEN_CASE_STATUSES, ...CLOSED_CASE_STATUSES].map((status) => byStatus(ctx, status, true)));
+      const pages = await Promise.all(
+        [...OPEN_CASE_STATUSES, ...CLOSED_CASE_STATUSES].map((status) => byStatus(ctx, status, true)),
+      );
       rows = pages.flat();
       rows.sort((a, b) => b.lastActivityAt - a.lastActivityAt);
       return rows.slice(0, QUEUE_MAX);
@@ -851,8 +958,16 @@ export async function queueRows(ctx: Ctx, staff: User, filter: QueueFilter, now:
   return rows.slice(0, QUEUE_MAX);
 }
 
-export async function toStaffRow(ctx: Ctx, c: Case, nameOf: (userId: Id<"users"> | undefined) => Promise<string | null>, now: number): Promise<StaffCaseRow> {
-  const [draft, ownerFirstName] = await Promise.all([c.draftId !== undefined ? ctx.db.get(c.draftId) : null, nameOf(c.ownerStaffId)]);
+export async function toStaffRow(
+  ctx: Ctx,
+  c: Case,
+  nameOf: (userId: Id<"users"> | undefined) => Promise<string | null>,
+  now: number,
+): Promise<StaffCaseRow> {
+  const [draft, ownerFirstName] = await Promise.all([
+    c.draftId !== undefined ? ctx.db.get(c.draftId) : null,
+    nameOf(c.ownerStaffId),
+  ]);
   return {
     _id: c._id,
     kind: c.kind,
@@ -875,7 +990,12 @@ export async function toStaffRow(ctx: Ctx, c: Case, nameOf: (userId: Id<"users">
   };
 }
 
-export async function queue(ctx: Ctx, staff: User, filter: QueueFilter, now: number = Date.now()): Promise<StaffCaseRow[]> {
+export async function queue(
+  ctx: Ctx,
+  staff: User,
+  filter: QueueFilter,
+  now: number = Date.now(),
+): Promise<StaffCaseRow[]> {
   const rows = await queueRows(ctx, staff, filter, now);
   const nameOf = nameCache(ctx);
   return Promise.all(rows.map((c) => toStaffRow(ctx, c, nameOf, now)));
@@ -884,7 +1004,11 @@ export async function queue(ctx: Ctx, staff: User, filter: QueueFilter, now: num
 /** The whole case for the staff detail: the client view plus the conversation, the owner and the live design. */
 export async function toStaffCaseView(ctx: Ctx, c: Case, now: number = Date.now()): Promise<StaffCaseView> {
   const nameOf = nameCache(ctx);
-  const [view, messages, draft] = await Promise.all([toCaseView(ctx, c, now), listMessages(ctx, c._id), c.draftId !== undefined ? ctx.db.get(c.draftId) : null]);
+  const [view, messages, draft] = await Promise.all([
+    toCaseView(ctx, c, now),
+    listMessages(ctx, c._id),
+    c.draftId !== undefined ? ctx.db.get(c.draftId) : null,
+  ]);
   return {
     ...view,
     messages: await Promise.all(messages.map((message) => toMessageView(message, nameOf))),
@@ -912,15 +1036,24 @@ export async function staffGet(ctx: Ctx, caseId: Id<"atelierCases">, now: number
 
 async function requireConcierge(ctx: Ctx, staffId: Id<"users">): Promise<User> {
   const target = await ctx.db.get(staffId);
-  if (!target || !hasStaffRole(target, "concierge")) throw appError("INVALID_INPUT", "Only a concierge can own a request.");
+  if (!target || !hasStaffRole(target, "concierge"))
+    throw appError("INVALID_INPUT", "Only a concierge can own a request.");
   return target;
 }
 
 /** A named owner; the client sees the first name and the case leaves the unassigned queue. */
-export async function assign(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, staffId: Id<"users">, now: number = Date.now()): Promise<void> {
+export async function assign(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  staffId: Id<"users">,
+  now: number = Date.now(),
+): Promise<void> {
   const c = requireOpen(await staffCase(ctx, caseId), "assigned");
   if (c.ownerStaffId !== undefined && c.ownerStaffId !== staffId) {
-    throw appError("INVALID_STATE", "This request already has an owner. Transfer it to hand it over.", { ownerStaffId: c.ownerStaffId });
+    throw appError("INVALID_STATE", "This request already has an owner. Transfer it to hand it over.", {
+      ownerStaffId: c.ownerStaffId,
+    });
   }
   if (c.ownerStaffId === staffId) return;
   const target = await requireConcierge(ctx, staffId);
@@ -928,7 +1061,11 @@ export async function assign(ctx: MutationCtx, staff: User, caseId: Id<"atelierC
   await touchCase(
     ctx,
     c._id,
-    { ownerStaffId: target._id, assignedAt: now, status: c.status === "received" || c.status === "awaiting_staff" ? "assigned" : c.status },
+    {
+      ownerStaffId: target._id,
+      assignedAt: now,
+      status: c.status === "received" || c.status === "awaiting_staff" ? "assigned" : c.status,
+    },
     now,
   );
   await appendMessage(ctx, c._id, { author: "system", body: `${first} has your request.` }, now);
@@ -943,11 +1080,29 @@ export async function assign(ctx: MutationCtx, staff: User, caseId: Id<"atelierC
     },
     now,
   );
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "case.assign", targetTable: "atelierCases", targetId: c._id, meta: { ownerStaffId: target._id } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "case.assign",
+      targetTable: "atelierCases",
+      targetId: c._id,
+      meta: { ownerStaffId: target._id },
+    },
+    now,
+  );
 }
 
 /** Hands a case to another concierge. The conversation and every revision stay; the handover is recorded for the client and in the audit log. */
-export async function transfer(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, staffId: Id<"users">, note: string, now: number = Date.now()): Promise<void> {
+export async function transfer(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  staffId: Id<"users">,
+  note: string,
+  now: number = Date.now(),
+): Promise<void> {
   const c = requireOpen(await staffCase(ctx, caseId), "transferred");
   const target = await requireConcierge(ctx, staffId);
   if (c.ownerStaffId === target._id) throw appError("INVALID_INPUT", "That concierge already has this request.");
@@ -957,7 +1112,11 @@ export async function transfer(ctx: MutationCtx, staff: User, caseId: Id<"atelie
   await touchCase(
     ctx,
     c._id,
-    { ownerStaffId: target._id, assignedAt: now, status: c.status === "received" || c.status === "awaiting_staff" ? "assigned" : c.status },
+    {
+      ownerStaffId: target._id,
+      assignedAt: now,
+      status: c.status === "received" || c.status === "awaiting_staff" ? "assigned" : c.status,
+    },
     now,
   );
   await appendMessage(
@@ -985,12 +1144,30 @@ export async function transfer(ctx: MutationCtx, staff: User, caseId: Id<"atelie
   );
 }
 
-export async function setNextAction(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, nextAction: string, dueAt: number | undefined, now: number = Date.now()): Promise<void> {
+export async function setNextAction(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  nextAction: string,
+  dueAt: number | undefined,
+  now: number = Date.now(),
+): Promise<void> {
   const c = requireOpen(await staffCase(ctx, caseId), "planned");
   const text = cleanText(nextAction, "the next action", 300);
   if (!text && dueAt !== undefined) throw appError("INVALID_INPUT", "Name the next action before giving it a date.");
   await touchCase(ctx, c._id, { nextAction: text, nextActionDueAt: text ? dueAt : undefined }, now);
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "case.next_action", targetTable: "atelierCases", targetId: c._id, meta: { nextAction: text ?? null, dueAt: dueAt ?? null } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "case.next_action",
+      targetTable: "atelierCases",
+      targetId: c._id,
+      meta: { nextAction: text ?? null, dueAt: dueAt ?? null },
+    },
+    now,
+  );
 }
 
 const STATUS_MESSAGES: Partial<Record<CaseStatus, string>> = {
@@ -999,33 +1176,68 @@ const STATUS_MESSAGES: Partial<Record<CaseStatus, string>> = {
 };
 
 /** Legal transitions only; `assigned` needs an owner, and closing stamps `closedAt`. */
-export async function setStatus(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, status: CaseStatus, now: number = Date.now()): Promise<void> {
+export async function setStatus(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  status: CaseStatus,
+  now: number = Date.now(),
+): Promise<void> {
   const c = await staffCase(ctx, caseId);
   if (c.status === status) return;
   if (!canTransition(c.status, status)) {
-    throw appError("INVALID_STATE", `A request that is ${CASE_STATUS_LABELS[c.status].toLowerCase()} cannot become ${CASE_STATUS_LABELS[status].toLowerCase()}.`, {
+    throw appError(
+      "INVALID_STATE",
+      `A request that is ${CASE_STATUS_LABELS[c.status].toLowerCase()} cannot become ${CASE_STATUS_LABELS[status].toLowerCase()}.`,
+      {
+        from: c.status,
+        to: status,
+      },
+    );
+  }
+  if (status === "assigned" && c.ownerStaffId === undefined) {
+    throw appError("INVALID_STATE", "Assign a concierge to mark this request as with one.", {
       from: c.status,
       to: status,
     });
-  }
-  if (status === "assigned" && c.ownerStaffId === undefined) {
-    throw appError("INVALID_STATE", "Assign a concierge to mark this request as with one.", { from: c.status, to: status });
   }
   const closing = CLOSED_CASE_STATUSES.includes(status);
   await touchCase(ctx, c._id, { status, ...(closing ? { closedAt: now } : {}) }, now);
   const message = STATUS_MESSAGES[status];
   if (message) await appendMessage(ctx, c._id, { author: "system", body: message }, now);
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "case.status", targetTable: "atelierCases", targetId: c._id, meta: { from: c.status, to: status } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "case.status",
+      targetTable: "atelierCases",
+      targetId: c._id,
+      meta: { from: c.status, to: status },
+    },
+    now,
+  );
 }
 
 /** Sample fulfilment words the client reads (C04 acceptance: requested, accepted and shipped are distinct). */
-export async function markSample(ctx: MutationCtx, staff: User, caseId: Id<"atelierCases">, state: SampleState, now: number = Date.now()): Promise<void> {
+export async function markSample(
+  ctx: MutationCtx,
+  staff: User,
+  caseId: Id<"atelierCases">,
+  state: SampleState,
+  now: number = Date.now(),
+): Promise<void> {
   const c = requireOpen(await staffCase(ctx, caseId), "updated");
-  if (c.kind !== "sample" || !c.sample) throw appError("INVALID_STATE", "This request is not for a cloth sample.", { kind: c.kind });
+  if (c.kind !== "sample" || !c.sample)
+    throw appError("INVALID_STATE", "This request is not for a cloth sample.", { kind: c.kind });
   const from = c.sample.state;
   if (from === state) return;
   if (!SAMPLE_TRANSITIONS[from].includes(state)) {
-    throw appError("INVALID_STATE", `A sample that is ${SAMPLE_STATE_LABELS[from].toLowerCase()} cannot become ${SAMPLE_STATE_LABELS[state].toLowerCase()}.`, { from, to: state });
+    throw appError(
+      "INVALID_STATE",
+      `A sample that is ${SAMPLE_STATE_LABELS[from].toLowerCase()} cannot become ${SAMPLE_STATE_LABELS[state].toLowerCase()}.`,
+      { from, to: state },
+    );
   }
   const cloth = await getEntry(ctx, "cloth", c.sample.clothCode);
   const name = cloth?.name ?? c.sample.clothCode;
@@ -1037,7 +1249,18 @@ export async function markSample(ctx: MutationCtx, staff: User, caseId: Id<"atel
     declined: `The house cannot send a sample of ${name} at the moment. Your concierge will explain here and can suggest something close.`,
   };
   await appendMessage(ctx, c._id, { author: "system", body: words[state] }, now);
-  await audit(ctx, { actor: staff, actorKind: "staff", action: "case.sample", targetTable: "atelierCases", targetId: c._id, meta: { from, to: state } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "case.sample",
+      targetTable: "atelierCases",
+      targetId: c._id,
+      meta: { from, to: state },
+    },
+    now,
+  );
 }
 
 const ESCALATION_MESSAGE = "Your request has been raised with the concierge team so it is picked up promptly.";
@@ -1058,11 +1281,13 @@ export async function escalateOverdue(ctx: MutationCtx, now: number = Date.now()
   );
   let escalated = 0;
   for (const c of pages.flat()) {
-    const unassignedTooLong = c.ownerStaffId === undefined && c.createdAt + ATELIER_LIMITS.assignWithinHours * HOUR_MS <= now;
+    const unassignedTooLong =
+      c.ownerStaffId === undefined && c.createdAt + ATELIER_LIMITS.assignWithinHours * HOUR_MS <= now;
     const actionLate = c.nextActionDueAt !== undefined && c.nextActionDueAt <= now;
     if (!unassignedTooLong && !actionLate) continue;
     const alreadyFlagged =
-      c.escalatedAt !== undefined && (!actionLate || c.nextActionDueAt === undefined || c.escalatedAt >= c.nextActionDueAt);
+      c.escalatedAt !== undefined &&
+      (!actionLate || c.nextActionDueAt === undefined || c.escalatedAt >= c.nextActionDueAt);
     if (alreadyFlagged) continue;
     await touchCase(ctx, c._id, { priority: "high", escalatedAt: now }, now);
     await appendMessage(ctx, c._id, { author: "system", body: ESCALATION_MESSAGE }, now);
@@ -1074,7 +1299,10 @@ export async function escalateOverdue(ctx: MutationCtx, now: number = Date.now()
         action: "case.escalate",
         targetTable: "atelierCases",
         targetId: c._id,
-        meta: { reason: unassignedTooLong ? "unassigned" : "next_action_due", nextActionDueAt: c.nextActionDueAt ?? null },
+        meta: {
+          reason: unassignedTooLong ? "unassigned" : "next_action_due",
+          nextActionDueAt: c.nextActionDueAt ?? null,
+        },
       },
       now,
     );

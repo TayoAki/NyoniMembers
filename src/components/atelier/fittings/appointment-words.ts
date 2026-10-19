@@ -1,6 +1,12 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
 import type { AppointmentView } from "@convex/atelier/appointments";
-import type { AppointmentActor, AppointmentService, AppointmentStatus } from "@convex/shared/atelier/enums";
+import {
+  ATELIER_LIMITS,
+  VIRTUAL_SERVICES,
+  type AppointmentActor,
+  type AppointmentService,
+  type AppointmentStatus,
+} from "@convex/shared/atelier/enums";
 
 /** Colour never carries the meaning alone: "Confirmed" is gold only because the words say so. */
 export const APPOINTMENT_TONES: Record<AppointmentStatus, StatusTone> = {
@@ -27,11 +33,10 @@ export const SERVICE_NOTES: Record<AppointmentService, string> = {
   virtual: "A video call with a clothier for questions and guidance. Measurements are not taken over video.",
 };
 
-/** Services that can happen by video; mirrors `VIRTUAL_SERVICES` in convex/model/atelier/appointments.ts (not exported to the client). */
-export const VIRTUAL_SERVICES: readonly AppointmentService[] = ["virtual", "consultation"];
+export { VIRTUAL_SERVICES };
 
-/** The client may name one to three preferred windows (contract §5.7; `WINDOWS_MAX` in the appointments model). */
-export const PREFERRED_WINDOWS_MAX = 3;
+/** The client may name one to three preferred windows (contract §5.7). */
+export const PREFERRED_WINDOWS_MAX: number = ATELIER_LIMITS.preferredWindowsMax;
 
 export const PENDING_SENTENCE = "A concierge will confirm a time with you. A preferred date is not a reserved slot.";
 

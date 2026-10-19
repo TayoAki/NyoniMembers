@@ -63,8 +63,8 @@ type User = Doc<"users">;
  *                   └──▶ declined ──▶ closed
  */
 
-export const CORRECTION_TEXT_MAX = 2000;
-export const CORRECTION_PHOTOS_MAX = 6;
+export const CORRECTION_TEXT_MAX: number = ATELIER_LIMITS.correctionTextMax;
+export const CORRECTION_PHOTOS_MAX: number = ATELIER_LIMITS.correctionPhotosMax;
 export const SUBMISSION_KEY_MAX = 128;
 const CORRECTIONS_PER_ORDER_MAX = 50;
 const CORRECTIONS_PER_STATUS_MAX = 100;
