@@ -12,6 +12,7 @@ Conventions that hold everywhere:
   or from the server's own view (`statusLabel`, `stateLabel`, `kindLabel`), never from a string in a component.
 - Every owned read goes through `useOwnerArgs` (`src/hooks/atelier/use-owner-args.ts`) and every owned
   mutation passes the guest key; the server resolves the actor (`convex/atelier/access.ts`).
+- The stage figure is drawn from the spec by `src/components/atelier/studio/suit-figure.tsx`; `docs/10-atelier-studio-figure.md` lists what each choice changes.
 - Every specification listing is an `OrderBook` with production ids (`src/components/atelier/common/order-book.tsx`);
   every status is a `StatusLine`.
 - Nothing here takes a payment, sends a notification or books a slot. Payments are recorded by staff from the
