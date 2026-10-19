@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api } from "@convex/_generated/api";
 import type { DraftView } from "@convex/atelier/drafts";
 import type { PreviewJobView } from "@convex/atelier/previews";
-import { isStudioStep, STUDIO_STEPS, type StudioStep } from "@convex/shared/atelier/enums";
+import { isStudioStep, type StudioStep } from "@convex/shared/atelier/enums";
 import type { Conflict } from "@convex/shared/atelier/spec";
 import { useAtelierSession } from "@/components/atelier/shell/atelier-session";
 import { EmptyState } from "@/components/common/empty-state";
@@ -31,7 +31,8 @@ type StudioCoreValue = {
   lastFailure: ClientError | null;
   retrySave: (() => void) | null;
   discardFailedChange: (() => void) | null;
-  firstIncompleteStep: StudioStep;
+  /** Where `/atelier/design/[draftId]` lands: the step the design was left on (C12). */
+  landingStep: StudioStep;
 };
 
 const StudioCoreContext = createContext<StudioCoreValue | null>(null);
@@ -42,9 +43,13 @@ export function useStudioCore(): StudioCoreValue {
   return context;
 }
 
-/** The first of the seven steps the design has not satisfied; the review when every step is done. */
-export function firstIncompleteStep(completedSteps: readonly string[]): StudioStep {
-  return STUDIO_STEPS.find((step) => !completedSteps.includes(step)) ?? "review";
+/**
+ * The step a design opens on: its stage, the bookmark the studio keeps as the client moves and the
+ * one the drafts row promises ("Next: …"). The model sets it deliberately for a new or duplicated
+ * draft, so a design is never sent back to a step it already settled.
+ */
+export function landingStepFor(draft: Pick<DraftView, "stage">): StudioStep {
+  return draft.stage;
 }
 
 /**
@@ -95,8 +100,8 @@ function LoadedStudio({ draft, children }: { draft: DraftView; children: ReactNo
 
   const { editor, lastFailure, retry, discard } = useSpecEditor({ draft, guestKeyArg, confirmConflicts });
 
-  const incomplete = firstIncompleteStep(draft.completedSteps);
-  const step: StudioStep = params.step && isStudioStep(params.step) ? params.step : incomplete;
+  const landing = landingStepFor(draft);
+  const step: StudioStep = params.step && isStudioStep(params.step) ? params.step : landing;
 
   const [mode, setMode] = useState<StageMode>("studio");
   const [view, setView] = useState<StageView>("front");
@@ -109,10 +114,11 @@ function LoadedStudio({ draft, children }: { draft: DraftView; children: ReactNo
     void setStageMutation({ draftId: draft._id, ...guestKeyArg, step }).catch(() => undefined);
   }, [draft._id, draft.stage, draft.status, guestKeyArg, setStageMutation, step]);
 
-  // Every save bumps updatedAt, so the drafts page can list and resume this design (C12).
+  // Every save bumps updatedAt, so the drafts page can list and resume this design (C12). The index
+  // records where it is saved, so signed out the page can say "saved to an account" rather than "gone".
   useEffect(() => {
-    rememberDraft({ draftId: draft._id, name: draft.name, updatedAt: draft.updatedAt });
-  }, [draft._id, draft.name, draft.updatedAt, rememberDraft]);
+    rememberDraft({ draftId: draft._id, name: draft.name, updatedAt: draft.updatedAt, account: draft.ownedByAccount });
+  }, [draft._id, draft.name, draft.updatedAt, draft.ownedByAccount, rememberDraft]);
 
   const goToStep = useCallback(
     (next: StudioStep) => router.push(routes.atelier.step(draft._id, next)),
@@ -153,9 +159,9 @@ function LoadedStudio({ draft, children }: { draft: DraftView; children: ReactNo
       lastFailure,
       retrySave: retry,
       discardFailedChange: discard,
-      firstIncompleteStep: incomplete,
+      landingStep: landing,
     }),
-    [previews, currentPreview, storageAvailable, lastFailure, retry, discard, incomplete],
+    [previews, currentPreview, storageAvailable, lastFailure, retry, discard, landing],
   );
 
   return (
@@ -168,11 +174,11 @@ function LoadedStudio({ draft, children }: { draft: DraftView; children: ReactNo
   );
 }
 
-/** `/atelier/design/[draftId]` lands on the first step the design still needs. */
+/** `/atelier/design/[draftId]` lands on the step the design was left on, the one the drafts row names. */
 export function StudioStepRedirect() {
   const router = useRouter();
   const params = useParams<{ draftId: string }>();
-  const { firstIncompleteStep: step } = useStudioCore();
+  const { landingStep: step } = useStudioCore();
   useEffect(() => {
     // Child effects run before the app router's own; a navigation dispatched in the same tick is dropped.
     const handle = window.setTimeout(() => router.replace(routes.atelier.step(params.draftId, step)), 0);

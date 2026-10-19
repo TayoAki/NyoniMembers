@@ -17,14 +17,7 @@ export const PHOTO_TONES: Record<PhotoStatus, StatusTone> = {
   deleted: "neutral",
 };
 
-/** What each step's recorded status means, said plainly beside the step's own label. */
-export const STEP_WORDS: Record<PrivacyStepStatus, string> = {
-  pending: "Pending",
-  done: "Done",
-  failed: "Did not complete — a privacy staff member re-runs it",
-  exception: "Done, with an exception",
-};
-
+/** The words beside each step are `PRIVACY_STEP_STATUS_LABELS`, the same ones staff read; only the tone lives here. */
 export const STEP_TONES: Record<PrivacyStepStatus, StatusTone> = {
   pending: "neutral",
   done: "success",

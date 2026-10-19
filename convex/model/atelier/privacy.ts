@@ -8,6 +8,7 @@ import type {
   PrivacyRequestSummary,
   PrivacyRequestView,
   PrivacyStepView,
+  StaffPrivacyRequestView,
   StaffPrivacyRow,
 } from "../../atelier/privacy";
 import { appError } from "../../lib/errors";
@@ -25,7 +26,7 @@ import {
 import { PROVIDER_DISCLOSURE_VERSION } from "../../shared/atelier/policy";
 import { describeSpec, specSummary } from "../../shared/atelier/spec";
 import { clothSummary, specNames } from "./catalogue";
-import { appendMessage, createCase, findBySubmissionKey, touchCase, type Contact } from "./case_core";
+import { appendMessage, createCase, findBySubmissionKey, touchCase, type CaseContactInput } from "./case_core";
 
 type Ctx = QueryCtx | MutationCtx;
 type Request = Doc<"atelierPrivacyRequests">;
@@ -398,11 +399,8 @@ export function toStepView(step: Step): PrivacyStepView {
   return { key: step.key, label: step.label, status: step.status, at: step.at ?? null, note: step.note ?? null };
 }
 
-export async function toRequestView(ctx: Ctx, request: Request): Promise<PrivacyRequestView> {
-  const [exportUrl, caseDoc] = await Promise.all([
-    request.exportStorageId ? ctx.storage.getUrl(request.exportStorageId) : Promise.resolve(null),
-    caseFor(ctx, request),
-  ]);
+async function requestViewFields(ctx: Ctx, request: Request): Promise<Omit<PrivacyRequestView, "exportUrl">> {
+  const caseDoc = await caseFor(ctx, request);
   return {
     _id: request._id,
     kind: request.kind,
@@ -411,7 +409,6 @@ export async function toRequestView(ctx: Ctx, request: Request): Promise<Privacy
     statusLabel: statusLabelFor(request),
     steps: request.steps.map(toStepView),
     exceptions: request.exceptions,
-    exportUrl,
     requestedAt: request.requestedAt,
     completedAt: request.completedAt ?? null,
     caseId: caseDoc?._id ?? null,
@@ -420,6 +417,47 @@ export async function toRequestView(ctx: Ctx, request: Request): Promise<Privacy
       request.status === "completed" &&
       (request.exceptions.length > 0 || request.steps.some((step) => step.status === "exception")),
   };
+}
+
+/** The owner's view: the signed export link is theirs to open. */
+export async function toRequestView(ctx: Ctx, request: Request): Promise<PrivacyRequestView> {
+  const [fields, exportUrl] = await Promise.all([
+    requestViewFields(ctx, request),
+    request.exportStorageId ? ctx.storage.getUrl(request.exportStorageId) : Promise.resolve(null),
+  ]);
+  return { ...fields, exportUrl };
+}
+
+/**
+ * The staff view carries no export link: the file holds the client's name, email and measurements, so a
+ * staff member opens it through `staffExportUrl`, which writes to the audit log first (O08, as O06 does for
+ * a preview result).
+ */
+export async function toStaffRequestView(ctx: Ctx, request: Request): Promise<StaffPrivacyRequestView> {
+  return { ...(await requestViewFields(ctx, request)), hasExport: request.exportStorageId !== undefined };
+}
+
+/** A mutation's work: the look is recorded under the staff member's name before the URL is signed. */
+export async function staffExportUrl(
+  ctx: MutationCtx,
+  staff: User,
+  request: Request,
+  now: number = Date.now(),
+): Promise<{ url: string | null }> {
+  if (!request.exportStorageId) throw appError("INVALID_STATE", "This request has no export file to open.");
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      actorKind: "staff",
+      action: "export.view",
+      targetTable: "atelierPrivacyRequests",
+      targetId: request._id,
+      meta: { kind: request.kind },
+    },
+    now,
+  );
+  return { url: await ctx.storage.getUrl(request.exportStorageId) };
 }
 
 export function toRequestSummary(request: Request): PrivacyRequestSummary {
@@ -503,9 +541,10 @@ export async function requestPrivacy(
     exceptions,
     requestedAt: now,
   });
-  const contact: Contact = {
+  // A guest has no address: the case records none, and the receipt on the case is what they read.
+  const contact: CaseContactInput = {
     name: actor.user ? clientDisplayName(actor.user) : "Guest",
-    email: actor.user?.email ?? "guest",
+    ...(actor.user?.email ? { email: actor.user.email } : {}),
     channel: "email",
   };
   await createCase(

@@ -446,21 +446,38 @@ export function isEmptyPatch(patch: SpecPatch): boolean {
   );
 }
 
+export type CommitOptions = {
+  acceptedConflicts: boolean;
+  /** The revision the client previewed and confirmed against; the write is refused when the draft has moved on. */
+  baseRevision?: number;
+};
+
 /**
  * S07/S08: applies a change through the dependency engine. Conflicts the client has not accepted are
  * returned with the proposed spec and nothing is written (cross-cutting scenario 2). An accepted change
  * is written whole, as a new revision; the current preview job stays where it is and the preview domain
- * reads `isCurrent` from the hashes.
+ * reads `isCurrent` from the hashes. Accepted conflicts were confirmed against one revision of the
+ * design: when `baseRevision` names an older one (another tab or window wrote first), the change is
+ * refused with STALE_REVISION and the current design so the client can preview it again. A bare
+ * boolean is `{ acceptedConflicts }` with no revision guard.
  */
 export async function commitChange(
   ctx: MutationCtx,
   draft: Draft,
   patch: SpecPatch,
-  acceptedConflicts: boolean,
+  options: boolean | CommitOptions,
   now: number = Date.now(),
 ): Promise<CommitResult> {
+  const { acceptedConflicts, baseRevision } = typeof options === "boolean" ? { acceptedConflicts: options } : options;
   if (isEmptyPatch(patch)) return { revision: draft.revision, conflicts: [], spec: draft.spec, applied: false };
   requireEditable(draft);
+  if (baseRevision !== undefined && baseRevision !== draft.revision) {
+    throw appError(
+      "STALE_REVISION",
+      "This design changed in another window since this screen last saw it. The latest version is shown here; make your change again.",
+      { baseRevision, currentRevision: draft.revision, spec: draft.spec },
+    );
+  }
   const normalized: SpecPatch = patch.monogram ? { ...patch, monogram: normalizeMonogram(patch.monogram) } : patch;
   await assertMaterialsExist(ctx, normalized);
   const { spec, conflicts } = applyChange(draft.spec, normalized);

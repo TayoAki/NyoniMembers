@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { OrderDesk } from "@/components/atelier/staff/production/order-desk";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 type Params = { params: Promise<{ orderId: string }> };
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierOrderPage({ params }: Params) {
-  await requireAdminPage();
+  await requireStaffPage();
   const { orderId } = await params;
   return <OrderDesk orderId={orderId} />;
 }

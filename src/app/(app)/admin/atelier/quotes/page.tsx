@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { QuotesQueue } from "@/components/atelier/staff/quotes/quotes-queue";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Quotes · Atelier desk",
@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierQuotesPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   return <QuotesQueue />;
 }

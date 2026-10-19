@@ -34,7 +34,8 @@ import { ownerArgs } from "./views";
 /**
  * Atelier fit profiles (contract §5.5; journeys C15–C17, O03; screens S19–S21, A03). Accounts only:
  * measurements never hang off a browser's bearer key. Values are stored in centimetres keyed by
- * `MEASUREMENT_FIELDS[].key`; the client converts and rounds. Nothing here approves anything on the
+ * `MEASUREMENT_FIELDS[].key`; the client converts and rounds, and approved values are snapped to the same
+ * grid on the server. Nothing here approves anything on the
  * client's behalf: a profile is provisional until a fitter approves it, and an approved profile is
  * never edited in place. Thin wrappers; the rules live in `convex/model/atelier/fit.ts`.
  */

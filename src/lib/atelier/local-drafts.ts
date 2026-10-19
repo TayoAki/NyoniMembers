@@ -6,7 +6,13 @@ export const GUEST_KEY_STORAGE = "nyoni.atelier.guest";
 export const DRAFT_INDEX_STORAGE = "nyoni.atelier.drafts";
 export const DRAFT_INDEX_LIMIT = 20;
 
-export type LocalDraftEntry = { draftId: string; name: string; updatedAt: number };
+export type LocalDraftEntry = {
+  draftId: string;
+  name: string;
+  updatedAt: number;
+  /** True once the server has said the draft belongs to an account: signed out, it is still saved, just not here. */
+  account?: boolean;
+};
 
 function storage(): Storage | null {
   try {
@@ -63,7 +69,8 @@ export function readDraftIndex(): LocalDraftEntry[] {
           entry !== null &&
           typeof (entry as LocalDraftEntry).draftId === "string" &&
           typeof (entry as LocalDraftEntry).name === "string" &&
-          typeof (entry as LocalDraftEntry).updatedAt === "number",
+          typeof (entry as LocalDraftEntry).updatedAt === "number" &&
+          ["boolean", "undefined"].includes(typeof (entry as LocalDraftEntry).account),
       )
       .sort((a, b) => b.updatedAt - a.updatedAt);
   } catch {
@@ -82,7 +89,11 @@ export function writeDraftIndex(entries: LocalDraftEntry[]): boolean {
   }
 }
 
+/** Replaces the entry for a draft; an update that says nothing about the account keeps what was known. */
 export function upsertDraftEntry(entries: LocalDraftEntry[], entry: LocalDraftEntry): LocalDraftEntry[] {
-  const rest = entries.filter((existing) => existing.draftId !== entry.draftId);
-  return [entry, ...rest].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, DRAFT_INDEX_LIMIT);
+  const existing = entries.find((candidate) => candidate.draftId === entry.draftId);
+  const next: LocalDraftEntry =
+    entry.account === undefined && existing?.account !== undefined ? { ...entry, account: existing.account } : entry;
+  const rest = entries.filter((candidate) => candidate.draftId !== entry.draftId);
+  return [next, ...rest].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, DRAFT_INDEX_LIMIT);
 }

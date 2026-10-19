@@ -114,22 +114,55 @@ function assertTransition(appointment: Appointment, to: AppointmentStatus): void
   }
 }
 
-/** One to three distinct windows, each on a day after today (UTC). A window is a preference, not a slot. */
-export function normalizeWindows(windows: readonly PreferredWindow[], now: number): PreferredWindow[] {
-  if (windows.length < WINDOWS_MIN) throw appError("INVALID_INPUT", "Give the house at least one preferred window.");
+/** Named in a window error's `details.field` so the request form can attach it to that field: the argument's own name. */
+export const WINDOWS_FIELD = "preferredWindows" satisfies keyof RequestInput;
+
+function windowError(message: string, details: Record<string, string | number> = {}): ReturnType<typeof appError> {
+  return appError("INVALID_INPUT", message, { field: WINDOWS_FIELD, ...details });
+}
+
+/**
+ * The calendar day it is in `timeZone` at `at`, encoded the way a preferred window is stored: UTC midnight of
+ * that day. UTC when the zone cannot be read, so a window can never be judged against the server's clock.
+ */
+export function localDayAsUtc(at: number, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(new Date(at));
+    const read = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+    const [year, month, day] = [read("year"), read("month"), read("day")];
+    if ([year, month, day].every(Number.isFinite)) return Date.UTC(year, month - 1, day);
+  } catch {
+    // Fall through to UTC.
+  }
+  return startOfUtcDay(at);
+}
+
+/**
+ * One to three distinct windows, each on a day after today where the client is: a window names a calendar
+ * day (stored at UTC midnight), so "today" is read in the request's own time zone, not the server's. A window
+ * is a preference, not a slot.
+ */
+export function normalizeWindows(
+  windows: readonly PreferredWindow[],
+  now: number,
+  timeZone: string = "UTC",
+): PreferredWindow[] {
+  if (windows.length < WINDOWS_MIN) throw windowError("Give the house at least one preferred window.");
   if (windows.length > WINDOWS_MAX)
-    throw appError("INVALID_INPUT", `Choose up to ${WINDOWS_MAX} preferred windows.`, { max: WINDOWS_MAX });
-  const today = startOfUtcDay(now);
+    throw windowError(`Choose up to ${WINDOWS_MAX} preferred windows.`, { max: WINDOWS_MAX });
+  const today = localDayAsUtc(now, timeZone);
   const seen = new Set<string>();
   const cleaned: PreferredWindow[] = [];
   for (const window of windows) {
-    if (!Number.isFinite(window.date)) throw appError("INVALID_INPUT", "A preferred window needs a date.");
+    if (!Number.isFinite(window.date)) throw windowError("A preferred window needs a date.");
     const day = startOfUtcDay(window.date);
     if (day <= today)
-      throw appError(
-        "INVALID_INPUT",
-        "Preferred windows need to be from tomorrow onward so the house can confirm a time.",
-      );
+      throw windowError("Preferred windows need to be from tomorrow onward so the house can confirm a time.");
     const key = `${day}:${window.period}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -228,8 +261,8 @@ export async function requestAppointment(
   const submissionKey = cleanText(input.submissionKey, "a submission key", 128);
   if (!submissionKey) throw appError("INVALID_INPUT", "Add a submission key.");
   assertLocationFits(input.service, input.showroomId);
-  const preferredWindows = normalizeWindows(input.preferredWindows, now);
   const timeZone = normalizeTimeZone(input.timeZone);
+  const preferredWindows = normalizeWindows(input.preferredWindows, now, timeZone);
   const notes = cleanText(input.notes, "your notes");
   const accessibility = cleanText(input.accessibility, "your access needs");
   const contact = normalizeContact(input.contact);
@@ -495,7 +528,11 @@ async function noteOnCase(
   }
 }
 
-/** New preferred windows. Any confirmation is withdrawn: the house must confirm again, and says so. */
+/**
+ * New preferred windows. Any confirmation is withdrawn: the house must confirm again, and says so. The
+ * booking reference stays on the row (the client's view hides it once the status is no longer confirmed) so
+ * the house can clear the old booking, as it does after a cancellation.
+ */
 export async function reschedule(
   ctx: MutationCtx,
   actor: Actor,
@@ -515,24 +552,32 @@ export async function reschedule(
     );
   }
   assertTransition(appointment, "rescheduled");
-  const preferredWindows = normalizeWindows(windows, now);
+  const preferredWindows = normalizeWindows(windows, now, appointment.timeZone);
   const cleanNote = cleanText(note, "your note", 500);
+  const wasConfirmed = isConfirmed(appointment);
   await ctx.db.patch(appointment._id, {
     preferredWindows,
     status: "rescheduled",
     confirmedStart: undefined,
     confirmedEnd: undefined,
-    calendarRef: undefined,
     history: [
       ...appointment.history,
       { at: now, from: appointment.status, to: "rescheduled", by: "client", note: cleanNote },
     ],
     updatedAt: now,
   });
+  const previously =
+    wasConfirmed && appointment.confirmedStart !== undefined
+      ? ` confirmed for ${formatWhen(appointment.confirmedStart, appointment.timeZone)}`
+      : "";
+  const clearing =
+    wasConfirmed && appointment.calendarRef !== undefined
+      ? ` The house will clear booking reference ${appointment.calendarRef} and confirm a new time with you.`
+      : "";
   await noteOnCase(
     ctx,
     appointment,
-    `You asked to reschedule your ${APPOINTMENT_SERVICE_LABELS[appointment.service].toLowerCase()}. New preferred windows: ${preferredWindows.map(formatWindow).join("; ")}.${cleanNote ? ` ${cleanNote}` : ""} Rescheduled · awaiting confirmation.`,
+    `You asked to reschedule your ${APPOINTMENT_SERVICE_LABELS[appointment.service].toLowerCase()}${previously}. New preferred windows: ${preferredWindows.map(formatWindow).join("; ")}.${cleanNote ? ` ${cleanNote}` : ""}${clearing} Rescheduled · awaiting confirmation.`,
     now,
     true,
   );
@@ -544,7 +589,7 @@ export async function reschedule(
       action: "appointment.reschedule",
       targetTable: "atelierAppointments",
       targetId: appointment._id,
-      meta: { from: appointment.status },
+      meta: { from: appointment.status, hadCalendarRef: appointment.calendarRef !== undefined },
     },
     now,
   );
@@ -602,7 +647,10 @@ export async function cancel(
 
 export type ConfirmInput = { confirmedStart: number; confirmedEnd: number; calendarRef: string; note?: string };
 
-/** All three facts or nothing: the start, the end and the Square booking reference. */
+/** A booking made a few minutes after it began is still a real one; anything older is a time that has passed. */
+export const CONFIRM_GRACE_MS = 15 * 60_000;
+
+/** All three facts or nothing: the start, the end and the Square booking reference, for a time still to come. */
 export async function confirm(
   ctx: MutationCtx,
   staff: User,
@@ -621,6 +669,10 @@ export async function confirm(
     throw appError("INVALID_INPUT", "The appointment must end after it starts.");
   if (input.confirmedEnd - input.confirmedStart > DAY_MS)
     throw appError("INVALID_INPUT", "An appointment is shorter than a day.");
+  if (input.confirmedStart < now - CONFIRM_GRACE_MS)
+    throw appError("INVALID_INPUT", "That start time has already passed; confirm a time still to come.", {
+      confirmedStart: input.confirmedStart,
+    });
   const note = cleanText(input.note, "the note", 500);
   await ctx.db.patch(appointment._id, {
     status: "confirmed",

@@ -1,6 +1,7 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import { Settings, Sparkles } from "lucide-react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,15 +19,21 @@ import {
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { api } from "@convex/_generated/api";
 import { ActivityPopover } from "./activity-popover";
-import { isActivePath, PRIMARY_NAV, SECONDARY_NAV } from "./nav-items";
+import { canSeeNavItem, isActivePath, PRIMARY_NAV, SECONDARY_NAV } from "./nav-items";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Topbar() {
   const pathname = usePathname();
   const { open, toggle } = useStylistPanel();
-  const { user } = useCurrentUser();
+  const { user, isAuthenticated } = useCurrentUser();
+  const staff = useQuery(api.atelier.staff.me, isAuthenticated ? {} : "skip");
   const onboarded = Boolean(user?.onboardedAt);
+  const isAdmin = user?.role === "admin";
+  const secondaryNav = SECONDARY_NAV.filter((item) =>
+    canSeeNavItem(item, { isAdmin, isStaff: isAdmin || Boolean(staff?.isStaff) }),
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-foreground/10 bg-background/95 backdrop-blur-xl">
@@ -87,7 +94,7 @@ export function Topbar() {
                 <Settings className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 p-2">
-                {SECONDARY_NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => (
+                {secondaryNav.map((item) => (
                   <DropdownMenuItem key={item.href} render={<Link href={item.href} />} className="h-10 gap-3">
                     <item.icon />
                     {item.label}
@@ -102,7 +109,7 @@ export function Topbar() {
             >
               <UserButton.MenuItems>
                 {onboarded
-                  ? SECONDARY_NAV.filter((item) => !item.adminOnly || user?.role === "admin").map((item) => (
+                  ? secondaryNav.map((item) => (
                       <UserButton.Link
                         key={item.href}
                         label={item.label}

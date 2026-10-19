@@ -356,6 +356,14 @@ test("a request records its plan, discloses what the house keeps, opens a privac
   assert.equal(caseDoc.kind, "privacy");
   assert.equal(caseDoc.contact.email, "nia@example.test");
   assert.equal(caseDoc.contact.name, "Nia");
+  assert.deepEqual(
+    s.h.f
+      .rowsOf("atelierNotifications")
+      .filter((n) => n.caseId === caseDoc._id)
+      .map((n) => [n.channel, n.to, n.status]),
+    [["email", "nia@example.test", "queued"]],
+    "the receipt is queued to the account's address",
+  );
   assert.ok(caseMessages(s, caseDoc)[0].includes("nothing is called deleted before it is"));
   assert.deepEqual(
     s.h.scheduled.map((job) => [job.name, job.args.requestId]),
@@ -368,7 +376,7 @@ test("a request records its plan, discloses what the house keeps, opens a privac
   assert.equal(view.exportUrl, null);
 });
 
-test("an export discloses nothing to keep, a closure also keeps the records, and a guest's contact is simply 'guest'", async () => {
+test("an export discloses nothing to keep, a closure also keeps the records, and a guest's contact has no address and gets no notification", async () => {
   const s = await setup();
   assert.deepEqual((await row(s, (await request(s, "export")).requestId)).exceptions, []);
   const closure = await row(s, (await request(s, "close_account")).requestId);
@@ -379,8 +387,18 @@ test("an export discloses nothing to keep, a closure also keeps the records, and
   assert.equal(guestRow.guestKey, GUEST_KEY);
   assert.equal(guestRow.userId, undefined);
   const guestCase = await privacy.caseFor(s.h.f.ctx, guestRow);
-  assert.equal(guestCase.contact.email, "guest");
+  assert.equal(guestCase.contact.email, "", "no address is invented for a guest");
   assert.equal(guestCase.contact.name, "Guest");
+  assert.equal(guestCase.contact.channel, "email");
+  assert.deepEqual(
+    s.h.f.rowsOf("atelierNotifications").filter((n) => n.caseId === guestCase._id),
+    [],
+    "nothing is queued to nowhere",
+  );
+  assert.ok(
+    caseMessages(s, guestCase)[0].includes("request received"),
+    "the receipt on the case is what a guest reads",
+  );
 });
 
 test("one open request per kind per owner; a guest has no account to close; a stranger never sees the request", async () => {
@@ -749,6 +767,43 @@ test("staff complete only a request whose steps have all run, with a note on the
   await assert.rejects(privacy.complete(s.h.f.ctx, s.privacyStaff, o, "x", NOW + 33), isAppError("INVALID_STATE"));
   const rejectedView = await privacy.toRequestView(s.h.f.ctx, o);
   assert.equal(rejectedView.statusLabel, PRIVACY_STATUS_LABELS.rejected);
+});
+
+test("staff read a request without its export link; opening the export is a mutation that writes export.view first", async () => {
+  const s = await setup();
+  const { requestId } = await request(s, "export");
+  await drain(s.h);
+  const r = await row(s, requestId);
+  assert.ok(r.exportStorageId, "the export was written");
+  const ownerView = await privacy.toRequestView(s.h.f.ctx, r);
+  assert.match(ownerView.exportUrl, /^https:\/\/files\.test\/signed\//, "the owner opens their own file directly");
+  const staffView = await privacy.toStaffRequestView(s.h.f.ctx, r);
+  assert.equal("exportUrl" in staffView, false, "the staff view never carries the signed link");
+  assert.equal(staffView.hasExport, true);
+  assert.equal(staffView.statusLabel, PRIVACY_STATUS_LABELS.completed);
+  assert.equal(staffView.caseId, ownerView.caseId);
+
+  const before = s.h.f.rowsOf("atelierAuditLog").length;
+  const { url } = await privacy.staffExportUrl(s.h.f.ctx, s.privacyStaff, r, NOW + 10);
+  assert.equal(url, ownerView.exportUrl);
+  const looks = s.h.f.rowsOf("atelierAuditLog").slice(before);
+  assert.equal(looks.length, 1);
+  assert.equal(looks[0].action, "export.view");
+  assert.equal(looks[0].actorUserId, s.privacyStaff._id);
+  assert.equal(looks[0].actorKind, "staff");
+  assert.equal(looks[0].targetTable, "atelierPrivacyRequests");
+  assert.equal(looks[0].targetId, requestId);
+  assert.equal(looks[0].meta.kind, "export");
+  assert.equal(looks[0].at, NOW + 10);
+
+  const fresh = await row(s, (await request(s, "delete_photos")).requestId);
+  assert.equal((await privacy.toStaffRequestView(s.h.f.ctx, fresh)).hasExport, false);
+  await assert.rejects(privacy.staffExportUrl(s.h.f.ctx, s.privacyStaff, fresh, NOW + 11), isAppError("INVALID_STATE"));
+  assert.equal(
+    s.h.f.rowsOf("atelierAuditLog").filter((a) => a.action === "export.view").length,
+    1,
+    "a refused look is not recorded as one",
+  );
 });
 
 test("the audit log reads by target or by time, newest first, bounded, with the actor named", async () => {

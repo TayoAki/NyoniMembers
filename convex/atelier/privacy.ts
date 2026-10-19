@@ -18,8 +18,10 @@ import {
   requestPrivacy,
   requireOwnedRequest,
   requireRequest,
+  staffExportUrl as signStaffExportUrl,
   toRequestSummary,
   toRequestView,
+  toStaffRequestView,
   toStaffRow,
 } from "../model/atelier/privacy";
 import {
@@ -65,7 +67,7 @@ export const vPrivacyStepView = v.object({
 });
 export type PrivacyStepView = Infer<typeof vPrivacyStepView>;
 
-export const vPrivacyRequestView = v.object({
+const requestViewFields = {
   _id: v.id("atelierPrivacyRequests"),
   kind: vPrivacyKind,
   kindLabel: v.string(),
@@ -75,15 +77,27 @@ export const vPrivacyRequestView = v.object({
   steps: v.array(vPrivacyStepView),
   /** What the house keeps and why, disclosed when the request is made and added to as steps run. */
   exceptions: v.array(v.string()),
-  /** A signed link to the export file once it has been written. */
-  exportUrl: v.union(v.string(), v.null()),
   requestedAt: v.number(),
   completedAt: v.union(v.number(), v.null()),
   caseId: v.union(v.id("atelierCases"), v.null()),
   hasFailedStep: v.boolean(),
   completedWithExceptions: v.boolean(),
+};
+
+/** The owner's view of their own request. */
+export const vPrivacyRequestView = v.object({
+  ...requestViewFields,
+  /** A signed link to the export file once it has been written. */
+  exportUrl: v.union(v.string(), v.null()),
 });
 export type PrivacyRequestView = Infer<typeof vPrivacyRequestView>;
+
+/** The staff view: whether an export exists, never its link; `staffExportUrl` signs one and records the look. */
+export const vStaffPrivacyRequestView = v.object({
+  ...requestViewFields,
+  hasExport: v.boolean(),
+});
+export type StaffPrivacyRequestView = Infer<typeof vStaffPrivacyRequestView>;
 
 export const vPrivacyRequestSummary = v.object({
   _id: v.id("atelierPrivacyRequests"),
@@ -300,10 +314,23 @@ export const queue = query({
 
 export const staffGet = query({
   args: { requestId: v.id("atelierPrivacyRequests") },
-  returns: vPrivacyRequestView,
+  returns: vStaffPrivacyRequestView,
   handler: async (ctx, { requestId }) => {
     await requireStaff(ctx, "privacy");
-    return toRequestView(ctx, await requireRequest(ctx, requestId));
+    return toStaffRequestView(ctx, await requireRequest(ctx, requestId));
+  },
+});
+
+/**
+ * A mutation, not a query: the export holds the client's name, email and measurements, so every staff
+ * look at it is written to the audit log (`export.view`) before the link is signed.
+ */
+export const staffExportUrl = mutation({
+  args: { requestId: v.id("atelierPrivacyRequests") },
+  returns: v.object({ url: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { requestId }) => {
+    const staff = await requireStaff(ctx, "privacy");
+    return signStaffExportUrl(ctx, staff, await requireRequest(ctx, requestId));
   },
 });
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { FitReview } from "@/components/atelier/staff/fit/fit-review";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 type Params = { params: Promise<{ profileId: string }> };
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierFitProfilePage({ params }: Params) {
-  await requireAdminPage();
+  await requireStaffPage();
   const { profileId } = await params;
   return <FitReview profileId={profileId} />;
 }

@@ -62,9 +62,22 @@ export function satinTone(hex: string): string {
   return luminance(hex) < 0.025 ? mixHex(hex, "#FFFFFF", 0.14) : mixHex(hex, "#000000", 0.34);
 }
 
-/** A tonal shade a step away from the cloth, used for rings and buttons that must show on any cloth. */
+/** WCAG contrast ratio between two colours, 1 (identical) to 21. */
+export function contrastRatio(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/**
+ * The ink for every stroke that lies on the cloth (edges, seams, pocket jets, buttons): the cloth's own hue
+ * lifted or deepened by about half, whichever reads better against the shade, so a midnight navy's lapel
+ * edge shows on cream and on onyx alike. Stronger than `patternInk` so a seam stays distinct from the weave.
+ */
 export function tonalEdge(hex: string): string {
-  return luminance(hex) < 0.28 ? mixHex(hex, "#FFFFFF", 0.22) : mixHex(hex, "#000000", 0.22);
+  const lifted = mixHex(hex, "#FFFFFF", 0.5);
+  const deepened = mixHex(hex, "#000000", 0.45);
+  return contrastRatio(lifted, hex) >= contrastRatio(deepened, hex) ? lifted : deepened;
 }
 
 export function clothPatternId(prefix: string, pattern: ClothPattern): string {

@@ -168,15 +168,15 @@ test("switching the front to double-breasted moves the stance to six-by-two and 
     {
       field: "jacket.buttons",
       label: "Button stance",
-      from: "two",
-      to: "six_by_two",
+      from: "Two buttons",
+      to: "Six buttons, two to close",
       reason: "A double-breasted jacket closes with two of its buttons.",
     },
     {
       field: "jacket.lapel",
       label: "Lapel",
-      from: "notch",
-      to: "peak",
+      from: "Notch lapel",
+      to: "Peak lapel",
       reason: "A double-breasted jacket is cut with a peak lapel.",
     },
   ]);
@@ -190,8 +190,8 @@ test("switching a six-by-two jacket back to single-breasted moves the stance to 
     {
       field: "jacket.buttons",
       label: "Button stance",
-      from: "six_by_two",
-      to: "two",
+      from: "Six buttons, two to close",
+      to: "Two buttons",
       reason: "A single-breasted jacket has one, two or three buttons.",
     },
   ]);
@@ -212,8 +212,8 @@ test("choosing a shawl lapel on a two-button day jacket moves the stance to one 
     {
       field: "jacket.buttons",
       label: "Button stance",
-      from: "two",
-      to: "one",
+      from: "Two buttons",
+      to: "One button",
       reason: "A shawl lapel is cut with a single button.",
     },
   ]);
@@ -229,8 +229,8 @@ test("moving the stance away from one button on a shawl-lapel day jacket moves t
     {
       field: "jacket.lapel",
       label: "Lapel",
-      from: "shawl",
-      to: "notch",
+      from: "Shawl lapel",
+      to: "Notch lapel",
       reason: "A shawl lapel is cut with a single button.",
     },
   ]);
@@ -262,8 +262,8 @@ test("a double-breasted shawl tuxedo that becomes a two-piece is given a peak la
     {
       field: "jacket.lapel",
       label: "Lapel",
-      from: "shawl",
-      to: "peak",
+      from: "Shawl lapel",
+      to: "Peak lapel",
       reason: "A shawl lapel is cut on a tuxedo or a one-button single-breasted jacket.",
     },
   ]);
@@ -293,29 +293,29 @@ test("switching to a tuxedo forces jetted pockets, no ticket pocket, no vent and
     {
       field: "jacket.pockets",
       label: "Pockets",
-      from: "flap",
-      to: "jetted",
+      from: "Flap pockets",
+      to: "Jetted pockets",
       reason: "A tuxedo is finished with jetted pockets.",
     },
     {
       field: "jacket.ticketPocket",
       label: "Ticket pocket",
-      from: "true",
-      to: "false",
+      from: "Yes",
+      to: "No",
       reason: "A tuxedo has no ticket pocket.",
     },
     {
       field: "jacket.vents",
       label: "Vents",
-      from: "single",
-      to: "none",
+      from: "Single vent",
+      to: "No vent",
       reason: "A tuxedo is cut without a vent or with side vents.",
     },
     {
       field: "trousers.hem",
       label: "Trouser hem",
-      from: "cuffed",
-      to: "plain",
+      from: "Cuffed hem",
+      to: "Plain hem",
       reason: "Tuxedo trousers are finished with a plain hem.",
     },
   ]);
@@ -340,8 +340,8 @@ test("patch pockets on a day suit drop the ticket pocket and say why", () => {
     {
       field: "jacket.ticketPocket",
       label: "Ticket pocket",
-      from: "true",
-      to: "false",
+      from: "Yes",
+      to: "No",
       reason: "Patch pockets are cut without a ticket pocket.",
     },
   ]);
@@ -585,28 +585,71 @@ test("a monogram must be one to four capital letters or full stops, and blank te
 test("a three-piece needs a waistcoat and nothing else may have one", () => {
   assert.deepEqual(validateSpec(suit({ garment: "three_piece" })), ["A three-piece includes a waistcoat."]);
   assert.deepEqual(validateSpec(suit({ garment: "three_piece", waistcoat: DEFAULT_WAISTCOAT })), []);
-  assert.deepEqual(validateSpec(suit({ waistcoat: DEFAULT_WAISTCOAT })), ["Only a three-piece has a waistcoat."]);
+  assert.deepEqual(validateSpec(suit({ waistcoat: DEFAULT_WAISTCOAT })), ["A two-piece has no waistcoat."]);
   assert.deepEqual(
     validateSpec(suit({ garment: "tuxedo", waistcoat: DEFAULT_WAISTCOAT, jacket: { pockets: "jetted" } })),
-    ["Only a three-piece has a waistcoat."],
+    ["A tuxedo has no waistcoat."],
   );
 });
 
 test("the stance must match the front", () => {
   assert.deepEqual(validateSpec(suit({ jacket: { breast: "double", buttons: "two", lapel: "peak" } })), [
-    "Double-breasted stance is not valid.",
+    "A double-breasted jacket closes with two of its buttons.",
   ]);
-  assert.deepEqual(validateSpec(suit({ jacket: { buttons: "six_by_two" } })), ["Single-breasted stance is not valid."]);
+  assert.deepEqual(validateSpec(suit({ jacket: { buttons: "six_by_two" } })), [
+    "A single-breasted jacket has one, two or three buttons.",
+  ]);
   assert.deepEqual(validateSpec(doubleBreasted()), []);
 });
 
-test("validateSpec reports every problem at once", () => {
+// Rules 1 (lapel), 2, 3 and 5 are the engine's; validateSpec is the one gate, whatever wrote the spec.
+
+test("a spec the dependency engine would still move does not validate, in the engine's own words", () => {
+  const unresolvedTuxedo = suit({
+    garment: "tuxedo",
+    jacket: { pockets: "patch", ticketPocket: true, vents: "single" },
+    trousers: { hem: "cuffed" },
+  });
+  assert.deepEqual(validateSpec(unresolvedTuxedo), [
+    "A tuxedo is finished with jetted pockets.",
+    "A tuxedo has no ticket pocket.",
+    "A tuxedo is cut without a vent or with side vents.",
+    "Tuxedo trousers are finished with a plain hem.",
+  ]);
+  assert.deepEqual(validateSpec(suit({ jacket: { breast: "double", buttons: "six_by_two", lapel: "notch" } })), [
+    "A double-breasted jacket is cut with a peak lapel.",
+  ]);
+  assert.deepEqual(validateSpec(suit({ jacket: { lapel: "shawl" } })), ["A shawl lapel is cut with a single button."]);
+  assert.deepEqual(validateSpec(doubleBreasted({ jacket: { lapel: "shawl" } })), [
+    "A shawl lapel is cut on a tuxedo or a one-button single-breasted jacket.",
+  ]);
+  assert.deepEqual(validateSpec(suit({ jacket: { pockets: "patch", ticketPocket: true } })), [
+    "Patch pockets are cut without a ticket pocket.",
+  ]);
+  for (const spec of [unresolvedTuxedo, suit({ jacket: { lapel: "shawl" } })]) {
+    assert.deepEqual(validateSpec(applyChange(spec, {}).spec), [], "what the engine resolves then validates");
+  }
+});
+
+test("validateSpec reports every problem at once, each once", () => {
   const errors = validateSpec({ ...DEFAULT_SPEC, garment: "three_piece", monogram: { ...MONOGRAM, text: "" } });
   assert.deepEqual(errors, [
     "Choose a cloth.",
     "Enter the monogram letters or remove the monogram.",
     "A three-piece includes a waistcoat.",
   ]);
+  const many = validateSpec({
+    ...DEFAULT_SPEC,
+    garment: "tuxedo",
+    waistcoat: DEFAULT_WAISTCOAT,
+    jacket: { ...DEFAULT_SPEC.jacket, breast: "double", buttons: "two", lapel: "notch", vents: "single" },
+  });
+  assert.equal(new Set(many).size, many.length, "no sentence is repeated");
+  assert.ok(many.includes("Choose a cloth."));
+  assert.ok(many.includes("A double-breasted jacket closes with two of its buttons."));
+  assert.ok(many.includes("A double-breasted jacket is cut with a peak lapel."));
+  assert.ok(many.includes("A tuxedo is cut without a vent or with side vents."));
+  assert.ok(many.includes("A tuxedo has no waistcoat."));
 });
 
 // canonicalSpec and specHash.

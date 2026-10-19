@@ -17,11 +17,12 @@ import {
   type Lapel,
   type LapelWidth,
   type Option,
+  type Rise,
   type SuitSpec,
   type TrouserFit,
 } from "@convex/shared/atelier/spec";
 import { cn } from "@/lib/utils";
-import { ClothPatternDef, clothPatternId, patternInk, satinTone } from "./cloth-pattern";
+import { ClothPatternDef, clothPatternId, patternInk, satinTone, tonalEdge } from "./cloth-pattern";
 
 export type SuitFigureView = "front" | "back";
 
@@ -37,11 +38,15 @@ export type SuitFigureProps = {
 };
 
 /*
- * The studio illustration: a tailor's croquis of a standing man in the suit the spec describes, drawn in
- * hairlines of `currentColor` so it sits on onyx and on cream alike. The only fills are the cloth (the
- * representative shade, with a tonal weave overlay), the shirt, the shoes and the page colour behind the
- * head and hands. Every choice in the spec that shows on the outside of a suit changes the drawing;
- * canvas, lining, the buttons' material and the monogram are interior and do not.
+ * The studio illustration: a tailor's croquis of a standing man in the suit the spec describes, drawn in two
+ * inks. Edges that meet the page (the silhouette, head, hands, shirt) are hairlines of `currentColor`, so the
+ * figure sits on onyx and on cream alike; every stroke that lies on the cloth (lapel and front edges, seams,
+ * pockets, vents, buttons) is in `tonalEdge(hex)`, the cloth's own shade lifted or deepened, so a midnight
+ * navy keeps its details in the light theme as well as the dark. With no cloth chosen both inks are
+ * `currentColor`. The only fills are the cloth (the representative shade, with a tonal weave overlay), the
+ * shirt, the shoes and the page colour behind the head and hands. Every choice in the spec that shows on the
+ * outside of a suit changes the drawing; canvas, lining, the buttons' material and the monogram are interior
+ * and do not.
  *
  * Coordinates are in a 600 × 1000 viewBox, about eight and a half heads tall. `dx` values are offsets
  * from the centre line (x = 300); positive is the viewer's right, which is the wearer's left. Strokes
@@ -92,6 +97,8 @@ const LEG_HALF: Record<TrouserFit, { knee: number; hem: number }> = {
   tailored: { knee: 40, hem: 35 },
   slim: { knee: 35, hem: 29 },
 };
+/** The top of the trouser waistband; it shows in the jacket's open quarters, so the rise moves it. */
+const WAISTBAND_Y: Record<Rise, number> = { mid: 440, high: 424 };
 
 type Stance = {
   /** Button rows, top first. */
@@ -126,23 +133,21 @@ type ClothStyle = {
   patternUrl: string | null;
   satin: string;
   satinOpacity: number;
+  /** The ink for strokes that lie on the cloth; `currentColor` when no cloth is chosen. */
+  edge: string;
 };
 
 /* ---------- primitives ---------- */
 
-function Hairline({
-  d,
-  opacity = 1,
-  width = LINE,
-  dash,
-  color = "currentColor",
-}: {
+type HairlineProps = {
   d: string;
   opacity?: number;
   width?: number;
   dash?: string;
   color?: string;
-}) {
+};
+
+function Hairline({ d, opacity = 1, width = LINE, dash, color = "currentColor" }: HairlineProps) {
   return (
     <path
       d={d}
@@ -158,10 +163,16 @@ function Hairline({
   );
 }
 
+/** A hairline that lies on the cloth (a seam, an edge, a crease), in the cloth's own tonal ink. */
+function Seam({ cloth, ...rest }: Omit<HairlineProps, "color"> & { cloth: ClothStyle }) {
+  return <Hairline {...rest} color={cloth.edge} />;
+}
+
 /**
- * A piece of cloth: shade, weave overlay, then the hairline outline on top. Only the garment's main pieces
- * take the dashed "no cloth chosen" outline; a `detail` (pocket, welt, collar) stays solid so the figure
- * does not dissolve into dashes.
+ * A piece of cloth: shade, weave overlay, then the hairline outline on top. The outline is `currentColor`
+ * where the piece's edges meet the page and the cloth's tonal ink where they lie on other cloth; a `detail`
+ * (pocket, welt, collar) lies on cloth unless told otherwise and never takes the dashed "no cloth chosen"
+ * outline, so the figure does not dissolve into dashes.
  */
 function Piece({
   d,
@@ -169,12 +180,14 @@ function Piece({
   satin = false,
   outline = 1,
   detail = false,
+  edge = detail ? "cloth" : "page",
 }: {
   d: string;
   cloth: ClothStyle;
   satin?: boolean;
   outline?: number;
   detail?: boolean;
+  edge?: "page" | "cloth";
 }) {
   return (
     <>
@@ -186,7 +199,12 @@ function Piece({
           {cloth.patternUrl ? <path d={d} fill={cloth.patternUrl} stroke="none" /> : null}
         </>
       )}
-      <Hairline d={d} opacity={detail ? outline * 0.8 : outline} dash={cloth.dashed && !detail ? DASH : undefined} />
+      <Hairline
+        d={d}
+        opacity={detail ? outline * 0.8 : outline}
+        dash={cloth.dashed && !detail ? DASH : undefined}
+        color={edge === "cloth" ? cloth.edge : "currentColor"}
+      />
     </>
   );
 }
@@ -219,9 +237,9 @@ function Button({
       cx={r1(CX + dx)}
       cy={r1(y)}
       r={r}
-      fill={satin ? cloth.satin : "currentColor"}
-      fillOpacity={satin ? cloth.satinOpacity : 0.22}
-      stroke="currentColor"
+      fill={satin ? cloth.satin : cloth.edge}
+      fillOpacity={satin ? cloth.satinOpacity : 0.45}
+      stroke={cloth.edge}
       strokeWidth={FINE}
       strokeOpacity={0.9}
       vectorEffect="non-scaling-stroke"
@@ -318,23 +336,30 @@ function Sleeve({
   const lift = roped ? 6 : 0;
   const top = SHOULDER_Y - lift;
   // The sleeve head leaves the shoulder seam on its own tangent, so the two read as one line.
-  const d = `M ${P(s * 106, top - 5)} C ${P(s * 120, top - 1)} ${P(s * 132, 240)} ${P(s * 137, 330)} C ${P(s * 139, 400)} ${P(s * 131, 470)} ${P(s * 127, CUFF_Y)} L ${P(s * 86, CUFF_Y)} C ${P(s * 87, 500)} ${P(s * 89, 432)} ${P(s * 90, 400)} C ${P(s * 90, 350)} ${P(s * 86, 300)} ${P(s * 84, 264)} C ${P(s * 87, 240)} ${P(s * 96, top)} ${P(s * 106, top - 5)} Z`;
+  const innerUp = `C ${P(s * 87, 500)} ${P(s * 89, 432)} ${P(s * 90, 400)} C ${P(s * 90, 350)} ${P(s * 86, 300)} ${P(s * 84, 264)} C ${P(s * 87, 240)} ${P(s * 96, top)} ${P(s * 106, top - 5)}`;
+  const inner = `M ${P(s * 86, CUFF_Y)} ${innerUp}`;
+  const d = `M ${P(s * 106, top - 5)} C ${P(s * 120, top - 1)} ${P(s * 132, 240)} ${P(s * 137, 330)} C ${P(s * 139, 400)} ${P(s * 131, 470)} ${P(s * 127, CUFF_Y)} L ${P(s * 86, CUFF_Y)} ${innerUp} Z`;
   const cuff = `M ${P(s * 86, CUFF_Y - 6)} L ${P(s * 127, CUFF_Y - 6)} L ${P(s * 125, CUFF_Y + 7)} L ${P(s * 88, CUFF_Y + 7)} Z`;
   return (
     <>
       <Quiet d={cuff} fill={SHIRT} outline={0.6} color={SHIRT_LINE} />
       <Piece d={d} cloth={cloth} />
+      {/* the inner edge and armhole lie on the body, so they take the cloth's ink */}
+      <Seam d={inner} cloth={cloth} />
       {roped ? (
-        <Hairline
+        <Seam
           d={`M ${P(s * 100, 218 - lift)} Q ${P(s * 116, 206 - lift)} ${P(s * 126, 230)}`}
-          opacity={0.35}
+          cloth={cloth}
+          opacity={0.6}
           width={FINE}
         />
       ) : null}
       {Array.from({ length: buttons }, (_, i) => CUFF_Y - 12 - i * 9).map((y) => (
         <g key={y}>
           <Button dx={s * 116} y={y} r={2.6} cloth={cloth} />
-          {working ? <Hairline d={`M ${P(s * 112, y)} L ${P(s * 106, y)}`} opacity={0.45} width={FINE} /> : null}
+          {working ? (
+            <Seam d={`M ${P(s * 112, y)} L ${P(s * 106, y)}`} cloth={cloth} opacity={0.7} width={FINE} />
+          ) : null}
         </g>
       ))}
     </>
@@ -391,7 +416,7 @@ function Trousers({
 }) {
   const { fit, pleats, rise, hem, waistband } = spec.trousers;
   const half = LEG_HALF[fit];
-  const yWB = rise === "high" ? 424 : 440;
+  const yWB = WAISTBAND_Y[rise];
   const front = view === "front";
   const cuffTop = TROUSER_HEM_Y - 20;
   return (
@@ -407,22 +432,25 @@ function Trousers({
         return (
           <g key={s}>
             <Piece d={leg} cloth={cloth} />
-            <Hairline
+            <Seam
               d={`M ${P(c, hem === "cuffed" ? cuffTop : TROUSER_HEM_Y - 2)} L ${P(c, creaseTop)}`}
-              opacity={0.32}
+              cloth={cloth}
+              opacity={0.55}
               width={FINE}
             />
             {front && pleats !== "flat" ? (
-              <Hairline
+              <Seam
                 d={`M ${P(c - s * 3, yWB + 14)} L ${P(c - s * 3, 540)} C ${P(c - s * 2, 570)} ${P(c, 590)} ${P(c, 604)}`}
-                opacity={0.55}
+                cloth={cloth}
+                opacity={0.75}
                 width={FINE}
               />
             ) : null}
             {front && pleats === "double" ? (
-              <Hairline
+              <Seam
                 d={`M ${P(c + s * 14, yWB + 14)} C ${P(c + s * 14, 520)} ${P(c + s * 13, 548)} ${P(c + s * 12, 572)}`}
-                opacity={0.5}
+                cloth={cloth}
+                opacity={0.7}
                 width={FINE}
               />
             ) : null}
@@ -436,33 +464,45 @@ function Trousers({
               />
             ) : null}
             {hem === "cuffed" ? (
-              <Piece
-                d={`M ${P(outHem + s * 2, cuffTop)} L ${P(outHem + s * 2, TROUSER_HEM_Y)} L ${P(inHem - s * 2, TROUSER_HEM_Y)} L ${P(inHem - s * 2, cuffTop)} Z`}
-                cloth={cloth}
-                detail
-              />
+              <>
+                <Piece
+                  d={`M ${P(outHem + s * 2, cuffTop)} L ${P(outHem + s * 2, TROUSER_HEM_Y)} L ${P(inHem - s * 2, TROUSER_HEM_Y)} L ${P(inHem - s * 2, cuffTop)} Z`}
+                  cloth={cloth}
+                  detail
+                  edge="page"
+                />
+                <Seam
+                  d={`M ${P(outHem + s * 2, cuffTop)} L ${P(inHem - s * 2, cuffTop)}`}
+                  cloth={cloth}
+                  opacity={0.8}
+                />
+              </>
             ) : null}
           </g>
         );
       })}
       {front ? (
         <>
-          <Hairline
+          <Seam
             d={`M ${P(-HIP_DX, yWB)} L ${P(HIP_DX, yWB)} M ${P(-HIP_DX, yWB + 14)} L ${P(HIP_DX, yWB + 14)}`}
+            cloth={cloth}
+            opacity={0.8}
+            width={FINE}
+          />
+          <Seam
+            d={`M ${P(2, yWB + 14)} C ${P(3, yWB + 40)} ${P(3, yWB + 70)} ${P(1, yWB + 100)}`}
+            cloth={cloth}
             opacity={0.6}
             width={FINE}
           />
-          <Hairline
-            d={`M ${P(2, yWB + 14)} C ${P(3, yWB + 40)} ${P(3, yWB + 70)} ${P(1, yWB + 100)}`}
-            opacity={0.4}
-            width={FINE}
-          />
+          {/* the inner pair flanks the fly, where the open quarters let the waistband show */}
           {waistband === "belt_loops"
             ? SIDES.map((s) => (
-                <Hairline
+                <Seam
                   key={s}
-                  d={`M ${P(s * 20, yWB - 2)} L ${P(s * 20, yWB + 17)} M ${P(s * 26, yWB - 2)} L ${P(s * 26, yWB + 17)} M ${P(s * 62, yWB - 2)} L ${P(s * 62, yWB + 17)} M ${P(s * 68, yWB - 2)} L ${P(s * 68, yWB + 17)}`}
-                  opacity={0.8}
+                  d={`M ${P(s * 6, yWB - 2)} L ${P(s * 6, yWB + 17)} M ${P(s * 11, yWB - 2)} L ${P(s * 11, yWB + 17)} M ${P(s * 62, yWB - 2)} L ${P(s * 62, yWB + 17)} M ${P(s * 68, yWB - 2)} L ${P(s * 68, yWB + 17)}`}
+                  cloth={cloth}
+                  opacity={0.9}
                   width={FINE}
                 />
               ))
@@ -527,7 +567,7 @@ function Pockets({ s, spec, cloth, tuxedo }: { s: Side; spec: SuitSpec; cloth: C
     pocket = (
       <>
         <Piece d={d} cloth={cloth} detail />
-        <Hairline d={`M ${P(a, 438)} L ${P(b, 438)}`} opacity={0.4} width={FINE} />
+        <Seam d={`M ${P(a, 438)} L ${P(b, 438)}`} cloth={cloth} opacity={0.6} width={FINE} />
       </>
     );
   } else if (pockets === "jetted") {
@@ -535,7 +575,7 @@ function Pockets({ s, spec, cloth, tuxedo }: { s: Side; spec: SuitSpec; cloth: C
     pocket = (
       <>
         {tuxedo ? <Hairline d={d} opacity={cloth.satinOpacity} width={2} color={cloth.satin} /> : null}
-        <Hairline d={d} opacity={tuxedo ? 0.4 : 0.9} width={FINE} />
+        <Seam d={d} cloth={cloth} opacity={tuxedo ? 0.6 : 0.9} width={FINE} />
       </>
     );
   } else {
@@ -547,16 +587,26 @@ function Pockets({ s, spec, cloth, tuxedo }: { s: Side; spec: SuitSpec; cloth: C
       />
     );
   }
+  // The ticket pocket is cut in the hip pockets' style: two welts on a jetted jacket, a flap otherwise.
+  const ticket =
+    pockets === "jetted" ? (
+      <Seam
+        d={`M ${P(-96, 413)} L ${P(-62, 415)} M ${P(-96, 418)} L ${P(-62, 420)}`}
+        cloth={cloth}
+        opacity={0.9}
+        width={FINE}
+      />
+    ) : (
+      <Piece
+        d={`M ${P(-96, 412)} L ${P(-62, 410)} L ${P(-62, 422)} Q ${P(-62, 425)} ${P(-65, 425)} L ${P(-93, 426)} Q ${P(-96, 426)} ${P(-96, 423)} Z`}
+        cloth={cloth}
+        detail
+      />
+    );
   return (
     <>
       {pocket}
-      {ticketPocket && s === -1 ? (
-        <Piece
-          d={`M ${P(-96, 412)} L ${P(-62, 410)} L ${P(-62, 422)} Q ${P(-62, 425)} ${P(-65, 425)} L ${P(-93, 426)} Q ${P(-96, 426)} ${P(-96, 423)} Z`}
-          cloth={cloth}
-          detail
-        />
-      ) : null}
+      {ticketPocket && s === -1 ? ticket : null}
     </>
   );
 }
@@ -565,17 +615,21 @@ function Waistcoat({ spec, cloth }: { spec: SuitSpec; cloth: ClothStyle }) {
   const wc = spec.waistcoat;
   if (!wc) return null;
   if (wc.style === "double") {
-    const rows = [334, 370, 406];
-    const body = `M ${P(-36, 214)} L ${P(-80, 236)} L ${P(-80, 470)} L ${P(80, 470)} L ${P(80, 236)} L ${P(36, 214)} L ${P(0, 276)} Z`;
-    const edges = `M ${P(-36, 214)} L ${P(30, 334)} L ${P(30, 470)} M ${P(36, 214)} L ${P(0, 276)}`;
+    // The wearer's right panel crosses to an edge 26 right of centre; the V closes high, at the crossing.
+    const rows = [300, 340, 380];
+    const body = `M ${P(-36, 214)} L ${P(-80, 236)} L ${P(-80, 470)} L ${P(80, 470)} L ${P(80, 236)} L ${P(36, 214)} L ${P(0, 257)} Z`;
+    const edge = `M ${P(0, 257)} L ${P(26, 300)} L ${P(26, 470)}`;
+    // The shawl rolls along both sides of the neck, inboard of the edges, into the edge below the top row.
+    const shawl = `M ${P(-42, 218)} L ${P(20, 304)} Q ${P(21, 310)} ${P(26, 316)} M ${P(42, 218)} L ${P(4, 270)}`;
     return (
       <>
-        <Piece d={body} cloth={cloth} />
-        <Hairline d={edges} opacity={0.8} />
+        <Piece d={body} cloth={cloth} edge="cloth" />
+        <Seam d={edge} cloth={cloth} opacity={0.9} />
+        {wc.lapel === "shawl" ? <Seam d={shawl} cloth={cloth} opacity={0.8} width={FINE} /> : null}
         {rows.map((y) => (
           <g key={y}>
-            <Button dx={-16} y={y} r={3.2} cloth={cloth} />
-            <Button dx={16} y={y} r={3.2} cloth={cloth} />
+            <Button dx={-11} y={y} r={3.2} cloth={cloth} />
+            <Button dx={11} y={y} r={3.2} cloth={cloth} />
           </g>
         ))}
       </>
@@ -589,14 +643,15 @@ function Waistcoat({ spec, cloth }: { spec: SuitSpec; cloth: ClothStyle }) {
   const body = `M ${P(-36, 214)} L ${P(-80, 236)} L ${P(-80, 462)} L ${P(-16, 480)} L ${P(0, 460)} L ${P(16, 480)} L ${P(80, 462)} L ${P(80, 236)} L ${P(36, 214)} L ${P(0, neck)} Z`;
   return (
     <>
-      <Piece d={body} cloth={cloth} />
-      <Hairline d={`M ${P(0, neck)} L ${P(0, 458)}`} opacity={0.5} width={FINE} />
+      <Piece d={body} cloth={cloth} edge="cloth" />
+      <Seam d={`M ${P(0, neck)} L ${P(0, 458)}`} cloth={cloth} opacity={0.7} width={FINE} />
       {wc.lapel === "shawl"
         ? SIDES.map((s) => (
-            <Hairline
+            <Seam
               key={s}
               d={`M ${P(s * 34, 222)} C ${P(s * 24, 236)} ${P(s * 12, neck - 2)} ${P(0, neck + 16)}`}
-              opacity={0.7}
+              cloth={cloth}
+              opacity={0.85}
               width={FINE}
             />
           ))
@@ -607,6 +662,12 @@ function Waistcoat({ spec, cloth }: { spec: SuitSpec; cloth: ClothStyle }) {
     </>
   );
 }
+
+/**
+ * The shirt body, drawn before the trousers so the waistband sits over it; it stays inside the jacket's
+ * side seams (±84 at the waist) so no shirt shows between body and sleeve.
+ */
+const SHIRT_D = `M ${P(-40, 196)} L ${P(-96, 236)} L ${P(-96, 290)} L ${P(-78, 340)} L ${P(-78, 460)} L ${P(78, 460)} L ${P(78, 340)} L ${P(96, 290)} L ${P(96, 236)} L ${P(40, 196)} Z`;
 
 /** Shirt collar, tie or bow tie; drawn under the jacket, which hides whatever lies below the top button. */
 function ShirtFront({ spec, yTop }: { spec: SuitSpec; yTop: number }) {
@@ -666,38 +727,41 @@ function JacketFront({ spec, cloth }: { spec: SuitSpec; cloth: ClothStyle }) {
     SIDES.map((s) => [s, lapelShapes(s, spec.jacket.lapel, w, yTop, double ? -s * DB_EDGE : 0)]),
   ) as Record<Side, LapelShapes>;
 
-  /** One front on side `s`: shoulder, side, hem, then the front edge up to the roll line and the neck. */
-  const front = (s: Side) => {
-    const edge = double
+  /** The front edge on side `s` from the hem corner: the overlap of a double-breasted front, or the quarters opening below the last button. */
+  const edge = (s: Side) =>
+    double
       ? `L ${P(-s * (DB_EDGE - 6), HEM_Y)} Q ${P(-s * DB_EDGE, HEM_Y)} ${P(-s * DB_EDGE, HEM_Y - 6)} L ${P(-s * DB_EDGE, yTop)}`
-      : `L ${P(s * QUARTER_DX, HEM_Y)} C ${P(s * 20, HEM_Y)} ${P(0, yLast + 40)} ${P(0, yLast)} L ${P(0, yTop)}`;
-    return `M ${P(s * NECK_DX, NECK_Y)} ${shoulderOut(s)} ${sideDown(s)} ${edge} ${shapes[s].roll} L ${P(s * 26, 200)} Z`;
-  };
+      : `L ${P(s * QUARTER_DX, HEM_Y)} C ${P(s * 28, HEM_Y - 4)} ${P(0, yLast + 22)} ${P(0, yLast)} L ${P(0, yTop)}`;
+  /** One front on side `s`: shoulder, side, hem, then the front edge up to the roll line and the neck. */
+  const front = (s: Side) =>
+    `M ${P(s * NECK_DX, NECK_Y)} ${shoulderOut(s)} ${sideDown(s)} ${edge(s)} ${shapes[s].roll} L ${P(s * 26, 200)} Z`;
+  /** The hem and front edge lie on the trousers and the other front, so they take the cloth's ink. */
+  const hemAndEdge = (s: Side) => `M ${P(s * HEM_DX, HEM_Y)} ${edge(s)}`;
   const dart = (s: Side) => `M ${P(s * 44, 434)} C ${P(s * 45, 384)} ${P(s * 49, 334)} ${P(s * 52, 300)}`;
 
-  const shirt = `M ${P(-40, 196)} L ${P(-96, 236)} L ${P(-96, 460)} L ${P(96, 460)} L ${P(96, 236)} L ${P(40, 196)} Z`;
   const sleeveButtons = spec.jacket.sleeveButtons === "five" ? 5 : 4;
 
   return (
     <>
-      <path d={shirt} fill={SHIRT} stroke="none" />
       <Head view="front" />
       <ShirtFront spec={spec} yTop={yTop} />
       <Waistcoat spec={spec} cloth={cloth} />
 
       {/* the wearer's right front: on a double-breasted jacket it lies under the other */}
       <Piece d={front(-1)} cloth={cloth} />
-      <Hairline d={dart(-1)} opacity={0.22} width={FINE} />
+      <Seam d={hemAndEdge(-1)} cloth={cloth} />
+      <Seam d={dart(-1)} cloth={cloth} opacity={0.4} width={FINE} />
       <Pockets s={-1} spec={spec} cloth={cloth} tuxedo={tuxedo} />
-      {double ? <Piece d={shapes[-1].lapel} cloth={cloth} satin={tuxedo} /> : null}
+      {double ? <Piece d={shapes[-1].lapel} cloth={cloth} satin={tuxedo} edge="cloth" /> : null}
 
       <Piece d={front(1)} cloth={cloth} />
-      <Hairline d={dart(1)} opacity={0.22} width={FINE} />
+      <Seam d={hemAndEdge(1)} cloth={cloth} />
+      <Seam d={dart(1)} cloth={cloth} opacity={0.4} width={FINE} />
       <Pockets s={1} spec={spec} cloth={cloth} tuxedo={tuxedo} />
       <Piece d={`M ${P(48, 283)} L ${P(88, 276)} L ${P(88, 268)} L ${P(48, 275)} Z`} cloth={cloth} detail />
 
-      {double ? null : <Piece d={shapes[-1].lapel} cloth={cloth} satin={tuxedo} />}
-      <Piece d={shapes[1].lapel} cloth={cloth} satin={tuxedo} />
+      {double ? null : <Piece d={shapes[-1].lapel} cloth={cloth} satin={tuxedo} edge="cloth" />}
+      <Piece d={shapes[1].lapel} cloth={cloth} satin={tuxedo} edge="cloth" />
       {SIDES.map((s) =>
         shapes[s].collar ? <Piece key={s} d={shapes[s].collar} cloth={cloth} satin={tuxedo} detail /> : null,
       )}
@@ -741,28 +805,30 @@ function JacketBack({ spec, cloth }: { spec: SuitSpec; cloth: ClothStyle }) {
     <>
       <Head view="back" />
       <Piece d={torso} cloth={cloth} />
+      <Seam d={`M ${P(-HEM_DX, HEM_Y)} L ${P(HEM_DX, HEM_Y)}`} cloth={cloth} />
       <Piece d={collar} cloth={cloth} satin={tuxedo} detail />
-      <Hairline d={`M ${P(0, 223)} L ${P(0, seamEnd)}`} opacity={0.45} width={FINE} />
+      <Seam d={`M ${P(0, 223)} L ${P(0, seamEnd)}`} cloth={cloth} opacity={0.7} width={FINE} />
       {SIDES.map((s) => (
-        <Hairline
+        <Seam
           key={s}
           d={`M ${P(s * 68, 262)} C ${P(s * 64, 330)} ${P(s * 58, 372)} ${P(s * 60, 420)} C ${P(s * 62, 470)} ${P(s * 64, 500)} ${P(s * 64, HEM_Y)}`}
-          opacity={0.25}
+          cloth={cloth}
+          opacity={0.45}
           width={FINE}
         />
       ))}
       {vents === "single" ? (
-        <Hairline
+        <Seam
           d={`M ${P(-2, 436)} L ${P(4, 436)} M ${P(1, 436)} L ${P(1, HEM_Y)} M ${P(-2, 470)} L ${P(-3, HEM_Y)}`}
-          opacity={0.85}
+          cloth={cloth}
         />
       ) : null}
       {vents === "double"
         ? SIDES.map((s) => (
-            <Hairline
+            <Seam
               key={s}
               d={`M ${P(s * 78, 444)} L ${P(s * 86, 444)} M ${P(s * 82, 444)} L ${P(s * 82, HEM_Y)} M ${P(s * 85, 480)} L ${P(s * 86, HEM_Y)}`}
-              opacity={0.85}
+              cloth={cloth}
             />
           ))
         : null}
@@ -810,6 +876,7 @@ export function SuitFigure({ spec, hex, pattern = "solid", view = "front", class
     patternUrl: hex && pattern !== "solid" ? `url(#${patternId})` : null,
     satin: hex ? satinTone(hex) : "currentColor",
     satinOpacity: hex ? 1 : 0.14,
+    edge: hex ? tonalEdge(hex) : "currentColor",
   };
   const label = title ?? describeFigure(spec, hex, pattern, view);
   const tuxedo = spec.garment === "tuxedo";
@@ -831,6 +898,7 @@ export function SuitFigure({ spec, hex, pattern = "solid", view = "front", class
       ) : null}
       <ellipse cx={CX} cy={961} rx={128} ry={5} fill="currentColor" fillOpacity={0.1} stroke="none" />
       <Shoes view={view} />
+      {view === "front" ? <path d={SHIRT_D} fill={SHIRT} stroke="none" /> : null}
       <Trousers spec={spec} cloth={cloth} view={view} tuxedo={tuxedo} />
       {view === "front" ? <JacketFront spec={spec} cloth={cloth} /> : <JacketBack spec={spec} cloth={cloth} />}
     </svg>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CorrectionDesk } from "@/components/atelier/staff/aftercare/correction-desk";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 type Params = { params: Promise<{ correctionId: string }> };
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierCorrectionPage({ params }: Params) {
-  await requireAdminPage();
+  await requireStaffPage();
   const { correctionId } = await params;
   return <CorrectionDesk correctionId={correctionId} />;
 }

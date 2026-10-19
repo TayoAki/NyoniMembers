@@ -31,7 +31,10 @@ const CHOICE_EFFECT: Record<Exclude<PreviewQuality, "pending">, string> = {
   rejected: "The result is no longer shown to the client; their design and the studio illustration are unchanged.",
 };
 
-/** O06 step 2: judge a finished result. Only a finished job can be flagged; the client's words for each outcome are shown. */
+/**
+ * O06 step 2: judge a finished result. Only a finished job can be flagged. What each outcome does for the
+ * client is shown; only a result set aside carries a word the client reads.
+ */
 export function QualityDialog({ job }: { job: StaffPreviewJobView }) {
   const flagQuality = useMutation(api.atelier.previews.flagQuality);
   const [open, setOpen] = useState(false);
@@ -49,7 +52,11 @@ export function QualityDialog({ job }: { job: StaffPreviewJobView }) {
     setError(null);
     try {
       await flagQuality({ jobId: job.jobId, quality, note: note.trim() });
-      toast.success(`Flagged. The client reads “${PREVIEW_QUALITY_LABELS[quality]}”.`);
+      toast.success(
+        quality === "rejected"
+          ? `Flagged. The client reads “${PREVIEW_QUALITY_LABELS.rejected}”.`
+          : `Flagged. ${CHOICE_EFFECT.accepted}`,
+      );
       setOpen(false);
     } catch (caught) {
       setError(reportError(caught).message);

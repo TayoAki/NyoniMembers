@@ -104,6 +104,94 @@ test("commit returns conflicts without writing, then writes the whole change onc
   assert.equal(specHash(stored.spec), specHash(accepted.spec));
 });
 
+test("conflicts are reported in the words the client reads, not engine codes (S08)", async () => {
+  const f = fakeCtx();
+  const draft = await makeDraft(f);
+  const proposal = await drafts.commitChange(f.ctx, draft, { jacket: { breast: "double" } }, false, NOW + 1);
+  assert.deepEqual(
+    proposal.conflicts.map((conflict) => `${conflict.label}: ${conflict.from} → ${conflict.to}`),
+    ["Button stance: Two buttons → Six buttons, two to close", "Lapel: Notch lapel → Peak lapel"],
+  );
+  const tuxedo = await drafts.commitChange(
+    f.ctx,
+    draft,
+    { garment: "tuxedo", jacket: { ticketPocket: true, vents: "single" }, trousers: { hem: "cuffed" } },
+    false,
+    NOW + 2,
+  );
+  assert.deepEqual(
+    tuxedo.conflicts.map((conflict) => `${conflict.label}: ${conflict.from} → ${conflict.to}`),
+    [
+      "Pockets: Flap pockets → Jetted pockets",
+      "Ticket pocket: Yes → No",
+      "Vents: Single vent → No vent",
+      "Trouser hem: Cuffed hem → Plain hem",
+    ],
+  );
+});
+
+test("a change confirmed against an older revision is refused with the current design, and nothing is written", async () => {
+  const f = fakeCtx();
+  const draft = await makeDraft(f);
+  // Tab B writes first: the design becomes double-breasted (revision 2).
+  const tabB = await drafts.commitChange(
+    f.ctx,
+    draft,
+    { jacket: { breast: "double" } },
+    { acceptedConflicts: true, baseRevision: 1 },
+    NOW + 1,
+  );
+  assert.equal(tabB.applied, true);
+  assert.equal(tabB.revision, 2);
+  const current = await f.ctx.db.get(draft._id);
+
+  // Tab A previewed "shawl lapel" on the single-breasted design and confirmed "Two buttons → One button".
+  const written = f.log.patches.length;
+  await assert.rejects(
+    drafts.commitChange(
+      f.ctx,
+      current,
+      { jacket: { lapel: "shawl" } },
+      { acceptedConflicts: true, baseRevision: 1 },
+      NOW + 2,
+    ),
+    (error) => {
+      assert.ok(isAppError("STALE_REVISION")(error));
+      assert.equal(error.data.details.baseRevision, 1);
+      assert.equal(error.data.details.currentRevision, 2);
+      assert.equal(specHash(error.data.details.spec), specHash(current.spec), "the answer carries the current design");
+      return true;
+    },
+  );
+  assert.equal(f.log.patches.length, written, "a stale write changes nothing");
+  assert.equal((await f.ctx.db.get(draft._id)).revision, 2);
+
+  // Previewed again on the current design, the same change is a different conflict: the shawl is
+  // refused on a double-breasted two-piece, which the client now sees instead of a false "saved".
+  const again = await drafts.commitChange(
+    f.ctx,
+    current,
+    { jacket: { lapel: "shawl" } },
+    { acceptedConflicts: true, baseRevision: 2 },
+    NOW + 3,
+  );
+  assert.equal(again.applied, false);
+  assert.equal(again.revision, 2);
+  assert.deepEqual(
+    again.conflicts.map((conflict) => `${conflict.label}: ${conflict.from} → ${conflict.to}`),
+    ["Lapel: Shawl lapel → Peak lapel"],
+  );
+
+  // Without a base revision the guard is off (a bare boolean is `{ acceptedConflicts }`), as before.
+  const stored = await f.ctx.db.get(draft._id);
+  const unguarded = await drafts.commitChange(f.ctx, stored, { jacket: { vents: "none" } }, false, NOW + 4);
+  assert.equal(unguarded.applied, true);
+  assert.equal(unguarded.revision, 3);
+  // An empty patch stays a no-op whatever revision it names.
+  const empty = await drafts.commitChange(f.ctx, stored, {}, { acceptedConflicts: false, baseRevision: 1 }, NOW + 5);
+  assert.equal(empty.applied, false);
+});
+
 test("a change with no conflicts is written as the next revision; a no-op change is not", async () => {
   const f = fakeCtx();
   const draft = await makeDraft(f);

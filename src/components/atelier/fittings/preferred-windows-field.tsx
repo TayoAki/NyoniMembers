@@ -20,15 +20,34 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** Today's calendar day where the client is, as yyyy-mm-dd; a preferred day must come after it. */
-export function localToday(now: Date = new Date()): string {
+const DAY_MS = 86_400_000;
+
+/**
+ * Today's calendar day where the client is, as yyyy-mm-dd; a preferred day must come after it. Read in the
+ * request's time zone when one is given (the house judges the windows in that zone), else the device's.
+ */
+export function localToday(now: Date = new Date(), timeZone?: string): string {
+  if (timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(now);
+      const read = (type: string) => parts.find((part) => part.type === type)?.value;
+      const [year, month, day] = [read("year"), read("month"), read("day")];
+      if (year && month && day) return `${year}-${month}-${day}`;
+    } catch {
+      // An unrecognised zone: the device's day stands in until the server says otherwise.
+    }
+  }
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export function localTomorrow(now: Date = new Date()): string {
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
-  return localToday(next);
+export function localTomorrow(now: Date = new Date(), timeZone?: string): string {
+  const today = dayToUtc(localToday(now, timeZone)) ?? now.getTime();
+  return utcToDay(today + DAY_MS);
 }
 
 /** The chosen calendar day as UTC midnight, which is how the house stores and reads a preferred window. */
@@ -70,15 +89,22 @@ export function PreferredWindowsField({
   disabled = false,
   showErrors = false,
   legend = "Preferred windows",
+  timeZone,
+  serverError = null,
 }: {
   windows: WindowDraft[];
   onChange: (windows: WindowDraft[]) => void;
   disabled?: boolean;
   showErrors?: boolean;
   legend?: string;
+  /** The zone the request is made in; "tomorrow" is read in it, as the house reads it. */
+  timeZone?: string;
+  /** The house's own answer about the windows, shown on the field until they change. */
+  serverError?: string | null;
 }) {
   const ids = useId();
-  const tomorrow = localTomorrow();
+  const today = localToday(new Date(), timeZone);
+  const tomorrow = localTomorrow(new Date(), timeZone);
 
   function update(id: string, changes: Partial<WindowDraft>) {
     onChange(windows.map((entry) => (entry.id === id ? { ...entry, ...changes } : entry)));
@@ -98,7 +124,7 @@ export function PreferredWindowsField({
       </FieldDescription>
       <ol className="divide-y divide-foreground/10 border-y border-foreground/15">
         {windows.map((entry, index) => {
-          const problem = showErrors ? windowProblem(entry) : null;
+          const problem = showErrors ? windowProblem(entry, today) : null;
           const dateId = `${ids}-${entry.id}-date`;
           return (
             <li
@@ -154,6 +180,7 @@ export function PreferredWindowsField({
           );
         })}
       </ol>
+      {serverError ? <FieldError aria-live="polite">{serverError}</FieldError> : null}
       {windows.length < PREFERRED_WINDOWS_MAX ? (
         <div>
           <Button

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PreviewOps } from "@/components/atelier/staff/previews/preview-ops";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Preview operations · Atelier desk",
@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierPreviewsPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   return <PreviewOps />;
 }

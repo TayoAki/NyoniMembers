@@ -8,6 +8,7 @@ import { signInHref } from "@/components/atelier/fit/fit-words";
 import { SERVICE_NOTES, VIRTUAL_SERVICES } from "@/components/atelier/fittings/appointment-words";
 import {
   emptyWindow,
+  localToday,
   PreferredWindowsField,
   toPreferredWindows,
   windowProblem,
@@ -31,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useGuestKeyArg } from "@/hooks/atelier/use-owner-args";
 import { reportError, type ClientError } from "@/lib/errors";
 import { routes } from "@/lib/routes";
+import type { FunctionArgs } from "convex/server";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { AppointmentLocation, RequestResult } from "@convex/atelier/appointments";
@@ -45,6 +47,8 @@ import {
 import { HOUSE, SHOWROOMS } from "@convex/shared/house";
 
 const VIRTUAL = "virtual" satisfies AppointmentLocation;
+/** The server names the argument a window error belongs to in `details.field`. */
+const WINDOWS_ARG = "preferredWindows" satisfies keyof FunctionArgs<typeof api.atelier.appointments.request>;
 
 const noSubscription = () => () => {};
 /** The device's zone, read on the client only; the server renders an empty value and the browser fills it in. */
@@ -111,7 +115,8 @@ function validate(values: Resolved): Partial<Record<ErrorKey, string>> {
   else if (values.showroomId === VIRTUAL && values.service && !virtualAllowed(values.service)) {
     errors.showroomId = `${APPOINTMENT_SERVICE_LABELS[values.service]} happens at a showroom; choose Charlotte, Atlanta or Houston.`;
   }
-  if (values.windows.length === 0 || values.windows.some((item) => windowProblem(item) !== null)) {
+  const today = localToday(new Date(), values.timeZone.trim() || undefined);
+  if (values.windows.length === 0 || values.windows.some((item) => windowProblem(item, today) !== null)) {
     errors.windows = "Each preferred window needs a day from tomorrow onward and a time of day.";
   }
   if (!values.timeZone.trim()) errors.timeZone = "Tell us your time zone so times are shown correctly.";
@@ -154,6 +159,8 @@ export function RequestFittingForm({ draftId, caseId, onRequested, onCancel }: P
   const errors = validate(resolved);
   const shown = attempted ? errors : {};
   const update = <K extends keyof Values>(key: K, value: Values[K]) => setValues((prev) => ({ ...prev, [key]: value }));
+  const windowServerError =
+    failure?.code === "INVALID_INPUT" && failure.details?.field === WINDOWS_ARG ? failure.message : null;
 
   function chooseService(service: AppointmentService) {
     setValues((prev) => {
@@ -306,9 +313,14 @@ export function RequestFittingForm({ draftId, caseId, onRequested, onCancel }: P
       <div className="space-y-2">
         <PreferredWindowsField
           windows={values.windows}
-          onChange={(windows) => update("windows", windows)}
+          onChange={(windows) => {
+            update("windows", windows);
+            if (windowServerError) setFailure(null);
+          }}
           disabled={pending}
           showErrors={attempted}
+          timeZone={resolved.timeZone.trim() || undefined}
+          serverError={windowServerError}
         />
       </div>
 
@@ -403,7 +415,7 @@ export function RequestFittingForm({ draftId, caseId, onRequested, onCancel }: P
               ) : null}
             </>
           }
-          onRetry={failure.code === "INVALID_INPUT" || failure.code === "RATE_LIMITED" ? undefined : () => void send()}
+          onRetry={failure.code === "RATE_LIMITED" ? undefined : () => void send()}
           retryLabel="Send again"
           className="rounded-none"
         />

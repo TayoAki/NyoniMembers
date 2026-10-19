@@ -1,6 +1,7 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import { Shirt } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,12 +20,15 @@ import {
 } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { routes } from "@/lib/routes";
-import { isActivePath, PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "./nav-items";
+import { api } from "@convex/_generated/api";
+import { canSeeNavItem, isActivePath, PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "./nav-items";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user } = useCurrentUser();
+  const { user, isAuthenticated } = useCurrentUser();
+  const staff = useQuery(api.atelier.staff.me, isAuthenticated ? {} : "skip");
   const isAdmin = user?.role === "admin";
+  const audience = { isAdmin, isStaff: isAdmin || Boolean(staff?.isStaff) };
   // Nothing in the app works before onboarding finishes, so the links stay away until it does.
   const onboarded = Boolean(user?.onboardedAt);
 
@@ -67,7 +71,9 @@ export function AppSidebar() {
             <SidebarGroup className="mt-5 px-3 group-data-[collapsible=icon]:px-2">
               <SidebarGroupLabel>Account</SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>{SECONDARY_NAV.filter((item) => !item.adminOnly || isAdmin).map(renderItem)}</SidebarMenu>
+                <SidebarMenu>
+                  {SECONDARY_NAV.filter((item) => canSeeNavItem(item, audience)).map(renderItem)}
+                </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           </>

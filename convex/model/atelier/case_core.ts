@@ -2,13 +2,34 @@ import type { Infer } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { audit, isOwner, type Actor, type Owned } from "../../atelier/access";
-import { CASE_KIND_LABELS, type CaseKind, type CasePriority, type MessageAuthor } from "../../shared/atelier/enums";
+import {
+  CASE_KIND_LABELS,
+  type CaseKind,
+  type CasePriority,
+  type MessageAuthor,
+  type NotificationChannel,
+} from "../../shared/atelier/enums";
 import type { vContact, vSampleRequest } from "../../shared/atelier/validators";
 import { queueNotification } from "./notifications";
 
 type Ctx = QueryCtx | MutationCtx;
 export type Contact = Infer<typeof vContact>;
 export type SampleRequest = Infer<typeof vSampleRequest>;
+
+/**
+ * The contact a case is opened with. A guest, or an account without an address, has no email: the case
+ * records an empty one and no notification is queued, rather than inventing an address.
+ */
+export type CaseContactInput = Omit<Contact, "email"> & { email?: string };
+
+/** Where a notification can actually go, or null when the contact gives the house nowhere to write. */
+export function deliverableAddress(contact: CaseContactInput): { channel: NotificationChannel; to: string } | null {
+  const phone = contact.phone?.trim();
+  if (contact.channel === "sms" && phone) return { channel: "sms", to: phone };
+  const email = contact.email?.trim();
+  if (email) return { channel: "email", to: email };
+  return null;
+}
 
 /**
  * Case core: the one way a service request comes into being, shared by design review, quotes, samples,
@@ -19,7 +40,7 @@ export type CreateCaseInput = {
   kind: CaseKind;
   owner: Owned;
   actor: Actor | null;
-  contact: Contact;
+  contact: CaseContactInput;
   submissionKey: string;
   message?: string;
   draftId?: Id<"atelierDrafts">;
@@ -71,7 +92,7 @@ async function insertCase(
     correctionId: input.correctionId,
     appointmentId: input.appointmentId,
     groupId: input.groupId,
-    contact: input.contact,
+    contact: { ...input.contact, email: input.contact.email?.trim() ?? "" },
     message: input.message,
     sample: input.sample,
     submissionKey: input.submissionKey,
@@ -91,18 +112,20 @@ async function insertCase(
     },
     now,
   );
-  await queueNotification(
-    ctx,
-    {
-      owner: input.owner,
-      caseId,
-      channel: input.contact.channel === "sms" && input.contact.phone ? "sms" : "email",
-      to: input.contact.channel === "sms" && input.contact.phone ? input.contact.phone : input.contact.email,
-      subject: `Nyoni Couture · ${CASE_KIND_LABELS[input.kind]} received`,
-      body: `We have your ${CASE_KIND_LABELS[input.kind].toLowerCase()}. Your reference is ${caseId}.`,
-    },
-    now,
-  );
+  const address = deliverableAddress(input.contact);
+  if (address) {
+    await queueNotification(
+      ctx,
+      {
+        owner: input.owner,
+        caseId,
+        ...address,
+        subject: `Nyoni Couture · ${CASE_KIND_LABELS[input.kind]} received`,
+        body: `We have your ${CASE_KIND_LABELS[input.kind].toLowerCase()}. Your reference is ${caseId}.`,
+      },
+      now,
+    );
+  }
   await audit(
     ctx,
     {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { AtelierSection } from "@/components/atelier/common/atelier-section";
 import { Mono } from "@/components/atelier/common/mono";
@@ -47,6 +47,16 @@ function fromLocalInput(value: string): number | null {
   if (!value) return null;
   const at = new Date(value).getTime();
   return Number.isFinite(at) ? at : null;
+}
+
+const noSubscription = () => () => {};
+/** The current minute as a datetime-local value, read on the client only; the server renders no floor. */
+function useNowInput(): string | undefined {
+  return useSyncExternalStore(
+    noSubscription,
+    () => toLocalInput(Date.now()),
+    () => undefined,
+  );
 }
 
 /** C18 on the house's side: the request's windows, and Confirmed only with a real booking reference. */
@@ -173,10 +183,14 @@ function ConfirmForm({ appointment }: { appointment: StaffAppointmentRow }) {
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nowInput = useNowInput();
   const startAt = fromLocalInput(start);
   const endAt = fromLocalInput(end);
+  const floorAt = nowInput !== undefined ? fromLocalInput(nowInput) : null;
   const orderOk = startAt !== null && endAt !== null && endAt > startAt;
-  const canSubmit = orderOk && calendarRef.trim().length > 0 && !pending;
+  /** The house confirms a time still to come; the server allows a few minutes' grace, this floor is the minute. */
+  const tooEarly = startAt !== null && floorAt !== null && startAt < floorAt;
+  const canSubmit = orderOk && !tooEarly && calendarRef.trim().length > 0 && !pending;
   const id = appointment._id;
 
   async function submit() {
@@ -213,19 +227,27 @@ function ConfirmForm({ appointment }: { appointment: StaffAppointmentRow }) {
           <Input
             id={`start-${id}`}
             type="datetime-local"
+            min={nowInput}
             value={start}
             onChange={(event) => {
               setStart(event.target.value);
               const at = fromLocalInput(event.target.value);
               if (at !== null && !end) setEnd(toLocalInput(at + HOUR_MS));
             }}
+            aria-invalid={tooEarly || undefined}
           />
+          {tooEarly ? (
+            <FieldDescription className="text-destructive">
+              That start time has already passed; confirm a time still to come.
+            </FieldDescription>
+          ) : null}
         </Field>
         <Field>
           <FieldLabel htmlFor={`end-${id}`}>Ends</FieldLabel>
           <Input
             id={`end-${id}`}
             type="datetime-local"
+            min={nowInput}
             value={end}
             onChange={(event) => setEnd(event.target.value)}
             aria-invalid={Boolean(start && end && !orderOk)}

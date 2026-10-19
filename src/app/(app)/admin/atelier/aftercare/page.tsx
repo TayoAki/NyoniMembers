@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AftercareBoard } from "@/components/atelier/staff/aftercare/aftercare-board";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Aftercare · Atelier desk",
@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierAftercarePage() {
-  await requireAdminPage();
+  await requireStaffPage();
   return <AftercareBoard />;
 }

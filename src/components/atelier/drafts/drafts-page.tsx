@@ -3,6 +3,7 @@
 import { useQuery } from "convex/react";
 import { PenLine } from "lucide-react";
 import Link from "next/link";
+import { useEffect } from "react";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { PageHeader } from "@/components/common/page-header";
@@ -13,6 +14,7 @@ import { useStartDraft } from "@/components/atelier/entry/use-start-draft";
 import { useAtelierSession } from "@/components/atelier/shell/atelier-session";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useAtelierViewer } from "@/hooks/atelier/use-atelier-viewer";
 import { useOwnerArgs } from "@/hooks/atelier/use-owner-args";
 import { pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -23,12 +25,28 @@ import { api } from "@convex/_generated/api";
  * the server no longer returns is named rather than silently dropped. Starting new never discards old work.
  */
 export function DraftsPage() {
-  const { ready, storageAvailable, draftIndex, forgetDraft } = useAtelierSession();
+  const { ready, storageAvailable, draftIndex, rememberDraft, forgetDraft } = useAtelierSession();
+  const viewer = useAtelierViewer();
   const drafts = useQuery(api.atelier.drafts.listMine, useOwnerArgs({}));
   const { start, pending, canStart, error, clearError } = useStartDraft();
 
-  if (!ready || drafts === undefined) return <DraftsSkeleton />;
+  // The server is the authority on where a draft is saved: an entry linked to the account since this
+  // browser last saw it is re-marked, so signed out it reads "saved to an account", never "gone".
+  useEffect(() => {
+    if (!drafts) return;
+    for (const draft of drafts) {
+      const entry = draftIndex.find((candidate) => candidate.draftId === draft._id);
+      if (entry && entry.account !== draft.ownedByAccount) rememberDraft({ ...entry, account: draft.ownedByAccount });
+    }
+  }, [drafts, draftIndex, rememberDraft]);
 
+  // Account drafts this browser remembers are listed by the server only once it holds the account's
+  // token; until then they would wrongly read as out of reach.
+  const viewerSettling = viewer.status === "loading" || (viewer.status === "signed_in" && !viewer.convexReady);
+  const holdForViewer = viewerSettling && draftIndex.some((entry) => entry.account === true);
+  if (!ready || drafts === undefined || holdForViewer) return <DraftsSkeleton />;
+
+  const signedIn = viewer.status === "signed_in";
   const serverIds = new Set<string>(drafts.map((draft) => draft._id));
   const localOnly = draftIndex.filter((entry) => !serverIds.has(entry.draftId));
   const linkable = drafts.filter((draft) => draft.linkable);
@@ -112,7 +130,12 @@ export function DraftsPage() {
             <DraftRow key={draft._id} draft={draft} />
           ))}
           {localOnly.map((entry) => (
-            <LocalOnlyRow key={entry.draftId} entry={entry} onForget={() => forgetDraft(entry.draftId)} />
+            <LocalOnlyRow
+              key={entry.draftId}
+              entry={entry}
+              signedIn={signedIn}
+              onForget={() => forgetDraft(entry.draftId)}
+            />
           ))}
         </ul>
       )}

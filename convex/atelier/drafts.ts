@@ -165,15 +165,17 @@ export const listMine = query({
 
 /**
  * S07/S08. Runs the dependency engine; when it had to move other fields and the client has not accepted
- * that, the conflicts and proposed spec come back and nothing is written. An empty patch is a no-op
+ * that, the conflicts and proposed spec come back and nothing is written. `baseRevision` is the revision
+ * the client previewed against: a draft that has moved on since (another tab or window) answers
+ * STALE_REVISION with the current spec in its details, and nothing is written. An empty patch is a no-op
  * even on a submitted draft; any other change to a submitted or archived draft is INVALID_STATE.
  */
 export const commit = mutation({
-  args: { ...draftArgs, patch: vSpecPatch, acceptedConflicts: v.boolean() },
+  args: { ...draftArgs, patch: vSpecPatch, acceptedConflicts: v.boolean(), baseRevision: v.number() },
   returns: vCommitResult,
-  handler: async (ctx, { guestKey, draftId, patch, acceptedConflicts }) => {
+  handler: async (ctx, { guestKey, draftId, patch, acceptedConflicts, baseRevision }) => {
     const { draft } = await requireDraftAccess(ctx, draftId, guestKey);
-    return commitChange(ctx, draft, patch, acceptedConflicts);
+    return commitChange(ctx, draft, patch, { acceptedConflicts, baseRevision });
   },
 });
 

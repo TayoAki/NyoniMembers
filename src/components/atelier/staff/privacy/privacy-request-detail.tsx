@@ -18,7 +18,7 @@ import { formatDateTime, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import type { PrivacyRequestView } from "@convex/atelier/privacy";
+import type { StaffPrivacyRequestView } from "@convex/atelier/privacy";
 import { PRIVACY_STATUS_LABELS, PRIVACY_STEP_STATUS_LABELS } from "@convex/shared/atelier/enums";
 import { PRIVACY_STATUS_TONES, STEP_STATUS_TONES } from "./privacy-words";
 
@@ -29,7 +29,7 @@ export function PrivacyRequestDetail({ requestId }: { requestId: Id<"atelierPriv
   return <PrivacyRequestDetailView request={request} />;
 }
 
-export function PrivacyRequestDetailView({ request }: { request: PrivacyRequestView }) {
+export function PrivacyRequestDetailView({ request }: { request: StaffPrivacyRequestView }) {
   const unsettled = request.steps.filter((step) => step.status === "pending" || step.status === "failed");
   const terminal = request.status === "completed" || request.status === "rejected";
   return (
@@ -91,20 +91,12 @@ export function PrivacyRequestDetailView({ request }: { request: PrivacyRequestV
               : undefined
           }
         />
-        {request.exportUrl ? (
+        {request.hasExport ? (
           <OrderBookRow
             label="Export"
             value="Written"
-            action={
-              <a
-                href={request.exportUrl}
-                className="text-sm underline underline-offset-4"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open the export file
-              </a>
-            }
+            note="The file holds the client's name, email and measurements. Opening it is written to the audit log under your name (export.view)."
+            action={<ExportAccess requestId={request._id} />}
           />
         ) : null}
         {request.caseId ? (
@@ -132,7 +124,62 @@ export function PrivacyRequestDetailView({ request }: { request: PrivacyRequestV
   );
 }
 
-function AdvanceControl({ request, pendingCount }: { request: PrivacyRequestView; pendingCount: number }) {
+/**
+ * The audited look at a client's export (O08, as O06 does for a preview result). The link comes from a
+ * mutation that writes `export.view` first; the button says so, and nothing is signed until it is pressed.
+ */
+function ExportAccess({ requestId }: { requestId: Id<"atelierPrivacyRequests"> }) {
+  const reveal = useMutation(api.atelier.privacy.staffExportUrl);
+  const [pending, setPending] = useState(false);
+  const [url, setUrl] = useState<string | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setPending(true);
+    setError(null);
+    try {
+      const result = await reveal({ requestId });
+      setUrl(result.url);
+    } catch (caught) {
+      setError(reportError(caught).message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (url) {
+    return (
+      <span className="flex flex-col items-start gap-0.5 sm:items-end">
+        <a href={url} className="text-sm underline underline-offset-4" target="_blank" rel="noreferrer">
+          Open the export file
+        </a>
+        <span className="text-xs text-muted-foreground">Recorded in the audit log.</span>
+      </span>
+    );
+  }
+  if (url === null) {
+    return <span className="text-sm text-muted-foreground">The export file is gone.</span>;
+  }
+  return (
+    <span className="flex flex-col items-start gap-1 sm:items-end">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 rounded-none"
+        disabled={pending}
+        onClick={() => void run()}
+        title="Recorded in the audit log"
+      >
+        {pending ? <Spinner data-icon="inline-start" /> : null}
+        Reveal the link · recorded
+      </Button>
+      {error ? <span className="text-xs text-destructive">{error}</span> : null}
+    </span>
+  );
+}
+
+function AdvanceControl({ request, pendingCount }: { request: StaffPrivacyRequestView; pendingCount: number }) {
   const advance = useMutation(api.atelier.privacy.staffAdvance);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,7 +227,7 @@ function AdvanceControl({ request, pendingCount }: { request: PrivacyRequestView
   );
 }
 
-function CompleteOrRejectForm({ request, blocked }: { request: PrivacyRequestView; blocked: boolean }) {
+function CompleteOrRejectForm({ request, blocked }: { request: StaffPrivacyRequestView; blocked: boolean }) {
   const complete = useMutation(api.atelier.privacy.complete);
   const reject = useMutation(api.atelier.privacy.reject);
   const [note, setNote] = useState("");

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { FitQueue } from "@/components/atelier/staff/fit/fit-queue";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Fit review · Atelier desk",
@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierFitPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   return <FitQueue />;
 }

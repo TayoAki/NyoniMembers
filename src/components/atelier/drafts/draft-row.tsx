@@ -86,7 +86,7 @@ export function DraftRow({ draft }: { draft: DraftSummary }) {
       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
         <Button
           className="h-11 rounded-none px-5"
-          render={<Link href={routes.atelier.design(draft._id)} />}
+          render={<Link href={routes.atelier.step(draft._id, draft.stage)} />}
           nativeButton={false}
         >
           {submitted ? "Open" : "Resume"}

@@ -435,7 +435,7 @@ test("reschedule withdraws any confirmation and asks the house again; cancel is 
   assert.equal(row.status, "rescheduled");
   assert.equal(row.confirmedStart, undefined);
   assert.equal(row.confirmedEnd, undefined);
-  assert.equal(row.calendarRef, undefined);
+  assert.equal(row.calendarRef, "SQ-1", "the reference stays for the house to clear the old booking");
   assert.deepEqual(row.preferredWindows, newWindows);
   assert.deepEqual(row.history.at(-1), {
     at: NOW + 2,
@@ -446,9 +446,15 @@ test("reschedule withdraws any confirmation and asks the house again; cancel is 
   });
   assert.equal(appointments.toAppointmentView(row).statusLabel, APPOINTMENT_STATUS_LABELS.rescheduled);
   assert.equal(appointments.toAppointmentView(row).confirmed, false);
-  assert.match(messagesOf(f, caseId).at(-1).body, /Rescheduled · awaiting confirmation/);
+  assert.equal(appointments.toAppointmentView(row).calendarRef, null, "the client no longer reads it as a booking");
+  assert.equal((await appointments.toStaffRow(f.ctx, row)).recordedCalendarRef, "SQ-1", "the house still does");
+  const rescheduleNote = messagesOf(f, caseId).at(-1).body;
+  assert.match(rescheduleNote, /Rescheduled · awaiting confirmation/);
+  assert.match(rescheduleNote, /reschedule your first fitting confirmed for /);
+  assert.match(rescheduleNote, /The house will clear booking reference SQ-1 and confirm a new time with you\./);
   assert.equal((await f.ctx.db.get(caseId)).status, "awaiting_staff", "the house has something to do again");
   assert.equal(auditsOf(f, "appointment.reschedule").length, 1);
+  assert.equal(auditsOf(f, "appointment.reschedule")[0].meta.hadCalendarRef, true);
 
   await assert.rejects(appointments.cancel(f.ctx, otherGuestActor, row, undefined, NOW + 3), isAppError("NOT_FOUND"));
   await assert.rejects(
@@ -537,6 +543,108 @@ test("cancelling a confirmed booking tells the house to clear it, and a complete
     isAppError("INVALID_STATE"),
   );
   assert.equal(auditsOf(f, "appointment.complete").length, 1);
+});
+
+test("rescheduling a request that was never confirmed names no booking to clear", async () => {
+  const { f } = await setup();
+  const { appointmentId, caseId } = await appointments.requestAppointment(f.ctx, guestActor, request(), NOW);
+  await appointments.reschedule(
+    f.ctx,
+    guestActor,
+    await f.ctx.db.get(appointmentId),
+    [{ date: TODAY + 9 * DAY, period: "evening" }],
+    undefined,
+    NOW + 1,
+  );
+  const note = messagesOf(f, caseId).at(-1).body;
+  assert.match(note, /^You asked to reschedule your first fitting\. New preferred windows: /);
+  assert.doesNotMatch(note, /clear booking reference|confirmed for/);
+  assert.equal(auditsOf(f, "appointment.reschedule")[0].meta.hadCalendarRef, false);
+});
+
+test("a fitting cannot be confirmed for a time that has passed; a few minutes' grace covers a booking made as it begins", async () => {
+  const { f, concierge } = await setup();
+  const { appointmentId } = await appointments.requestAppointment(f.ctx, guestActor, request(), NOW);
+  const confirmAt = (confirmedStart, now) =>
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      appointmentId,
+      { confirmedStart, confirmedEnd: confirmedStart + HOUR, calendarRef: "SQ-1" },
+      now,
+    );
+  await assert.rejects(confirmAt(NOW - 365 * DAY, NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(confirmAt(NOW - HOUR, NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(confirmAt(NOW - appointments.CONFIRM_GRACE_MS - 1, NOW), isAppError("INVALID_INPUT"));
+  assert.equal((await f.ctx.db.get(appointmentId)).status, "requested", "a refused confirmation changes nothing");
+  assert.equal(f.rowsOf("atelierNotifications").filter((n) => /confirmed/.test(n.subject)).length, 0);
+  assert.equal(auditsOf(f, "appointment.confirm").length, 0);
+
+  await confirmAt(NOW - appointments.CONFIRM_GRACE_MS + 60_000, NOW);
+  const row = await f.ctx.db.get(appointmentId);
+  assert.equal(row.status, "confirmed");
+  assert.equal(row.calendarRef, "SQ-1");
+});
+
+test("'tomorrow' is read in the request's own time zone, never the server's clock, and a window error names its field", async () => {
+  const { f } = await setup();
+  // 21:00 in Charlotte on October 19 is already 01:00 UTC on October 20: a window for the 20th is tomorrow there.
+  const lateEvening = Date.UTC(2026, 9, 20, 1);
+  const twentieth = Date.UTC(2026, 9, 20);
+  assert.equal(appointments.localDayAsUtc(lateEvening, "America/New_York"), Date.UTC(2026, 9, 19));
+  assert.equal(appointments.localDayAsUtc(lateEvening, "UTC"), twentieth);
+  assert.equal(appointments.localDayAsUtc(lateEvening, "Not/AZone"), twentieth, "an unreadable zone falls back to UTC");
+  const windows = [{ date: twentieth, period: "evening" }];
+  assert.deepEqual(appointments.normalizeWindows(windows, lateEvening, "America/New_York"), windows);
+  assert.throws(() => appointments.normalizeWindows(windows, lateEvening, "UTC"), isAppError("INVALID_INPUT"));
+  assert.throws(
+    () => appointments.normalizeWindows(windows, lateEvening),
+    (error) => error.data.code === "INVALID_INPUT" && error.data.details.field === appointments.WINDOWS_FIELD,
+  );
+  assert.equal(appointments.WINDOWS_FIELD, "preferredWindows", "the request mutation's argument name");
+  // Noon UTC on the 18th is 01:00 on the 19th in Auckland: a window for the 19th is today there, not tomorrow.
+  const aucklandSmallHours = Date.UTC(2026, 9, 18, 12);
+  assert.equal(appointments.localDayAsUtc(aucklandSmallHours, "Pacific/Auckland"), Date.UTC(2026, 9, 19));
+  assert.throws(
+    () =>
+      appointments.normalizeWindows(
+        [{ date: Date.UTC(2026, 9, 19), period: "morning" }],
+        aucklandSmallHours,
+        "Pacific/Auckland",
+      ),
+    isAppError("INVALID_INPUT"),
+  );
+  assert.deepEqual(
+    appointments.normalizeWindows([{ date: Date.UTC(2026, 9, 19), period: "morning" }], aucklandSmallHours, "UTC"),
+    [{ date: Date.UTC(2026, 9, 19), period: "morning" }],
+  );
+
+  const ok = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ preferredWindows: windows, submissionKey: "tz" }),
+    lateEvening,
+  );
+  assert.deepEqual((await f.ctx.db.get(ok.appointmentId)).preferredWindows, windows);
+  await assert.rejects(
+    appointments.requestAppointment(
+      f.ctx,
+      guestActor,
+      request({ preferredWindows: windows, timeZone: "UTC", submissionKey: "tz-utc" }),
+      lateEvening,
+    ),
+    (error) => error.data.code === "INVALID_INPUT" && error.data.details.field === "preferredWindows",
+  );
+  // A reschedule reads the appointment's own zone.
+  await appointments.reschedule(
+    f.ctx,
+    guestActor,
+    await f.ctx.db.get(ok.appointmentId),
+    [{ date: twentieth, period: "morning" }],
+    undefined,
+    lateEvening + 1,
+  );
+  assert.deepEqual((await f.ctx.db.get(ok.appointmentId)).preferredWindows, [{ date: twentieth, period: "morning" }]);
 });
 
 test("listPending holds what the house has yet to confirm, longest waiting first, with the client's name", async () => {

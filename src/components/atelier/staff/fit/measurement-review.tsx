@@ -16,7 +16,10 @@ import { fieldLabel, groupedMeasurementKeys } from "./fit-words";
 
 export type ParsedValues = { cm: Record<string, number>; problems: string[] };
 
-/** The fitter's inputs, typed in the client's unit, as centimetres for the server; every problem named. */
+/**
+ * The fitter's inputs, typed in the client's unit, snapped to the agreed grid (0.5 cm or a quarter inch) and
+ * sent as centimetres, exactly as the client's own entry is; every problem named.
+ */
 export function parseFitterValues(
   values: Record<string, string>,
   units: Unit,
@@ -32,7 +35,7 @@ export function parseFitterValues(
       problems.push(`${fieldLabel(key)} needs a number greater than zero.`);
       continue;
     }
-    cm[key] = toCm(parsed, units);
+    cm[key] = toCm(roundMeasurement(parsed, units), units);
   }
   const missing = required.filter((key) => cm[key] === undefined);
   if (missing.length > 0) problems.push(`Still needed: ${missing.map(fieldLabel).join(", ")}.`);

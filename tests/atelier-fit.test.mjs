@@ -226,6 +226,62 @@ test("a fitter approves with corrected values and a note; the version records re
   );
 });
 
+test("approved values are snapped to the sheet's grid: 0.5 cm, or a quarter inch converted as the client converts", async () => {
+  const { f, client, fitter } = await setup();
+  const { toCm, roundMeasurement } = await import("../convex/shared/atelier/measurements.ts");
+
+  const cmId = await fit.submitRemote(f.ctx, client, submission(), NOW);
+  // 100.2 rounds back onto the client's own 100, so nothing changed and no note is owed.
+  await fit.approveProfile(f.ctx, fitter, await f.ctx.db.get(cmId), { ...SHEET, chest: 100.2 }, "", NOW + MINUTE);
+  const cmApproved = await f.ctx.db.get(cmId);
+  assert.equal(cmApproved.status, "approved");
+  assert.equal(cmApproved.approvedValues.chest, 100, "snapped to the 0.5 cm grid, equal to the client's value");
+  assert.equal(cmApproved.reviewNote, undefined);
+  const cmAudit = f.rowsOf("atelierAuditLog").find((row) => row.action === "fit.approve");
+  assert.deepEqual(cmAudit.meta.changed, [], "a difference the client cannot see is not a change");
+
+  const revision = await fit.startRevision(f.ctx, client, cmApproved, { measurements: { ...SHEET } }, NOW + 2 * MINUTE);
+  await assert.rejects(
+    fit.approveProfile(f.ctx, fitter, await f.ctx.db.get(revision), { ...SHEET, chest: 100.74 }, "", NOW + 3 * MINUTE),
+    (error) => isAppError("INVALID_INPUT")(error) && error.data.details.changed[0] === "chest",
+    "100.74 snaps to 100.5, a visible change that needs a note",
+  );
+  await fit.approveProfile(
+    f.ctx,
+    fitter,
+    await f.ctx.db.get(revision),
+    { ...SHEET, chest: 100.76 },
+    "Chest a touch full.",
+    NOW + 3 * MINUTE,
+  );
+  assert.equal((await f.ctx.db.get(revision)).approvedValues.chest, 101);
+
+  // An inch sheet: the client stored 38.25 in as the desk converts it; the fitter types 38.1 in.
+  const { f: g, client: inchClient, fitter: inchFitter } = await setup();
+  const inchSheet = { ...SHEET, chest: toCm(38.25, "in") };
+  const inchId = await fit.submitRemote(g.ctx, inchClient, submission({ units: "in", measurements: inchSheet }), NOW);
+  await fit.approveProfile(
+    g.ctx,
+    inchFitter,
+    await g.ctx.db.get(inchId),
+    { ...inchSheet, chest: toCm(38.1, "in") },
+    "Chest read a quarter inch under on the photograph.",
+    NOW + MINUTE,
+  );
+  const inchApproved = await g.ctx.db.get(inchId);
+  assert.equal(
+    inchApproved.approvedValues.chest,
+    toCm(38, "in"),
+    "a quarter-inch grid, converted exactly as the client converts",
+  );
+  assert.equal(roundMeasurement(38.1, "in"), 38, "the desk rounds to the same value before converting");
+  assert.notEqual(
+    inchApproved.approvedValues.chest,
+    toCm(roundMeasurement(toCm(38.1, "in"), "cm"), "cm"),
+    "not the 0.5 cm grid, which would drift from the client's quarter inches",
+  );
+});
+
 test("approving a revision supersedes the previous approved version and points back at it", async () => {
   const { f, client, fitter } = await setup();
   const v1 = await fit.submitRemote(f.ctx, client, submission(), NOW);

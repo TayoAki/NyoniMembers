@@ -21,9 +21,12 @@ import {
   type OrderStatus,
 } from "../../shared/atelier/enums";
 import {
+  fromCm,
   implausibleFields,
   measurementField,
   missingRequiredFields,
+  roundMeasurement,
+  toCm,
   type Unit,
 } from "../../shared/atelier/measurements";
 
@@ -180,6 +183,20 @@ export function validateMeasurements(measurements: Measurements): Measurements {
     }
   }
   return measurements;
+}
+
+/**
+ * The agreed rounding rule (contract §3): every stored value sits on the grid of the sheet's own unit,
+ * 0.5 cm or a quarter inch, as the client's entry already does. A value is rounded in that unit and
+ * converted back the same way the client converts, so like values compare equal as numbers.
+ */
+export function snapToGrid(measurements: Measurements, units: Unit): Measurements {
+  return Object.fromEntries(
+    Object.entries(measurements).map(([key, value]) => [
+      key,
+      toCm(roundMeasurement(fromCm(value, units), units), units),
+    ]),
+  );
 }
 
 export function validateUncertainFields(fields: readonly string[]): string[] {
@@ -689,8 +706,9 @@ function requirePending(profile: Profile, verb: string): void {
 }
 
 /**
- * O03. Approves a pending version with the values the fitter settled on. Incomplete data cannot become
- * approved; a changed value must come with a note so the client can see the difference. The client's
+ * O03. Approves a pending version with the values the fitter settled on, snapped to the sheet's grid so no
+ * caller stores an off-grid value. Incomplete data cannot become approved; a changed value must come with
+ * a note so the client can see the difference. The client's
  * previous approved version becomes superseded and this one points at it. Nothing is edited in place.
  */
 export async function approveProfile(
@@ -703,7 +721,7 @@ export async function approveProfile(
 ): Promise<void> {
   requirePending(profile, "approve");
   await assertNotOnReleasedOrder(ctx, profile);
-  const values = validateMeasurements(approvedValues);
+  const values = validateMeasurements(snapToGrid(approvedValues, profile.units));
   const missing = missingRequiredFields(values);
   if (missing.length > 0) {
     const labels = missing.map((key) => measurementField(key)?.label ?? key);

@@ -433,6 +433,25 @@ function labelOf<T extends string>(options: readonly Option<T>[], code: T): stri
   return options.find((option) => option.code === code)?.label ?? code;
 }
 
+const JACKET_OPTION_TABLES: { readonly [K in keyof JacketSpec]?: readonly Option<string>[] } = {
+  breast: BREAST_OPTIONS,
+  buttons: BUTTON_STANCE_OPTIONS,
+  lapel: LAPEL_OPTIONS,
+  lapelWidth: LAPEL_WIDTH_OPTIONS,
+  vents: VENT_OPTIONS,
+  pockets: POCKET_OPTIONS,
+  canvas: CANVAS_OPTIONS,
+  shoulder: SHOULDER_OPTIONS,
+  sleeveButtons: SLEEVE_BUTTON_OPTIONS,
+};
+
+/** A jacket value in the words the client reads: the option's label, or Yes / No, as `describeSpec` says it. */
+function jacketValueLabel<K extends keyof JacketSpec>(key: K, value: JacketSpec[K]): string {
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  const table = JACKET_OPTION_TABLES[key];
+  return table ? labelOf(table, String(value)) : String(value);
+}
+
 /**
  * Applies a change and resolves the tailoring dependencies (contract §3). The returned spec is always
  * manufacturable; `conflicts` lists every field the engine moved beyond what the patch asked for, so
@@ -456,7 +475,13 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
   const move = <K extends keyof JacketSpec>(key: K, to: JacketSpec[K], label: string, reason: string) => {
     const from = next.jacket[key];
     if (from === to) return;
-    conflicts.push({ field: `jacket.${key}`, label, from: String(from), to: String(to), reason });
+    conflicts.push({
+      field: `jacket.${key}`,
+      label,
+      from: jacketValueLabel(key, from),
+      to: jacketValueLabel(key, to),
+      reason,
+    });
     next.jacket[key] = to;
   };
 
@@ -501,8 +526,8 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
       conflicts.push({
         field: "trousers.hem",
         label: "Trouser hem",
-        from: "cuffed",
-        to: "plain",
+        from: labelOf(HEM_OPTIONS, next.trousers.hem),
+        to: labelOf(HEM_OPTIONS, "plain"),
         reason: "Tuxedo trousers are finished with a plain hem.",
       });
       next.trousers.hem = "plain";
@@ -571,7 +596,11 @@ export function allowedOptions(spec: SuitSpec): {
 
 const MONOGRAM_PATTERN = /^[A-Z.]+$/;
 
-/** Field errors that block committing a spec; an empty array means the design is complete and valid. */
+/**
+ * Field errors that block committing or submitting a spec; an empty array means the design is complete
+ * and valid. This is the one gate (contract §3): the tailoring rules 1 to 5 are read off the dependency
+ * engine itself, so a spec the engine would still move cannot pass, whichever writer produced it.
+ */
 export function validateSpec(spec: SuitSpec): string[] {
   const errors: string[] = [];
   if (!spec.clothCode) errors.push("Choose a cloth.");
@@ -582,12 +611,9 @@ export function validateSpec(spec: SuitSpec): string[] {
       errors.push(`A monogram is at most ${ATELIER_LIMITS.monogramMaxChars} characters.`);
     else if (!MONOGRAM_PATTERN.test(text)) errors.push("A monogram uses capital letters A to Z and full stops only.");
   }
-  if (spec.garment === "three_piece" && !spec.waistcoat) errors.push("A three-piece includes a waistcoat.");
-  if (spec.garment !== "three_piece" && spec.waistcoat) errors.push("Only a three-piece has a waistcoat.");
-  if (spec.jacket.breast === "double" && !DOUBLE_STANCES.includes(spec.jacket.buttons))
-    errors.push("Double-breasted stance is not valid.");
-  if (spec.jacket.breast === "single" && !SINGLE_STANCES.includes(spec.jacket.buttons))
-    errors.push("Single-breasted stance is not valid.");
+  for (const conflict of applyChange(spec, {}).conflicts) {
+    if (!errors.includes(conflict.reason)) errors.push(conflict.reason);
+  }
   return errors;
 }
 

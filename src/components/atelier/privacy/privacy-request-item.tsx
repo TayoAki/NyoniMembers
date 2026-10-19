@@ -7,14 +7,14 @@ import { useEffect, useRef } from "react";
 import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
 import { PrivacyRows } from "@/components/atelier/privacy/privacy-skeleton";
-import { PRIVACY_TONES, STEP_TONES, STEP_WORDS } from "@/components/atelier/privacy/privacy-words";
+import { PRIVACY_TONES, STEP_TONES } from "@/components/atelier/privacy/privacy-words";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { api } from "@convex/_generated/api";
 import type { PrivacyRequestSummary, PrivacyStepView } from "@convex/atelier/privacy";
-import type { PrivacyStepStatus } from "@convex/shared/atelier/enums";
+import { PRIVACY_STEP_STATUS_LABELS, type PrivacyStepStatus } from "@convex/shared/atelier/enums";
 
 type OwnerArgs = { guestKey?: string } | "skip";
 
@@ -145,7 +145,7 @@ function StepRow({ step }: { step: PrivacyStepView }) {
       />
       <div className="min-w-0 space-y-1">
         <p className="text-sm">{step.label}</p>
-        <StatusLine tone={STEP_TONES[step.status]}>{STEP_WORDS[step.status]}</StatusLine>
+        <StatusLine tone={STEP_TONES[step.status]}>{PRIVACY_STEP_STATUS_LABELS[step.status]}</StatusLine>
         {step.note ? <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">{step.note}</p> : null}
       </div>
       {step.at ? (

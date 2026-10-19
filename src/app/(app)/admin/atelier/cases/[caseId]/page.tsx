@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CaseDesk } from "@/components/atelier/staff/case/case-desk";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 type Params = { params: Promise<{ caseId: string }> };
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierCasePage({ params }: Params) {
-  await requireAdminPage();
+  await requireStaffPage();
   const { caseId } = await params;
   return <CaseDesk caseId={caseId} />;
 }

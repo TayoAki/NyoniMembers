@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { GroupReviewDesk } from "@/components/atelier/staff/groups/group-review";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Group commissions · Atelier desk",
@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierGroupsPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   return <GroupReviewDesk />;
 }

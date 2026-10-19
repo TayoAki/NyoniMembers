@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ProductionBoard } from "@/components/atelier/staff/production/production-board";
-import { requireAdminPage } from "@/lib/auth";
+import { requireStaffPage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Production · Atelier desk",
@@ -8,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AtelierProductionPage() {
-  await requireAdminPage();
+  await requireStaffPage();
   return <ProductionBoard />;
 }

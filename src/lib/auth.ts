@@ -22,3 +22,15 @@ export async function requireAdminPage(): Promise<void> {
   const me = token ? await fetchQuery(api.users.me, {}, { token }) : null;
   if (me?.role !== "admin") notFound();
 }
+
+/**
+ * Staff pages (the Atelier desk). Staff are admins and anyone holding a role in `users.staffRoles`, as
+ * `staff.me` reports it; a page hides itself from everyone else. Each desk screen still narrows to its
+ * exact role with `StaffRoleGate`, and every staff function re-checks on the server.
+ */
+export async function requireStaffPage(): Promise<void> {
+  const session = await auth.protect();
+  const token = await session.getToken({ template: "convex" });
+  const me = token ? await fetchQuery(api.atelier.staff.me, {}, { token }) : null;
+  if (!me?.isStaff) notFound();
+}
