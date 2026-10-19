@@ -145,6 +145,10 @@ corrections, privacy, groups, staff, fit, previews, catalogue, drafts, shares) a
 - Smaller follow-ups (shared view fields such as `OrderView.draftId`, a finance-level eligibility read on the
   case, a concierge-level staff list for assignment, pagination on long lists) are listed in the contract's
   follow-up notes and are not blockers for the journeys above.
+- **Staff role reach.** A finance-only staff member opens the case desk for quotes but sees the fitting and
+  notification panels as "read with the concierge role", and the production board stays operations-only;
+  finance reaches a commission through the correction desk and the quotes list. Widening those reads needs a
+  role switch on the fitting panel's confirm and complete actions.
 
 ## Verifying locally
 
