@@ -62,6 +62,7 @@ Conventions that hold everywhere:
 | O05 Release production and handle spec changes      | `/admin/atelier/production`, `/admin/atelier/production/[orderId]`    | `src/components/atelier/staff/production/`                       | `orders.list/staffGet/recordPayment/preflight/release/addMilestone/markShipped/markDelivered/setRisk`                                  | Release is refused while preflight blockers exist; payment is recorded with the provider's reference, idempotently.             |
 | O06 Operate and review personal-preview jobs        | `/admin/atelier/previews`                                             | `src/components/atelier/staff/previews/`                         | `previews.listJobs/flagQuality/viewResult`                                                                                             | Viewing a result is audited and the UI says so.                                                                                 |
 | O07 Resolve aftercare, returns and payment remedies | `/admin/atelier/aftercare`, `/admin/atelier/aftercare/[correctionId]` | `src/components/atelier/staff/aftercare/`                        | `corrections.queue/staffGet/triage/proposeRemedy/setStatus/approveRefund/confirmRefund/escalate`                                       | Confirming a refund needs the finance role and a reference; approval alone never reads "Refunded".                              |
+| Group commissions review (C28, house side)          | `/admin/atelier/groups`                                               | `src/components/atelier/staff/groups/`                           | `groups.listForReview/getForReview/review`                                                                                             | Outcomes limited to `GROUP_TRANSITIONS`; the organiser reads the status word and the house's note.                              |
 | O08 Manage access, privacy and deletion requests    | `/admin/atelier/privacy`                                              | `src/components/atelier/staff/privacy/`                          | `privacy.queue/staffGet/staffAdvance/complete/reject/listAudit`, `staff.list/setRoles/auditLog`                                        | Roles are checkboxes over `STAFF_ROLE_LABELS`, admin only; every staff action writes an audit row (`access.ts` → `audit`).      |
 
 ## Screens
@@ -102,7 +103,7 @@ Conventions that hold everywhere:
 | S34 Privacy centre             | `src/components/atelier/privacy/`                                                           |
 | S35 Groups                     | `src/components/atelier/groups/`                                                            |
 
-Staff surfaces A01–A08 map to the rows of the service table above: A01 queue, A02 catalogue, A03 fit review,
+Staff surfaces A01–A08 map to the rows of the service table above (plus the group review page, which the specification places inside C28): A01 queue, A02 catalogue, A03 fit review,
 A04 quotes (list page plus the composer inside the case desk), A05 production, A06 preview operations,
 A07 aftercare, A08 privacy, roles and audit. The desk's shared frame and role gate are
 `src/components/atelier/staff/staff-shell.tsx`.
@@ -131,6 +132,7 @@ corrections, privacy, groups, staff, fit, previews, catalogue, drafts, shares) a
   is wired in.
 - **Bookings.** No calendar integration: a fitting is requested, and staff confirm a time and booking reference
   from the house's own system.
+- **Organiser conveniences in groups.** Editing the brief after creation and a participant changing consent after joining exist on the backend (`groups.update`, `groups.setConsent`) but have no control on the client pages yet; the organiser also cannot re-copy an invitation link, which is shown once.
 - **S14 "Use this design"** from a previous preview is shown as "not available yet": the preview job view
   carries the spec hash and label but not the frozen spec; exposing `spec` on the job view or a
   `drafts.listRevisions` query would complete it.
