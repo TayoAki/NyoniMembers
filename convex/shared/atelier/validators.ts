@@ -31,6 +31,7 @@ import {
   NOTIFICATION_STATUSES,
   OCCASIONS,
   ORDER_STATUSES,
+  type OrderMilestoneKind,
   PARTICIPANT_STATUSES,
   PAYMENT_STATES,
   PHOTO_STATUSES,
@@ -104,6 +105,25 @@ export const vRedemptionStatus = literals(REDEMPTION_STATUSES);
 export const vOrderStatus = literals(ORDER_STATUSES);
 export const vPaymentState = literals(PAYMENT_STATES);
 export const vMilestoneSource = literals(MILESTONE_SOURCES);
+/**
+ * Milestone kinds the house records by hand on a commission (`orders.addMilestone`). The other kinds are
+ * written only by the action that makes them true: quote_accepted by the quote's acceptance, payment by
+ * recordPayment, released by release, delivered by markDelivered, fit_accepted by the client's acceptance
+ * and correction_opened by a correction.
+ */
+export const PRODUCTION_MILESTONE_KINDS = [
+  "cloth_cut",
+  "making",
+  "quality_review",
+  "shipped",
+  "collected",
+  "fit_review",
+  "risk",
+  "estimated_ready",
+  "note",
+] as const satisfies readonly OrderMilestoneKind[];
+export type ProductionMilestoneKind = (typeof PRODUCTION_MILESTONE_KINDS)[number];
+export const vProductionMilestoneKind = literals(PRODUCTION_MILESTONE_KINDS);
 export const vChecklistState = literals(CHECKLIST_STATES);
 export const vFitRegion = literals(FIT_REGIONS);
 export const vCorrectionKind = literals(CORRECTION_KINDS);

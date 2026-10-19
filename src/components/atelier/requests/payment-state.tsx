@@ -13,13 +13,28 @@ import { formatDateTime, formatUsd } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import type { MilestoneView } from "@convex/atelier/orders";
+import { PAYMENT_STATE_LABELS } from "@convex/shared/atelier/enums";
+
+/** Every payment the house records is a dated milestone; the newest is when the state shown was recorded. */
+function latestPaymentMilestone(milestones: readonly MilestoneView[]): MilestoneView | null {
+  return milestones.reduce<MilestoneView | null>(
+    (latest, milestone) =>
+      milestone.kind === "payment" && !milestone.estimated && (latest === null || milestone.at > latest.at)
+        ? milestone
+        : latest,
+    null,
+  );
+}
 
 /**
  * S28 (conditional): only the payment state the house has recorded on the commission, in the enum's
- * words. There is no checkout here; "Payment confirmed" appears only when staff recorded it.
+ * words. There is no checkout here; "Payment confirmed" appears only when staff recorded it, and keeps
+ * its own date when a refund follows, so the refund's date is never read as the payment's.
  */
 export function PaymentState({ orderId }: { orderId: Id<"atelierOrders"> }) {
   const order = useQuery(api.atelier.orders.get, useOwnerArgs({ orderId }));
+  const recorded = order ? latestPaymentMilestone(order.milestones) : null;
   return (
     <AtelierSection
       id="payment"
@@ -59,7 +74,10 @@ export function PaymentState({ orderId }: { orderId: Id<"atelierOrders"> }) {
               />
             ) : null}
             {order.payment.confirmedAt !== null ? (
-              <OrderBookRow label="Recorded" value={formatDateTime(order.payment.confirmedAt)} />
+              <OrderBookRow label={PAYMENT_STATE_LABELS.confirmed} value={formatDateTime(order.payment.confirmedAt)} />
+            ) : null}
+            {order.payment.state !== "none" && order.payment.state !== "confirmed" && recorded ? (
+              <OrderBookRow label={order.payment.stateLabel} value={formatDateTime(recorded.at)} />
             ) : null}
             {order.payment.state === "none" ? (
               <OrderBookRow

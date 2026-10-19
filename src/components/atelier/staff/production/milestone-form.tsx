@@ -21,14 +21,19 @@ import {
   ORDER_STATUS_LABELS,
   type MilestoneSource,
 } from "@convex/shared/atelier/enums";
+import { PRODUCTION_MILESTONE_KINDS, type ProductionMilestoneKind } from "@convex/shared/atelier/validators";
 import { dateInputToTimestamp, timestampToDateInput } from "./date-input";
 import {
   HAND_RECORDED_KINDS,
   MILESTONE_KIND_LABELS,
   MILESTONE_SOURCE_STAFF_WORDS,
-  type OrderMilestoneKind,
   STATUS_FOR_MILESTONE,
 } from "./production-words";
+
+/** The desk offers only kinds the server records by hand (`orders.addMilestone` accepts PRODUCTION_MILESTONE_KINDS). */
+const OFFERED_KINDS: readonly ProductionMilestoneKind[] = HAND_RECORDED_KINDS.filter(
+  (kind): kind is ProductionMilestoneKind => (PRODUCTION_MILESTONE_KINDS as readonly string[]).includes(kind),
+);
 
 /**
  * O05: a dated, sourced milestone. A fact of an advancing kind moves the commission along the line; an
@@ -36,7 +41,7 @@ import {
  */
 export function MilestoneForm({ order }: { order: StaffOrderView }) {
   const addMilestone = useMutation(api.atelier.orders.addMilestone);
-  const [kind, setKind] = useState<OrderMilestoneKind | null>(null);
+  const [kind, setKind] = useState<ProductionMilestoneKind | null>(null);
   const [label, setLabel] = useState("");
   const [labelTouched, setLabelTouched] = useState(false);
   const [date, setDate] = useState(() => timestampToDateInput(Date.now()));
@@ -50,7 +55,7 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
   const target = kind ? STATUS_FOR_MILESTONE[kind] : undefined;
   const closed = order.status === "cancelled";
 
-  function chooseKind(next: OrderMilestoneKind) {
+  function chooseKind(next: ProductionMilestoneKind) {
     setKind(next);
     if (!labelTouched) setLabel(MILESTONE_KIND_LABELS[next]);
     if (next === "estimated_ready") setEstimated(true);
@@ -92,7 +97,7 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
   if (closed)
     return <p className="text-sm text-muted-foreground">This commission was cancelled; no milestone can be added.</p>;
 
-  const kindOptions = HAND_RECORDED_KINDS.map((candidate) => {
+  const kindOptions = OFFERED_KINDS.map((candidate) => {
     const advancesTo = STATUS_FOR_MILESTONE[candidate];
     return {
       code: candidate,
@@ -119,7 +124,8 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
         <Field>
           <FieldLabel htmlFor={`milestone-kind-${order._id}`}>Kind</FieldLabel>
           <FieldDescription>
-            Release, payment, shipping, delivery and risk have their own actions on this page.
+            Release, payment, shipping, delivery and risk have their own actions on this page; the client&apos;s
+            acceptance of the fit is theirs alone to record.
           </FieldDescription>
           <WordSelect
             id={`milestone-kind-${order._id}`}

@@ -22,6 +22,7 @@ import {
   toStaffRow,
   toStaffView,
   triage as triageCorrection,
+  viewPhotosAsStaff,
 } from "../model/atelier/corrections";
 import {
   vCasePriority,
@@ -89,7 +90,8 @@ export const vCorrectionOrderView = v.object({
 });
 export type CorrectionOrderView = Infer<typeof vCorrectionOrderView>;
 
-export const vCorrectionView = v.object({
+/** What every view of a correction carries; the client's adds signed photo URLs, the staff view a count. */
+const correctionViewFields = {
   _id: v.id("atelierCorrections"),
   orderId: v.id("atelierOrders"),
   caseId: v.id("atelierCases"),
@@ -109,13 +111,17 @@ export const vCorrectionView = v.object({
   order: vCorrectionOrderView,
   fitProfileVersionBefore: v.union(v.number(), v.null()),
   fitProfileVersionAfter: v.union(v.number(), v.null()),
-  /** Signed URLs of the client's own supporting photographs; never storage ids. */
-  photoUrls: v.array(v.string()),
   /** A cancellation asked for after release: the house reviews it and nothing is cancelled until they confirm. */
   requiresHouseReview: v.boolean(),
   escalatedAt: v.union(v.number(), v.null()),
   createdAt: v.number(),
   updatedAt: v.number(),
+};
+
+export const vCorrectionView = v.object({
+  ...correctionViewFields,
+  /** Signed URLs of the client's own supporting photographs; never storage ids. */
+  photoUrls: v.array(v.string()),
 });
 export type CorrectionView = Infer<typeof vCorrectionView>;
 
@@ -149,7 +155,9 @@ export const vStaffCorrectionRow = v.object({
 export type StaffCorrectionRow = Infer<typeof vStaffCorrectionRow>;
 
 export const vStaffCorrectionView = v.object({
-  ...vCorrectionView.fields,
+  ...correctionViewFields,
+  /** How many photographs the client sent; the URLs come only from `staffPhotoUrls`, which records the look. */
+  photoCount: v.number(),
   clientName: v.string(),
   ownerKind: vOwnerKind,
   caseOwner: v.union(v.string(), v.null()),
@@ -272,6 +280,16 @@ export const staffGet = query({
   handler: async (ctx, { correctionId }) => {
     await requireStaff(ctx, ["operations", "finance"]);
     return toStaffView(ctx, await requireCorrection(ctx, correctionId));
+  },
+});
+
+/** A07. Signed URLs for the client's correction photographs; every look is recorded (`photo.view`), one row per photograph. */
+export const staffPhotoUrls = mutation({
+  args: { correctionId: v.id("atelierCorrections") },
+  returns: v.array(v.string()),
+  handler: async (ctx, { correctionId }) => {
+    const staff = await requireStaff(ctx, "operations");
+    return viewPhotosAsStaff(ctx, staff, await requireCorrection(ctx, correctionId));
   },
 });
 

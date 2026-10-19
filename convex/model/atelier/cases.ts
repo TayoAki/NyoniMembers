@@ -31,6 +31,7 @@ import {
   PROPOSAL_STATUS_LABELS,
   QUOTE_STATUS_LABELS,
   SAMPLE_STATE_LABELS,
+  type CaseKind,
   type CaseStatus,
   type CommercialImpact,
   type ProposalStatus,
@@ -47,13 +48,16 @@ import {
   type SuitSpec,
 } from "../../shared/atelier/spec";
 import type { vContact, vPostalAddress } from "../../shared/atelier/validators";
+import { isConfirmed } from "./appointments";
 import { getEntry, specNames } from "./catalogue";
 import { appendMessage, createCase, findBySubmissionKey, touchCase, type Contact } from "./case_core";
 import { queueNotification } from "./notifications";
+import { isClientVisible, listForCase as listQuotesForCase, offeredAmong, withdrawAfterDesignChange } from "./quotes";
 import { createRevision, toRevisionSummary } from "./revisions";
 
 type Ctx = QueryCtx | MutationCtx;
 type Case = Doc<"atelierCases">;
+type Quote = Doc<"atelierQuotes">;
 type Message = Doc<"atelierCaseMessages">;
 type Proposal = Doc<"atelierProposals">;
 type User = Doc<"users">;
@@ -74,7 +78,6 @@ export const CASE_LIST_MAX = 50;
 export const MESSAGES_MAX = 200;
 export const PROPOSALS_MAX = 50;
 export const QUEUE_MAX = 100;
-export const QUOTES_MAX = 20;
 export const ESCALATE_BATCH = 100;
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -190,6 +193,9 @@ export type SubmitInput = {
 
 export type SubmitResult = {
   caseId: Id<"atelierCases">;
+  /** The kind the house recorded: on a repeated key, the first request's, whichever button was pressed since. */
+  kind: CaseKind;
+  kindLabel: string;
   revisionId: Id<"atelierRevisions"> | null;
   duplicate: boolean;
 };
@@ -246,7 +252,13 @@ export async function submitCase(
   const submissionKey = requireText(input.submissionKey, "a submission key", SUBMISSION_KEY_MAX);
   const existing = await findBySubmissionKey(ctx, submissionKey);
   if (existing && isOwner(existing, actor)) {
-    return { caseId: existing._id, revisionId: existing.revisionId ?? null, duplicate: true };
+    return {
+      caseId: existing._id,
+      kind: existing.kind,
+      kindLabel: CASE_KIND_LABELS[existing.kind],
+      revisionId: existing.revisionId ?? null,
+      duplicate: true,
+    };
   }
 
   const contact = normalizeContact(input.contact);
@@ -311,7 +323,13 @@ export async function submitCase(
     },
     now,
   );
-  return { caseId: created.caseId, revisionId: revisionId ?? null, duplicate: created.duplicate };
+  return {
+    caseId: created.caseId,
+    kind: input.kind,
+    kindLabel: CASE_KIND_LABELS[input.kind],
+    revisionId: revisionId ?? null,
+    duplicate: created.duplicate,
+  };
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -370,13 +388,28 @@ export async function listProposals(ctx: Ctx, caseId: Id<"atelierCases">): Promi
     .take(PROPOSALS_MAX);
 }
 
-async function latestQuote(ctx: Ctx, caseId: Id<"atelierCases">): Promise<Doc<"atelierQuotes"> | null> {
+/** The newest version on the case, drafts included: the house's own view of where pricing stands. */
+async function latestQuote(ctx: Ctx, caseId: Id<"atelierCases">): Promise<Quote | null> {
   return ctx.db
     .query("atelierQuotes")
     .withIndex("by_case_version", (q) => q.eq("caseId", caseId))
     .order("desc")
     .first();
 }
+
+/**
+ * The quote a client may read on their request: the accepted one, else the one on offer, else the newest
+ * they were ever shown. A quote still being prepared is the house's working paper and never reaches the
+ * client's payload (`quotes.isClientVisible`, as `quotes.listForCase` and `quotes.get` already honour).
+ */
+async function clientQuote(ctx: Ctx, caseId: Id<"atelierCases">): Promise<Quote | null> {
+  const quotes = await listQuotesForCase(ctx, caseId);
+  return (
+    quotes.find((quote) => quote.status === "accepted") ?? offeredAmong(quotes) ?? quotes.find(isClientVisible) ?? null
+  );
+}
+
+export type CaseAudience = "client" | "staff";
 
 async function linkedAppointment(ctx: Ctx, c: Case): Promise<Doc<"atelierAppointments"> | null> {
   if (c.appointmentId !== undefined) return ctx.db.get(c.appointmentId);
@@ -462,14 +495,37 @@ export async function toProposalView(
   };
 }
 
-export async function toCaseView(ctx: Ctx, c: Case, now: number = Date.now()): Promise<CaseView> {
+/** The fitting on a request; the time is given only with a recorded booking, as the fitting's own view does (`appointments.isConfirmed`). */
+function appointmentSummary(appointment: Doc<"atelierAppointments">): CaseView["appointment"] {
+  const confirmed = isConfirmed(appointment);
+  return {
+    appointmentId: appointment._id,
+    status: appointment.status,
+    statusLabel: APPOINTMENT_STATUS_LABELS[appointment.status],
+    confirmed,
+    service: appointment.service,
+    serviceLabel: APPOINTMENT_SERVICE_LABELS[appointment.service],
+    showroomId: appointment.showroomId,
+    timeZone: appointment.timeZone,
+    confirmedStart: confirmed ? (appointment.confirmedStart ?? null) : null,
+    confirmedEnd: confirmed ? (appointment.confirmedEnd ?? null) : null,
+  };
+}
+
+/** The client's view of their request; `audience: "staff"` is the same view with the newest quote version, drafts included. */
+export async function toCaseView(
+  ctx: Ctx,
+  c: Case,
+  now: number = Date.now(),
+  audience: CaseAudience = "client",
+): Promise<CaseView> {
   const nameOf = nameCache(ctx);
   const [draft, revision, last, proposals, quote, appointment, ownerFirstName, sampleCloth] = await Promise.all([
     c.draftId !== undefined ? ctx.db.get(c.draftId) : null,
     c.revisionId !== undefined ? ctx.db.get(c.revisionId) : null,
     latestMessage(ctx, c._id),
     listProposals(ctx, c._id),
-    latestQuote(ctx, c._id),
+    audience === "staff" ? latestQuote(ctx, c._id) : clientQuote(ctx, c._id),
     linkedAppointment(ctx, c),
     nameOf(c.ownerStaffId),
     c.sample ? getEntry(ctx, "cloth", c.sample.clothCode) : null,
@@ -513,17 +569,7 @@ export async function toCaseView(ctx: Ctx, c: Case, now: number = Date.now()): P
           expiresAt: quote.expiresAt,
         }
       : null,
-    appointment: appointment
-      ? {
-          appointmentId: appointment._id,
-          status: appointment.status,
-          statusLabel: APPOINTMENT_STATUS_LABELS[appointment.status],
-          service: appointment.service,
-          serviceLabel: APPOINTMENT_SERVICE_LABELS[appointment.service],
-          showroomId: appointment.showroomId,
-          confirmedStart: appointment.confirmedStart ?? null,
-        }
-      : null,
+    appointment: appointment ? appointmentSummary(appointment) : null,
     orderId: c.orderId ?? null,
     overdue: isOverdue(c, now),
     createdAt: c.createdAt,
@@ -775,7 +821,9 @@ export type RespondResult = { status: ProposalStatus; revision: number; revision
 /**
  * The client decides. Accepting writes the proposed design to the draft as a new revision
  * (`reason: "proposal_accepted"`), moves the case to that revision and, when the change has a price,
- * supersedes the quote on offer. A proposal made against an older revision is refused (STALE_REVISION).
+ * withdraws the quote on offer (it priced the old design; nothing has replaced it yet, so it is not
+ * "superseded") and frees any benefit reserved against it for the re-quote. A proposal made against an
+ * older revision is refused (STALE_REVISION).
  */
 export async function respondToProposal(
   ctx: MutationCtx,
@@ -851,17 +899,10 @@ export async function respondToProposal(
   await ctx.db.patch(proposal._id, { status: "accepted", decidedAt: now });
   await ctx.db.patch(c._id, { revisionId: revision._id });
 
-  let superseded = 0;
+  const withdrawn: number[] = [];
   if (proposal.commercialImpact === "new_quote") {
-    const quotes = await ctx.db
-      .query("atelierQuotes")
-      .withIndex("by_case_version", (q) => q.eq("caseId", c._id))
-      .order("desc")
-      .take(QUOTES_MAX);
-    for (const quote of quotes) {
-      if (quote.status !== "offered") continue;
-      await ctx.db.patch(quote._id, { status: "superseded" });
-      superseded += 1;
+    for (const quote of await listQuotesForCase(ctx, c._id)) {
+      if (await withdrawAfterDesignChange(ctx, actor, quote, proposal._id, now)) withdrawn.push(quote.version);
     }
   }
   await appendMessage(
@@ -871,8 +912,8 @@ export async function respondToProposal(
       author: "system",
       body: `You accepted the proposed change. Your design is now revision ${revisionNumber}.${
         proposal.commercialImpact === "new_quote"
-          ? superseded > 0
-            ? " The quote you were offered no longer matches this design and has been set aside; your concierge will offer a new one."
+          ? withdrawn.length > 0
+            ? ` The quote you were offered (version ${withdrawn.join(", ")}) priced the design before this change and has been withdrawn; your concierge will offer a new one for the agreed design.`
             : " Your concierge will offer a quote for the agreed design."
           : ""
       }`,
@@ -889,7 +930,7 @@ export async function respondToProposal(
       action: "proposal.accept",
       targetTable: "atelierProposals",
       targetId: proposal._id,
-      meta: { caseId: c._id, revision: revisionNumber, revisionId: revision._id, supersededQuotes: superseded },
+      meta: { caseId: c._id, revision: revisionNumber, revisionId: revision._id, withdrawnQuotes: withdrawn.length },
     },
     now,
   );
@@ -1005,7 +1046,7 @@ export async function queue(
 export async function toStaffCaseView(ctx: Ctx, c: Case, now: number = Date.now()): Promise<StaffCaseView> {
   const nameOf = nameCache(ctx);
   const [view, messages, draft] = await Promise.all([
-    toCaseView(ctx, c, now),
+    toCaseView(ctx, c, now, "staff"),
     listMessages(ctx, c._id),
     c.draftId !== undefined ? ctx.db.get(c.draftId) : null,
   ]);
@@ -1170,12 +1211,36 @@ export async function setNextAction(
   );
 }
 
+async function assertNothingAwaitsTheClient(ctx: Ctx, c: Case, status: CaseStatus): Promise<void> {
+  const to = CASE_STATUS_LABELS[status].toLowerCase();
+  const offered = offeredAmong(await listQuotesForCase(ctx, c._id));
+  if (offered) {
+    throw appError(
+      "INVALID_STATE",
+      `Quote version ${offered.version} is still offered to the client. Withdraw or replace it before the request is ${to}.`,
+      { from: c.status, to: status, quoteId: offered._id },
+    );
+  }
+  const proposed = (await listProposals(ctx, c._id)).find((proposal) => proposal.status === "proposed");
+  if (proposed) {
+    throw appError(
+      "INVALID_STATE",
+      `A proposed change is still awaiting the client's answer. Withdraw it before the request is ${to}.`,
+      { from: c.status, to: status, proposalId: proposed._id },
+    );
+  }
+}
+
 const STATUS_MESSAGES: Partial<Record<CaseStatus, string>> = {
   completed: "Your request is complete. The house is here whenever you need it again.",
   cancelled: "Your request was closed by the house. Reply on a new request if there is more we can do.",
 };
 
-/** Legal transitions only; `assigned` needs an owner, and closing stamps `closedAt`. */
+/**
+ * Legal transitions only; `assigned` needs an owner, and closing stamps `closedAt`. A request is not closed
+ * over the client's head: while a quote is offered or a change is proposed, finance or the concierge must
+ * withdraw it first, so no quote lifecycle write can land on a closed case.
+ */
 export async function setStatus(
   ctx: MutationCtx,
   staff: User,
@@ -1202,6 +1267,7 @@ export async function setStatus(
     });
   }
   const closing = CLOSED_CASE_STATUSES.includes(status);
+  if (closing) await assertNothingAwaitsTheClient(ctx, c, status);
   await touchCase(ctx, c._id, { status, ...(closing ? { closedAt: now } : {}) }, now);
   const message = STATUS_MESSAGES[status];
   if (message) await appendMessage(ctx, c._id, { author: "system", body: message }, now);

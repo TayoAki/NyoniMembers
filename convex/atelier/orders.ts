@@ -24,6 +24,8 @@ import {
   toStaffOrderView,
 } from "../model/atelier/orders";
 import {
+  PRODUCTION_MILESTONE_KINDS,
+  type ProductionMilestoneKind,
   vChecklistState,
   vCorrectionKind,
   vCorrectionStatus,
@@ -33,9 +35,9 @@ import {
   vMilestoneSource,
   vOrderStatus,
   vPaymentState,
+  vProductionMilestoneKind,
   vSuitSpec,
 } from "../shared/atelier/validators";
-import { literals } from "../shared/validators";
 import { requireActor, requireStaff, resolveActor } from "./access";
 import { ownerArgs, vClothSummary } from "./views";
 
@@ -46,8 +48,9 @@ import { ownerArgs, vClothSummary } from "./views";
  * here can change a released order's specification: that is a new proposal on the case.
  */
 
-export { MILESTONE_SOURCE_LABELS, ORDER_MILESTONE_KINDS };
-export const vMilestoneKind = literals(ORDER_MILESTONE_KINDS);
+export { MILESTONE_SOURCE_LABELS, ORDER_MILESTONE_KINDS, PRODUCTION_MILESTONE_KINDS, type ProductionMilestoneKind };
+/** The kinds `addMilestone` records by hand; the others are written only by their own action. */
+export const vMilestoneKind = vProductionMilestoneKind;
 
 export const vPaymentView = v.object({
   state: vPaymentState,
@@ -274,7 +277,11 @@ export const release = mutation({
   },
 });
 
-/** O05. A dated, sourced milestone. Facts of kind making/quality_review/shipped/collected/fit_review advance the status; estimates never do. */
+/**
+ * O05. A dated, sourced milestone of a production kind. Facts of kind making/quality_review/shipped/collected/fit_review
+ * advance the status; estimates never do. Quote acceptance, payment, release, delivery, fit acceptance and
+ * corrections are written only by their own actions and are refused here.
+ */
 export const addMilestone = mutation({
   args: {
     orderId: v.id("atelierOrders"),

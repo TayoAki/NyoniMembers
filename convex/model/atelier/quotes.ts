@@ -3,9 +3,15 @@ import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { audit, isOwner, type Actor, type Owned } from "../../atelier/access";
 import type { QuoteInput, QuoteQueueItem, QuoteView } from "../../atelier/quotes";
 import { appError } from "../../lib/errors";
-import { QUOTE_LINE_KIND_LABELS, QUOTE_STATUS_LABELS, type QuoteStatus } from "../../shared/atelier/enums";
+import {
+  CASE_STATUS_LABELS,
+  QUOTE_LINE_KIND_LABELS,
+  QUOTE_STATUS_LABELS,
+  type QuoteStatus,
+} from "../../shared/atelier/enums";
 import { computeTotals, QUOTE_LINES_MAX, roundUsd, validateLines } from "../../shared/atelier/quote_lines";
 import { specHash } from "../../shared/atelier/spec";
+import { CASE_TRANSITIONS } from "../../shared/atelier/transitions";
 import type { Contact } from "./case_core";
 import { benefitDescription, moveReservation, redeemReservation, releaseReservation, tierLabel } from "./benefits";
 import { getEntry } from "./catalogue";
@@ -33,6 +39,10 @@ type QuoteLine = Quote["lines"][number];
  * client. Acceptance requires the design to still be the one priced (STALE_REVISION otherwise: a client
  * cannot pay an old quote for a new design), the cloth to still be offered, and the quote to be offered
  * and in date. Accepting creates the commission in preflight; it records no payment and releases nothing.
+ *
+ * A quote never moves a closed request: nothing is prepared, offered or accepted on a completed or
+ * cancelled case, and a withdrawal or expiry on one leaves its status alone (`cases.setStatus` refuses to
+ * close a request while a quote is still offered, so this is the guard for races and older rows).
  */
 
 export { QUOTE_LINE_KIND_LABELS };
@@ -103,6 +113,19 @@ export async function isCurrentRevision(ctx: Ctx, quote: Quote, revision: Revisi
 
 function caseOwner(caseDoc: Case): Owned {
   return caseDoc.userId ? { userId: caseDoc.userId } : { guestKey: caseDoc.guestKey };
+}
+
+/** A request with no legal next state is closed; the same truth `cases.isOpen` reads, from the shared machine so this module need not import cases. */
+export function isCaseOpen(caseDoc: Pick<Case, "status">): boolean {
+  return CASE_TRANSITIONS[caseDoc.status].length > 0;
+}
+
+function requireOpenCase(caseDoc: Case, verb: string): void {
+  if (!isCaseOpen(caseDoc)) {
+    throw appError("INVALID_STATE", `This request is ${CASE_STATUS_LABELS[caseDoc.status].toLowerCase()}; ${verb}.`, {
+      status: caseDoc.status,
+    });
+  }
 }
 
 function notifyTarget(contact: Contact): { channel: "email" | "sms"; to: string } {
@@ -206,6 +229,7 @@ export async function createQuote(
   input: QuoteInput,
   now: number = Date.now(),
 ): Promise<Id<"atelierQuotes">> {
+  requireOpenCase(caseDoc, "a quote cannot be prepared on it. The client can send a new request from their design");
   if (!caseDoc.revisionId || !caseDoc.draftId) {
     throw appError("INVALID_STATE", "This request has no submitted design to price yet.");
   }
@@ -303,6 +327,7 @@ export async function offerQuote(ctx: MutationCtx, staff: User, quote: Quote, no
   if (quote.expiresAt <= now)
     throw appError("INVALID_INPUT", "This quote's expiry has passed. Set a new expiry before offering it.");
   const caseDoc = await requireQuoteCase(ctx, quote);
+  requireOpenCase(caseDoc, "a quote cannot be offered on it. The client can send a new request from their design");
   const previous = offeredAmong(await listForCase(ctx, caseDoc._id));
   let benefit = quote.benefit;
   if (previous && previous._id !== quote._id) {
@@ -414,7 +439,7 @@ export async function supersedeQuote(
   return quoteId;
 }
 
-/** O04. Withdraws a quote being prepared or offered; a live benefit reservation is released. */
+/** O04. Withdraws a quote being prepared or offered; a live benefit reservation is released. A closed request keeps its status. */
 export async function withdrawQuote(
   ctx: MutationCtx,
   staff: User,
@@ -444,16 +469,19 @@ export async function withdrawQuote(
       },
       now,
     );
-    await touchCase(
-      ctx,
-      quote.caseId,
-      {
-        status: "awaiting_staff",
-        nextAction: "Concierge to follow up the withdrawn quote",
-        nextActionDueAt: undefined,
-      },
-      now,
-    );
+    const caseDoc = await ctx.db.get(quote.caseId);
+    if (caseDoc && isCaseOpen(caseDoc)) {
+      await touchCase(
+        ctx,
+        quote.caseId,
+        {
+          status: "awaiting_staff",
+          nextAction: "Concierge to follow up the withdrawn quote",
+          nextActionDueAt: undefined,
+        },
+        now,
+      );
+    }
   }
   await audit(
     ctx,
@@ -468,7 +496,7 @@ export async function withdrawQuote(
   );
 }
 
-/** The hourly cron: every offered quote past its expiry becomes expired, says so on the case, and frees its benefit. */
+/** The hourly cron: every offered quote past its expiry becomes expired, says so on the case, and frees its benefit. A closed request is told but not reopened. */
 export async function expireQuotes(ctx: MutationCtx, now: number = Date.now()): Promise<number> {
   const offered = await ctx.db
     .query("atelierQuotes")
@@ -493,12 +521,15 @@ export async function expireQuotes(ctx: MutationCtx, now: number = Date.now()): 
       },
       now,
     );
-    await touchCase(
-      ctx,
-      quote.caseId,
-      { status: "awaiting_staff", nextAction: "Concierge to re-quote or close", nextActionDueAt: undefined },
-      now,
-    );
+    const caseDoc = await ctx.db.get(quote.caseId);
+    if (caseDoc && isCaseOpen(caseDoc)) {
+      await touchCase(
+        ctx,
+        quote.caseId,
+        { status: "awaiting_staff", nextAction: "Concierge to re-quote or close", nextActionDueAt: undefined },
+        now,
+      );
+    }
     await audit(
       ctx,
       {
@@ -513,6 +544,48 @@ export async function expireQuotes(ctx: MutationCtx, now: number = Date.now()): 
     count += 1;
   }
   return count;
+}
+
+/**
+ * C20. The client accepted a design change the offered quote did not price. The quote is withdrawn — not
+ * "replaced", since no newer version exists until finance offers one — its live benefit reservation is
+ * released for the re-quote, and the audit names the proposal. The case's words and status are the
+ * caller's; a quote already decided is left alone.
+ */
+export async function withdrawAfterDesignChange(
+  ctx: MutationCtx,
+  actor: Actor,
+  quote: Quote,
+  proposalId: Id<"atelierProposals">,
+  now: number = Date.now(),
+): Promise<boolean> {
+  if (quote.status !== "offered") return false;
+  await ctx.db.patch(quote._id, { status: "withdrawn" });
+  if (quote.benefit) {
+    const redemption = await ctx.db.get(quote.benefit.redemptionId);
+    if (redemption && redemption.status === "reserved") {
+      await releaseReservation(
+        ctx,
+        actor,
+        redemption,
+        `Quote version ${quote.version} withdrawn after an accepted design change`,
+        now,
+      );
+    }
+  }
+  await audit(
+    ctx,
+    {
+      actor,
+      actorKind: "client",
+      action: "quote.withdraw",
+      targetTable: "atelierQuotes",
+      targetId: quote._id,
+      meta: { version: quote.version, from: quote.status, reason: "proposal_accepted", proposalId },
+    },
+    now,
+  );
+  return true;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -530,8 +603,9 @@ const ACCEPT_REFUSALS: Record<Exclude<QuoteStatus, "offered">, string> = {
 /**
  * C21. The client accepts the exact quote version. Refused when the quote is not offered, has expired,
  * prices a design the draft has moved past (the client cannot pay an old quote for a new design), or
- * names a cloth the house no longer offers. Creates the commission in preflight with no payment recorded;
- * a second acceptance of the same quote returns the same commission.
+ * names a cloth the house no longer offers, or sits on a request the house has closed. Creates the
+ * commission in preflight with no payment recorded; a second acceptance of the same quote returns the
+ * same commission.
  */
 export async function acceptQuote(
   ctx: MutationCtx,
@@ -545,6 +619,10 @@ export async function acceptQuote(
     const existing = await orderForQuote(ctx, caseDoc._id, quote._id);
     if (existing) return { orderId: existing._id };
   }
+  requireOpenCase(
+    caseDoc,
+    "the quote can no longer be accepted. Send a new request from your design and your concierge will quote it again",
+  );
   if (quote.status !== "offered") throw appError("INVALID_STATE", ACCEPT_REFUSALS[quote.status]);
   if (quote.expiresAt <= now) {
     throw appError(

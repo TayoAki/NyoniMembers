@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AtelierSection } from "@/components/atelier/common/atelier-section";
 import { OrderBook, OrderBookRow } from "@/components/atelier/common/order-book";
+import { formatConfirmed, statusWords as appointmentWords } from "@/components/atelier/fittings/appointment-words";
 import { CHANNEL_WORDS } from "@/components/atelier/requests/case-words";
 import { formatDateTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -10,6 +11,7 @@ import type { CaseView } from "@convex/atelier/cases";
 import { SHOWROOMS } from "@convex/shared/house";
 
 const SAMPLE_PENDING_NOTE = "A concierge will confirm when it ships.";
+const FITTING_PENDING_NOTE = "The time, when confirmed, is on the fitting itself.";
 
 /** What the client sent, as the house holds it: their words, the sample or fitting it carries, and their contact details. */
 export function CaseDetails({ request }: { request: CaseView }) {
@@ -18,6 +20,14 @@ export function CaseDetails({ request }: { request: CaseView }) {
     ? SHOWROOMS.find((entry) => entry.id === contact.preferredShowroom)
     : undefined;
   const appointmentShowroom = appointment ? SHOWROOMS.find((entry) => entry.id === appointment.showroomId) : undefined;
+  const confirmedFitting =
+    appointment?.confirmed && appointment.confirmedStart !== null
+      ? formatConfirmed(appointment.confirmedStart, appointment.confirmedEnd, appointment.timeZone)
+      : null;
+  const fittingWhere =
+    appointment?.showroomId === "virtual"
+      ? "By video."
+      : `${appointmentShowroom?.city ?? appointment?.showroomId} showroom.`;
   return (
     <AtelierSection id="request-details" title="Your request" description="What you sent, as the house holds it.">
       <OrderBook aria-label="Your request">
@@ -54,13 +64,13 @@ export function CaseDetails({ request }: { request: CaseView }) {
             label="Fitting"
             value={
               <Link href={routes.atelier.fitting(appointment.appointmentId)} className="underline underline-offset-4">
-                {appointment.serviceLabel} · {appointment.statusLabel}
+                {appointment.serviceLabel} · {appointmentWords(appointment)}
               </Link>
             }
             note={
-              appointment.showroomId === "virtual"
-                ? "By video. The time, when confirmed, is on the fitting itself."
-                : `${appointmentShowroom?.city ?? appointment.showroomId} showroom. The time, when confirmed, is on the fitting itself.`
+              confirmedFitting
+                ? `${fittingWhere} ${confirmedFitting.zone} · ${appointment.timeZone}`
+                : `${fittingWhere} ${FITTING_PENDING_NOTE}`
             }
           />
         ) : null}

@@ -113,10 +113,15 @@ export const vCaseAppointmentSummary = v.object({
   appointmentId: v.id("atelierAppointments"),
   status: vAppointmentStatus,
   statusLabel: v.string(),
+  /** True only with a recorded booking and a start time; the times below are null otherwise. */
+  confirmed: v.boolean(),
   service: vAppointmentService,
   serviceLabel: v.string(),
   showroomId: v.union(v.literal("charlotte"), v.literal("atlanta"), v.literal("houston"), v.literal("virtual")),
+  /** The IANA zone the fitting was requested in; the confirmed time is read in it. */
+  timeZone: v.string(),
   confirmedStart: v.union(v.number(), v.null()),
+  confirmedEnd: v.union(v.number(), v.null()),
 });
 
 export const vCaseView = v.object({
@@ -142,6 +147,7 @@ export const vCaseView = v.object({
   revision: v.union(vRevisionSummary, v.null()),
   latestMessage: v.union(vCaseMessageView, v.null()),
   proposals: v.array(vProposalView),
+  /** For the client: the accepted quote, else the one on offer, else the newest they were shown; a quote still being prepared never appears. */
   quote: v.union(vCaseQuoteSummary, v.null()),
   appointment: v.union(vCaseAppointmentSummary, v.null()),
   orderId: v.union(v.id("atelierOrders"), v.null()),
@@ -232,6 +238,9 @@ export const vSubmitKind = v.union(
 
 export const vSubmitResult = v.object({
   caseId: v.id("atelierCases"),
+  /** The kind the house recorded; on a repeated key it is the first request's, not the button pressed since. */
+  kind: vCaseKind,
+  kindLabel: v.string(),
   revisionId: v.union(v.id("atelierRevisions"), v.null()),
   /** True when this submission key had already been received: the first receipt is returned, nothing is written twice. */
   duplicate: v.boolean(),
@@ -386,7 +395,7 @@ export const setNextAction = mutation({
   },
 });
 
-/** Legal transitions only (INVALID_STATE otherwise); completing or cancelling closes the request. */
+/** Legal transitions only (INVALID_STATE otherwise); completing or cancelling closes the request, and is refused while a quote is offered or a change proposed. */
 export const setStatus = mutation({
   args: { caseId: v.id("atelierCases"), status: vCaseStatus },
   returns: v.null(),

@@ -13,7 +13,7 @@ import {
 
 const cases = await import("../convex/model/atelier/cases.ts");
 const drafts = await import("../convex/model/atelier/drafts.ts");
-const { ATELIER_LIMITS, CASE_STATUS_LABELS, CASE_STATUSES, SAMPLE_STATES } =
+const { ATELIER_LIMITS, CASE_KIND_LABELS, CASE_STATUS_LABELS, CASE_STATUSES, QUOTE_STATUS_LABELS, SAMPLE_STATES } =
   await import("../convex/shared/atelier/enums.ts");
 const { specHash } = await import("../convex/shared/atelier/spec.ts");
 
@@ -135,15 +135,24 @@ test("a quote request freezes the design, marks the draft submitted and leaves o
 test("the same submission key returns the first receipt and writes nothing", async () => {
   const { f } = await setup();
   const first = await submitted(f, guestActor, "design_review", "retry-me");
+  assert.equal(first.kind, "design_review");
+  assert.equal(first.kindLabel, CASE_KIND_LABELS.design_review);
   const inserts = f.log.inserts.length;
   const patches = f.log.patches.length;
+  // The design-review answer was lost and the client pressed "Request a quote": the receipt names what the house holds.
   const again = await cases.submitCase(
     f.ctx,
     guestActor,
-    { kind: "design_review", draftId: first.draft._id, contact: CONTACT, submissionKey: "retry-me" },
+    { kind: "quote", draftId: first.draft._id, contact: CONTACT, submissionKey: "retry-me" },
     NOW + HOUR,
   );
-  assert.deepEqual(again, { caseId: first.caseId, revisionId: first.revisionId, duplicate: true });
+  assert.deepEqual(again, {
+    caseId: first.caseId,
+    kind: "design_review",
+    kindLabel: CASE_KIND_LABELS.design_review,
+    revisionId: first.revisionId,
+    duplicate: true,
+  });
   assert.equal(f.log.inserts.length, inserts);
   assert.equal(f.log.patches.length, patches);
   assert.equal(f.rowsOf("atelierCases").length, 1, "every acknowledged request appears once");
@@ -575,9 +584,9 @@ test("the next action is named before it is dated, and clearing it clears the da
 // Proposals
 // ------------------------------------------------------------------------------------------------
 
-test("a proposal is pinned to the draft's revision; accepting writes a new revision and supersedes an offered quote", async () => {
+test("a proposal is pinned to the draft's revision; accepting writes a new revision and withdraws an offered quote, freeing its benefit", async () => {
   const { f, concierge } = await setup();
-  const { draft, caseId, revisionId } = await submitted(f);
+  const { draft, caseId, revisionId } = await submitted(f, accountActor);
   await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW + 1);
   const quoteId = await f.ctx.db.insert("atelierQuotes", {
     caseId,
@@ -593,6 +602,17 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
     offeredAt: NOW + 2,
     createdByStaffId: concierge._id,
     createdAt: NOW + 2,
+  });
+  const redemptionId = await f.ctx.db.insert("atelierBenefitRedemptions", {
+    userId: accountUser._id,
+    membershipYearKey: "2026",
+    tier: "signature",
+    status: "reserved",
+    quoteId,
+    reservedAt: NOW + 2,
+  });
+  await f.ctx.db.patch(quoteId, {
+    benefit: { tier: "signature", redemptionId, description: "One made-to-measure suit this membership year" },
   });
 
   const afterSpec = { ...draft.spec, jacket: { ...draft.spec.jacket, vents: "single" } };
@@ -673,7 +693,7 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
     cases.respondToProposal(f.ctx, otherGuestActor, proposalId, true, NOW + 4),
     isAppError("NOT_FOUND"),
   );
-  const result = await cases.respondToProposal(f.ctx, guestActor, proposalId, true, NOW + 4);
+  const result = await cases.respondToProposal(f.ctx, accountActor, proposalId, true, NOW + 4);
   assert.equal(result.status, "accepted");
   assert.equal(result.revision, draft.revision + 1);
   const updated = await f.ctx.db.get(draft._id);
@@ -689,12 +709,28 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
   assert.equal(row.status, "awaiting_staff");
   assert.equal((await f.ctx.db.get(proposalId)).status, "accepted");
   assert.equal((await f.ctx.db.get(proposalId)).decidedAt, NOW + 4);
-  assert.equal((await f.ctx.db.get(quoteId)).status, "superseded");
+  const quote = await f.ctx.db.get(quoteId);
+  assert.equal(quote.status, "withdrawn", "no newer quote exists yet, so the old one is withdrawn, not 'replaced'");
+  assert.equal(quote.supersedesId, undefined);
+  assert.equal(QUOTE_STATUS_LABELS[quote.status], "Withdrawn");
+  assert.equal(quote.benefit.redemptionId, redemptionId, "what it carried stays as history");
+  const redemption = await f.ctx.db.get(redemptionId);
+  assert.equal(redemption.status, "released", "the suit is not left reserved against a quote nobody can approve");
+  assert.equal(redemption.releasedAt, NOW + 4);
+  assert.match(redemption.note, /accepted design change/);
+  const withdrawal = auditsOf(f, "quote.withdraw").at(-1);
+  assert.equal(withdrawal.actorKind, "client");
+  assert.equal(withdrawal.meta.reason, "proposal_accepted");
+  assert.equal(withdrawal.meta.proposalId, proposalId);
   assert.match(messagesOf(f, caseId).at(-1).body, /revision 2/);
-  assert.match(messagesOf(f, caseId).at(-1).body, /set aside/);
+  assert.match(
+    messagesOf(f, caseId).at(-1).body,
+    /\(version 1\) priced the design before this change and has been withdrawn/,
+  );
   assert.equal(auditsOf(f, "proposal.accept").length, 1);
+  assert.equal(auditsOf(f, "proposal.accept")[0].meta.withdrawnQuotes, 1);
   await assert.rejects(
-    cases.respondToProposal(f.ctx, guestActor, proposalId, false, NOW + 5),
+    cases.respondToProposal(f.ctx, accountActor, proposalId, false, NOW + 5),
     isAppError("INVALID_STATE"),
   );
 });
@@ -905,4 +941,143 @@ test("normalizeContact trims, lowercases the email and insists on a phone for te
     }).phone,
     "980",
   );
+});
+
+// ------------------------------------------------------------------------------------------------
+// Regressions: what the client's payload carries, and what closes a request
+// ------------------------------------------------------------------------------------------------
+
+test("the client's view carries only a quote they were shown; the staff view carries the newest version", async () => {
+  const { f, concierge } = await setup();
+  const { draft, caseId, revisionId, row } = await submitted(f, accountActor);
+  const quoteRow = (version, status, extra = {}) => ({
+    caseId,
+    draftId: draft._id,
+    revisionId,
+    version,
+    lines: [],
+    subtotalUsd: 2400,
+    totalUsd: 2593.5,
+    terms: "Deposit on release.",
+    expiresAt: NOW + 14 * DAY,
+    status,
+    createdByStaffId: concierge._id,
+    createdAt: NOW + version,
+    ...extra,
+  });
+  const v1 = await f.ctx.db.insert("atelierQuotes", quoteRow(1, "draft"));
+
+  const working = await cases.toCaseView(f.ctx, row, NOW);
+  assert.equal(working.quote, null, "a quote still being prepared is the house's working paper");
+  const payload = JSON.stringify(working);
+  assert.ok(!payload.includes("2593.5") && !payload.includes(QUOTE_STATUS_LABELS.draft), "no price, no draft words");
+  const staff = await cases.staffGet(f.ctx, caseId, NOW);
+  assert.equal(staff.quote.version, 1);
+  assert.equal(staff.quote.status, "draft", "the house sees where pricing stands");
+
+  await f.ctx.db.patch(v1, { status: "offered", offeredAt: NOW + 2 });
+  const offered = await cases.toCaseView(f.ctx, row, NOW);
+  assert.equal(offered.quote.version, 1);
+  assert.equal(offered.quote.status, "offered");
+  assert.equal(offered.quote.statusLabel, QUOTE_STATUS_LABELS.offered);
+  assert.equal(offered.quote.totalUsd, 2593.5);
+
+  await f.ctx.db.insert("atelierQuotes", quoteRow(2, "draft"));
+  assert.equal((await cases.toCaseView(f.ctx, row, NOW)).quote.version, 1, "a newer draft does not displace the offer");
+  assert.equal((await cases.staffGet(f.ctx, caseId, NOW)).quote.version, 2);
+
+  await f.ctx.db.patch(v1, { status: "withdrawn" });
+  const afterWithdrawal = await cases.toCaseView(f.ctx, row, NOW);
+  assert.equal(afterWithdrawal.quote.version, 1, "the client still sees the newest quote they were shown");
+  assert.equal(afterWithdrawal.quote.status, "withdrawn");
+
+  await f.ctx.db.patch(v1, { status: "accepted", acceptedAt: NOW + 3 });
+  await f.ctx.db.insert("atelierQuotes", quoteRow(3, "offered", { offeredAt: NOW + 4 }));
+  assert.equal((await cases.toCaseView(f.ctx, row, NOW)).quote.status, "accepted", "an accepted quote comes first");
+});
+
+test("a fitting on a request reads 'Confirmed for' only with a recorded booking, with the time in its own zone", async () => {
+  const { f } = await setup();
+  const { caseId, row } = await submitted(f);
+  const appointmentId = await f.ctx.db.insert("atelierAppointments", {
+    guestKey: GUEST_KEY,
+    caseId,
+    service: "first_fitting",
+    showroomId: "charlotte",
+    status: "requested",
+    timeZone: "America/New_York",
+    preferredWindows: [],
+    history: [],
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await f.ctx.db.patch(caseId, { appointmentId });
+
+  const requested = (await cases.toCaseView(f.ctx, row, NOW)).appointment;
+  assert.equal(requested.appointmentId, appointmentId);
+  assert.equal(requested.confirmed, false);
+  assert.equal(requested.timeZone, "America/New_York");
+  assert.equal(requested.confirmedStart, null);
+  assert.equal(requested.confirmedEnd, null);
+
+  const start = Date.UTC(2026, 9, 27, 18);
+  await f.ctx.db.patch(appointmentId, { status: "confirmed", confirmedStart: start, confirmedEnd: start + HOUR });
+  const unbooked = (await cases.toCaseView(f.ctx, row, NOW)).appointment;
+  assert.equal(unbooked.confirmed, false, "'Confirmed' needs the calendar booking the house recorded");
+  assert.equal(unbooked.confirmedStart, null);
+
+  await f.ctx.db.patch(appointmentId, { calendarRef: "SQ-4411" });
+  const confirmed = (await cases.toCaseView(f.ctx, row, NOW)).appointment;
+  assert.equal(confirmed.confirmed, true);
+  assert.equal(confirmed.confirmedStart, start);
+  assert.equal(confirmed.confirmedEnd, start + HOUR);
+  assert.equal(confirmed.timeZone, "America/New_York");
+  assert.ok(!("calendarRef" in confirmed), "the booking reference stays on the fitting itself");
+});
+
+test("a request is not closed over the client's head: an offered quote or a proposed change must be withdrawn first", async () => {
+  const { f, concierge } = await setup();
+  const { draft, caseId, revisionId } = await submitted(f);
+  await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW + 1);
+  const quoteId = await f.ctx.db.insert("atelierQuotes", {
+    caseId,
+    draftId: draft._id,
+    revisionId,
+    version: 1,
+    lines: [],
+    subtotalUsd: 2400,
+    totalUsd: 2400,
+    terms: "Deposit on release.",
+    expiresAt: NOW + 14 * DAY,
+    status: "offered",
+    offeredAt: NOW + 2,
+    createdByStaffId: concierge._id,
+    createdAt: NOW + 2,
+  });
+  await assert.rejects(
+    cases.setStatus(f.ctx, concierge, caseId, "cancelled", NOW + 3),
+    (error) => isAppError("INVALID_STATE")(error) && /version 1 is still offered/.test(error.data.message),
+  );
+  await assert.rejects(cases.setStatus(f.ctx, concierge, caseId, "completed", NOW + 3), isAppError("INVALID_STATE"));
+  assert.equal((await f.ctx.db.get(caseId)).status, "assigned", "a refusal changes nothing");
+  await f.ctx.db.patch(quoteId, { status: "withdrawn" });
+
+  const afterSpec = { ...draft.spec, jacket: { ...draft.spec.jacket, vents: "single" } };
+  const proposalId = await cases.propose(
+    f.ctx,
+    concierge,
+    caseId,
+    { afterSpec, rationale: "A single vent sits cleaner.", commercialImpact: "none" },
+    NOW + 4,
+  );
+  await assert.rejects(
+    cases.setStatus(f.ctx, concierge, caseId, "cancelled", NOW + 5),
+    (error) => isAppError("INVALID_STATE")(error) && /proposed change is still awaiting/.test(error.data.message),
+  );
+  await cases.withdrawProposal(f.ctx, concierge, proposalId, NOW + 6);
+  await cases.setStatus(f.ctx, concierge, caseId, "cancelled", NOW + 7);
+  const closed = await f.ctx.db.get(caseId);
+  assert.equal(closed.status, "cancelled");
+  assert.equal(closed.closedAt, NOW + 7);
+  assert.equal(auditsOf(f, "case.status").length, 1, "only the closing that went through is recorded");
 });

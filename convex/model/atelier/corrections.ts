@@ -47,7 +47,7 @@ import {
 } from "../../shared/atelier/transitions";
 import { clothSummary, specNames } from "./catalogue";
 import { appendMessage, createCase, touchCase, type Contact } from "./case_core";
-import { recordPayment } from "./orders";
+import { recordFitAcceptance, recordPayment } from "./orders";
 
 type Ctx = QueryCtx | MutationCtx;
 type Correction = Doc<"atelierCorrections">;
@@ -274,13 +274,13 @@ export function requiresHouseReview(order: Pick<Order, "status" | "releasedAt">,
   return kind === "cancellation" && (order.releasedAt !== undefined || order.status !== "preflight");
 }
 
-export async function toCorrectionView(ctx: Ctx, c: Correction): Promise<CorrectionView> {
+/** Everything on a correction but its photographs; the client's view signs them, the staff view counts them. */
+async function toCorrectionFields(ctx: Ctx, c: Correction): Promise<Omit<CorrectionView, "photoUrls">> {
   const order = await ctx.db.get(c.orderId);
   if (!order) throw appError("NOT_FOUND", "That commission doesn't exist.");
-  const [orderView, remedy, urls] = await Promise.all([
+  const [orderView, remedy] = await Promise.all([
     toCorrectionOrderView(ctx, order),
     c.remedy ? toRemedyView(ctx, c.remedy) : Promise.resolve(null),
-    Promise.all(c.photoStorageIds.map((storageId) => ctx.storage.getUrl(storageId))),
   ]);
   return {
     _id: c._id,
@@ -301,12 +301,50 @@ export async function toCorrectionView(ctx: Ctx, c: Correction): Promise<Correct
     order: orderView,
     fitProfileVersionBefore: c.fitProfileVersionBefore ?? null,
     fitProfileVersionAfter: c.fitProfileVersionAfter ?? null,
-    photoUrls: urls.filter((url): url is string => url !== null),
     requiresHouseReview: requiresHouseReview(order, c.kind),
     escalatedAt: c.escalatedAt ?? null,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
+}
+
+async function signPhotos(ctx: Ctx, c: Correction): Promise<string[]> {
+  const urls = await Promise.all(c.photoStorageIds.map((storageId) => ctx.storage.getUrl(storageId)));
+  return urls.filter((url): url is string => url !== null);
+}
+
+/** The client's own view: their photographs are signed for them without ceremony. */
+export async function toCorrectionView(ctx: Ctx, c: Correction): Promise<CorrectionView> {
+  const [fields, photoUrls] = await Promise.all([toCorrectionFields(ctx, c), signPhotos(ctx, c)]);
+  return { ...fields, photoUrls };
+}
+
+/**
+ * O06/O08: a member of the house sees the client's correction photographs only through this mutation,
+ * which writes one `photo.view` audit row per photograph before signing a URL, as the fit desk does for
+ * posture photographs. The staff view itself carries a count, never a URL.
+ */
+export async function viewPhotosAsStaff(
+  ctx: MutationCtx,
+  staff: User,
+  c: Correction,
+  now: number = Date.now(),
+): Promise<string[]> {
+  for (const [index, storageId] of c.photoStorageIds.entries()) {
+    await audit(
+      ctx,
+      {
+        actor: staff,
+        actorKind: "staff",
+        action: "photo.view",
+        targetTable: "atelierCorrections",
+        targetId: c._id,
+        meta: { orderId: c.orderId, storageId, index },
+      },
+      now,
+    );
+  }
+  return signPhotos(ctx, c);
 }
 
 export function toCorrectionSummary(c: Correction): CorrectionSummary {
@@ -344,9 +382,14 @@ export async function toStaffRow(ctx: Ctx, c: Correction): Promise<StaffCorrecti
 }
 
 export async function toStaffView(ctx: Ctx, c: Correction): Promise<StaffCorrectionView> {
-  const [view, row, order] = await Promise.all([toCorrectionView(ctx, c), toStaffRow(ctx, c), ctx.db.get(c.orderId)]);
+  const [fields, row, order] = await Promise.all([
+    toCorrectionFields(ctx, c),
+    toStaffRow(ctx, c),
+    ctx.db.get(c.orderId),
+  ]);
   return {
-    ...view,
+    ...fields,
+    photoCount: c.photoStorageIds.length,
     clientName: row.clientName,
     ownerKind: row.ownerKind,
     caseOwner: row.caseOwner,
@@ -689,15 +732,26 @@ export async function reassess(
 
 /**
  * When the last open correction on a commission ends, the commission's status stops saying "a correction is
- * open". A resolved reassessment is a fit acceptance; anything else returns the suit to the state the
- * client left it in. Milestones belong to the orders domain and are not written here.
+ * open". A resolved reassessment is a fit acceptance and is recorded as one through the orders model
+ * (`fitAcceptedAt` and the `fit_accepted` milestone), so a later correction that is declined returns the
+ * suit to "accepted", not to an open fit review; anything else returns the suit to the state the client
+ * left it in. No other milestone is written here: they belong to the orders domain.
  */
 async function settleOrder(ctx: MutationCtx, c: Correction, resolved: boolean, now: number): Promise<void> {
   const order = await ctx.db.get(c.orderId);
   if (!order || order.status !== "correction_open") return;
   const stillOpen = (await correctionsForOrder(ctx, order._id)).filter((other) => other._id !== c._id && isOpen(other));
   if (stillOpen.length > 0) return;
-  const next: OrderStatus = resolved || order.fitAcceptedAt !== undefined ? "accepted" : "fit_review";
+  if (resolved) {
+    await recordFitAcceptance(
+      ctx,
+      order,
+      now,
+      `Confirmed when you reassessed the ${CORRECTION_KIND_LABELS[c.kind].toLowerCase()}.`,
+    );
+    return;
+  }
+  const next: OrderStatus = order.fitAcceptedAt !== undefined ? "accepted" : "fit_review";
   await ctx.db.patch(order._id, { status: next, updatedAt: now });
 }
 
@@ -1007,6 +1061,17 @@ export async function escalate(
   const body = requireText(note, "Why this needs a senior decision");
   if (c.status === "escalated") {
     await appendMessage(ctx, c.caseId, { author: "staff", authorUserId: staff._id, body }, now);
+    await audit(
+      ctx,
+      {
+        actor: staff,
+        action: "correction.escalate",
+        targetTable: "atelierCorrections",
+        targetId: c._id,
+        meta: { from: c.status, repeat: true },
+      },
+      now,
+    );
     return;
   }
   assertTransition(c, "escalated");

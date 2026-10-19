@@ -128,7 +128,8 @@ export const get = query({
 /**
  * C21. Accepts the exact quote version and opens the commission in preflight. Refused when the quote is
  * not offered (INVALID_STATE), expired (QUOTE_EXPIRED), prices a design the client has since changed
- * (STALE_REVISION) or names a cloth the house no longer offers (INVALID_STATE). No payment is recorded.
+ * (STALE_REVISION), names a cloth the house no longer offers or sits on a closed request (INVALID_STATE).
+ * No payment is recorded.
  */
 export const accept = mutation({
   args: { ...ownerArgs, quoteId: v.id("atelierQuotes") },

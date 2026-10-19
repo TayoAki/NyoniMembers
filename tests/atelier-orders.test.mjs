@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fakeCtx, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
+import { fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
 
 const orders = await import("../convex/model/atelier/orders.ts");
 const quotes = await import("../convex/model/atelier/quotes.ts");
@@ -367,6 +367,45 @@ test("milestones move the line forward only as facts; estimates never do; produc
   }
 });
 
+test("addMilestone records production kinds only; the kinds with an action of their own are refused as hand-written facts", async () => {
+  const { f, operations, order, milestones, pay, release } = await setup();
+  await pay();
+  await release();
+  const before = milestones().length;
+  for (const kind of ["quote_accepted", "payment", "released", "delivered", "fit_accepted", "correction_opened"]) {
+    await assert.rejects(
+      orders.addMilestone(
+        f.ctx,
+        operations,
+        await order(),
+        { kind, label: "Fit accepted", at: NOW + 3, source: "staff", estimated: false },
+        NOW + 3,
+      ),
+      (error) => isAppError("INVALID_INPUT")(error) && error.data.details.kind === kind,
+      kind,
+    );
+  }
+  assert.equal(milestones().length, before, "nothing was written");
+  const current = await order();
+  assert.equal(current.status, "released");
+  assert.equal(current.fitAcceptedAt, undefined);
+  assert.equal(
+    f.rowsOf("atelierAuditLog").filter((row) => row.action === "order.milestone").length,
+    0,
+    "a refused milestone is not audited as recorded",
+  );
+  for (const kind of orders.PRODUCTION_MILESTONE_KINDS) assert.ok(orders.isProductionMilestoneKind(kind), kind);
+  assert.ok(!orders.isProductionMilestoneKind("fit_accepted"));
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "cloth_cut", label: "Cloth cut", at: NOW + 4, source: "maker", estimated: false },
+    NOW + 4,
+  );
+  assert.equal(milestones().at(-1).kind, "cloth_cut");
+});
+
 test("shipped is a carrier fact that opens no fit review; delivered opens it and never closes it", async () => {
   const { f, operations, order, milestones, messages, pay, release } = await setup();
   const shipment = { carrier: "UPS", trackingRef: "1Z999AA10123456784", at: NOW + 10 };
@@ -546,6 +585,48 @@ test("another account or browser never sees or touches the commission", async ()
   assert.equal((await orders.listForActor(f.ctx, strangerActor)).length, 0);
   assert.equal((await orders.listForActor(f.ctx, actor)).length, 1);
   assert.equal((await orders.listForActor(f.ctx, { user: null, guestKey: null })).length, 0);
+});
+
+test("listForActor lists the account's commissions and the browser's guest ones together, newest activity first, each once", async () => {
+  const { f, client, actor, orderId, order } = await setup();
+  const accountOrder = await order();
+  const guestOrderId = await f.ctx.db.insert("atelierOrders", {
+    guestKey: GUEST_KEY,
+    caseId: accountOrder.caseId,
+    quoteId: accountOrder.quoteId,
+    revisionId: accountOrder.revisionId,
+    draftId: accountOrder.draftId,
+    spec: accountOrder.spec,
+    specHash: accountOrder.specHash,
+    status: "preflight",
+    payment: { state: "none" },
+    createdAt: NOW - 10 * DAY,
+    updatedAt: NOW + DAY,
+  });
+  const both = { user: client, guestKey: GUEST_KEY };
+  assert.deepEqual(
+    (await orders.listForActor(f.ctx, both)).map((row) => row._id),
+    [guestOrderId, orderId],
+    "the guest commission is listed beside the account's, most recent activity first",
+  );
+  assert.deepEqual(
+    (await orders.listForActor(f.ctx, actor)).map((row) => row._id),
+    [orderId],
+    "an account without this browser's key sees only its own",
+  );
+  assert.deepEqual(
+    (await orders.listForActor(f.ctx, guestActor)).map((row) => row._id),
+    [guestOrderId],
+    "the browser alone sees only the guest one",
+  );
+  assert.equal((await orders.listForActor(f.ctx, otherGuestActor)).length, 0);
+  await f.ctx.db.patch(orderId, { updatedAt: NOW + 2 * DAY });
+  assert.deepEqual(
+    (await orders.listForActor(f.ctx, both)).map((row) => row._id),
+    [orderId, guestOrderId],
+    "sorted by updatedAt across both owners",
+  );
+  assert.equal(new Set((await orders.listForActor(f.ctx, both)).map((row) => row._id)).size, 2, "no duplicates");
 });
 
 test("the client's view labels every state, every milestone source and the estimate, and shows the frozen design", async () => {

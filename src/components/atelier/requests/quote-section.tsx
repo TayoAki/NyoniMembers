@@ -60,7 +60,7 @@ export function QuoteSection({ request }: { request: CaseView }) {
       title={`Quote · version ${current.version}`}
       description="Priced by the house for the exact design you submitted. Accepting a quote opens your commission; it is not a payment."
     >
-      <QuoteDetail quote={current} />
+      <QuoteDetail quote={current} request={request} />
       {earlier.length > 0 ? <EarlierQuotes quotes={earlier} /> : null}
     </AtelierSection>
   );

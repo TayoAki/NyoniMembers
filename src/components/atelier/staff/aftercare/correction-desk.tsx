@@ -11,7 +11,6 @@ import { StatusLine } from "@/components/atelier/common/status-line";
 import { SpecOrderBook } from "@/components/atelier/staff/case/case-design";
 import { hasStaffRole, StaffRoleGate, StaffShell, useStaffStanding } from "@/components/atelier/staff/staff-shell";
 import { ErrorAlert } from "@/components/common/error-alert";
-import { ItemImage } from "@/components/common/item-image";
 import { toClientError } from "@/lib/errors";
 import { formatDate, formatDateTime, formatUsd } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -22,6 +21,7 @@ import type { StaffStatus } from "@convex/atelier/staff";
 import { CASE_PRIORITY_LABELS } from "@convex/shared/atelier/enums";
 import { CorrectionDeskSkeleton } from "./aftercare-skeleton";
 import { canTransition, CORRECTION_STATUS_TONES } from "./aftercare-words";
+import { CorrectionPhotos } from "./correction-photos";
 import { RefundPanel } from "./refund-panel";
 import { RemedyForm } from "./remedy-form";
 import { StatusActions } from "./status-actions";
@@ -120,24 +120,11 @@ export function CorrectionDeskView({ correction, me }: { correction: StaffCorrec
             />
             <OrderBookRow
               label="Photographs"
-              value={
-                correction.photoUrls.length === 0 ? "None sent" : `${correction.photoUrls.length} sent by the client`
-              }
-              tone={correction.photoUrls.length === 0 ? "muted" : "default"}
+              value={correction.photoCount === 0 ? "None sent" : `${correction.photoCount} sent by the client`}
+              tone={correction.photoCount === 0 ? "muted" : "default"}
               note={
-                correction.photoUrls.length > 0 ? (
-                  <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                    {correction.photoUrls.map((url, index) => (
-                      <li key={url}>
-                        <ItemImage
-                          src={url}
-                          alt={`Photograph ${index + 1} sent with the correction`}
-                          variant="photo"
-                          className="rounded-sm"
-                        />
-                      </li>
-                    ))}
-                  </ul>
+                correction.photoCount > 0 ? (
+                  <CorrectionPhotos correction={correction} operations={operations} />
                 ) : undefined
               }
             />

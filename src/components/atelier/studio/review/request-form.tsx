@@ -106,9 +106,10 @@ export function RequestForm({ draftId, guestKeyArg, holds, alreadySubmitted }: P
   const [attempted, setAttempted] = useState(false);
   const [pending, setPending] = useState<RequestKind | null>(null);
   const [failure, setFailure] = useState<{ error: ClientError; kind: RequestKind } | null>(null);
+  /** The receipt as the house recorded it: on a retry that landed on an earlier request, its kind, not the button pressed. */
   const [received, setReceived] = useState<{
     caseId: Id<"atelierCases">;
-    kind: RequestKind;
+    kindLabel: string;
     duplicate: boolean;
   } | null>(null);
 
@@ -142,7 +143,7 @@ export function RequestForm({ draftId, guestKeyArg, holds, alreadySubmitted }: P
         ...(message.trim() ? { message: message.trim() } : {}),
         submissionKey,
       });
-      setReceived({ caseId: result.caseId, kind, duplicate: result.duplicate });
+      setReceived({ caseId: result.caseId, kindLabel: result.kindLabel, duplicate: result.duplicate });
       router.push(routes.atelier.request(result.caseId));
     } catch (error) {
       setFailure({ error: reportError(error), kind });
@@ -158,12 +159,12 @@ export function RequestForm({ draftId, guestKeyArg, holds, alreadySubmitted }: P
           Request received
         </StatusLine>
         <p className="text-sm">
-          <span className="text-muted-foreground">{CASE_KIND_LABELS[received.kind]} · </span>
+          <span className="text-muted-foreground">{received.kindLabel} · </span>
           <Mono className="text-foreground">{received.caseId}</Mono>
         </p>
         <p className="text-sm leading-relaxed text-muted-foreground">
           {received.duplicate
-            ? "The house already had this request; nothing was sent twice."
+            ? `The house already had this request as a ${received.kindLabel.toLowerCase()}; nothing was sent twice.`
             : "Your design was sent as it stands. Nothing is ordered and no price is set until you approve a quote."}{" "}
           Opening your request…
         </p>

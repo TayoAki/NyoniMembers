@@ -9,7 +9,7 @@ const revisions = await import("../convex/model/atelier/revisions.ts");
 const caseCore = await import("../convex/model/atelier/case_core.ts");
 const { DEFAULT_SPEC, specHash } = await import("../convex/shared/atelier/spec.ts");
 const { CLOTH_SEED } = await import("../convex/shared/atelier/cloths.ts");
-const { QUOTE_STATUS_LABELS } = await import("../convex/shared/atelier/enums.ts");
+const { CASE_STATUS_LABELS, QUOTE_STATUS_LABELS } = await import("../convex/shared/atelier/enums.ts");
 const { TIER_LABELS, MEMBERSHIP_TIERS } = await import("../convex/shared/membership.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
@@ -700,4 +700,71 @@ test("superseding a quote carries its live reservation to the new version", asyn
     quotes.createQuote(g.ctx, finance2, case2, input({ benefitRedemptionId: strangerRedemption }), NOW),
     isAppError("INVALID_STATE"),
   );
+});
+
+// ------------------------------------------------------------------------------------------------
+// Regression: a quote never moves a closed request
+// ------------------------------------------------------------------------------------------------
+
+test("a closed request takes no quote: nothing is prepared, offered or accepted on it, and a withdrawal does not reopen it", async () => {
+  const { f, finance, actor, caseDoc, quote, offered } = await setup();
+  const q = await offered();
+  const draftId = await quotes.createQuote(f.ctx, finance, caseDoc, input(), NOW + 1);
+  // The house closed the request while the quote was out (an older row, or a race with setStatus's guard).
+  await f.ctx.db.patch(caseDoc._id, { status: "cancelled", closedAt: NOW + 2 });
+  const closed = await f.ctx.db.get(caseDoc._id);
+  assert.equal(quotes.isCaseOpen(closed), false);
+  assert.equal(quotes.isCaseOpen(caseDoc), true);
+
+  await assert.rejects(
+    quotes.acceptQuote(f.ctx, actor, await quote(q._id), NOW + 3),
+    (error) =>
+      isAppError("INVALID_STATE")(error) &&
+      error.data.message.includes(CASE_STATUS_LABELS.cancelled.toLowerCase()) &&
+      /can no longer be accepted/.test(error.data.message),
+  );
+  assert.equal((await quote(q._id)).status, "offered", "a refused acceptance changes nothing");
+  assert.equal(f.rowsOf("atelierOrders").length, 0, "no commission opens on a cancelled request");
+  assert.equal((await f.ctx.db.get(caseDoc._id)).status, "cancelled", "and the request stays closed");
+
+  await assert.rejects(
+    quotes.offerQuote(f.ctx, finance, await quote(draftId), NOW + 3),
+    (error) => isAppError("INVALID_STATE")(error) && /cannot be offered/.test(error.data.message),
+  );
+  assert.equal((await quote(draftId)).status, "draft");
+  await assert.rejects(
+    quotes.createQuote(f.ctx, finance, closed, input(), NOW + 3),
+    (error) => isAppError("INVALID_STATE")(error) && /cannot be prepared/.test(error.data.message),
+  );
+  await assert.rejects(
+    quotes.supersedeQuote(f.ctx, finance, await quote(q._id), input(), NOW + 3),
+    isAppError("INVALID_STATE"),
+  );
+  assert.equal((await f.ctx.db.get(caseDoc._id)).status, "cancelled");
+
+  const before = await f.ctx.db.get(caseDoc._id);
+  await quotes.withdrawQuote(f.ctx, finance, await quote(q._id), "Request was cancelled", NOW + 4);
+  assert.equal((await quote(q._id)).status, "withdrawn");
+  assert.ok(messages(f, caseDoc._id).at(-1).includes("withdrawn by the house"), "the record says what happened");
+  const after = await f.ctx.db.get(caseDoc._id);
+  assert.equal(after.status, "cancelled", "withdrawing a quote does not reopen a closed request");
+  assert.equal(after.nextAction, before.nextAction, "nor does it hand the concierge a follow-up on it");
+  assert.equal(after.closedAt, NOW + 2);
+});
+
+test("the expiry cron marks a quote on a completed request expired without reopening it", async () => {
+  const { f, finance, caseDoc, quote } = await setup();
+  const quoteId = await quotes.createQuote(f.ctx, finance, caseDoc, input({ expiresAt: NOW + DAY }), NOW);
+  await quotes.offerQuote(f.ctx, finance, await quote(quoteId), NOW);
+  await f.ctx.db.patch(caseDoc._id, { status: "completed", closedAt: NOW + 1 });
+  const before = await f.ctx.db.get(caseDoc._id);
+
+  assert.equal(await quotes.expireQuotes(f.ctx, NOW + DAY), 1);
+  assert.equal((await quote(quoteId)).status, "expired", "the quote's own truth still moves");
+  assert.ok(messages(f, caseDoc._id).at(-1).includes("expired on"));
+  const after = await f.ctx.db.get(caseDoc._id);
+  assert.equal(after.status, "completed", "the cron never reopens a closed request");
+  assert.equal(after.nextAction, before.nextAction, "and never asks the concierge to re-quote or close it");
+  assert.equal(after.closedAt, NOW + 1);
+  assert.ok(auditActions(f).includes("quote.expire"));
 });

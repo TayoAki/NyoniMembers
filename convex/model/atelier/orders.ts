@@ -17,6 +17,7 @@ import {
   FIT_PROFILE_STATUS_LABELS,
   FIT_REGION_LABELS,
   FIT_REGIONS,
+  MILESTONE_KIND_LABELS,
   MILESTONE_SOURCE_LABELS,
   ORDER_MILESTONE_KINDS,
   ORDER_STATUS_LABELS,
@@ -32,6 +33,7 @@ import {
 import { eventReadiness, HOUSE_POLICY } from "../../shared/atelier/policy";
 import { describeSpec, specSummary, validateSpec } from "../../shared/atelier/spec";
 import { PAYMENT_TRANSITIONS, STATUS_FOR_MILESTONE } from "../../shared/atelier/transitions";
+import { PRODUCTION_MILESTONE_KINDS, type ProductionMilestoneKind } from "../../shared/atelier/validators";
 import { clothSummary, getEntry, specNames } from "./catalogue";
 import { appendMessage } from "./case_core";
 
@@ -55,7 +57,11 @@ type Payment = Order["payment"];
  * after release is a new proposal on the case, never an edit of the released package (O05).
  */
 
-export { ORDER_MILESTONE_KINDS, type OrderMilestoneKind };
+export { ORDER_MILESTONE_KINDS, PRODUCTION_MILESTONE_KINDS, type OrderMilestoneKind, type ProductionMilestoneKind };
+
+export function isProductionMilestoneKind(kind: string): kind is ProductionMilestoneKind {
+  return (PRODUCTION_MILESTONE_KINDS as readonly string[]).includes(kind);
+}
 
 /** Position on the line, so production never runs backwards. Shipped and collected share a place. */
 const STATUS_RANK: Record<OrderStatus, number> = {
@@ -145,25 +151,37 @@ export async function findAccessibleOrder(ctx: Ctx, orderId: Id<"atelierOrders">
   return order && isOwner(order, actor) ? order : null;
 }
 
-/** Commissions owned by the account or the browser, newest activity first. */
+/**
+ * Commissions owned by the account and, while this browser still holds a guest key, the guest ones too
+ * (S16 continuity: a quote accepted before signing in stays on the client's orders page), newest
+ * activity first.
+ */
 export async function listForActor(ctx: Ctx, actor: Actor): Promise<Order[]> {
+  const rows: Order[] = [];
   if (actor.user) {
     const userId = actor.user._id;
-    return ctx.db
-      .query("atelierOrders")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(ORDERS_PER_OWNER_MAX);
+    rows.push(
+      ...(await ctx.db
+        .query("atelierOrders")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(ORDERS_PER_OWNER_MAX)),
+    );
   }
   if (actor.guestKey) {
     const guestKey = actor.guestKey;
-    return ctx.db
-      .query("atelierOrders")
-      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
-      .order("desc")
-      .take(ORDERS_PER_OWNER_MAX);
+    rows.push(
+      ...(await ctx.db
+        .query("atelierOrders")
+        .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+        .order("desc")
+        .take(ORDERS_PER_OWNER_MAX)),
+    );
   }
-  return [];
+  const seen = new Set<string>();
+  const unique = rows.filter((row) => (seen.has(row._id) ? false : (seen.add(row._id), true)));
+  unique.sort((a, b) => b.updatedAt - a.updatedAt);
+  return unique.slice(0, ORDERS_PER_OWNER_MAX);
 }
 
 /** A05. One status, or every status with the most recent activity first. */
@@ -592,9 +610,11 @@ export type StaffMilestoneInput = {
 };
 
 /**
- * Records a dated, sourced milestone. A fact of kind making, quality_review, shipped, collected or
- * fit_review moves the status forward; an estimate of any kind moves nothing (C22: estimates are
- * labelled, never promoted).
+ * Records a dated, sourced milestone of a production kind (PRODUCTION_MILESTONE_KINDS). A fact of kind
+ * making, quality_review, shipped, collected or fit_review moves the status forward; an estimate of any
+ * kind moves nothing (C22: estimates are labelled, never promoted). The kinds with an action of their
+ * own (quote_accepted, payment, released, delivered, fit_accepted, correction_opened) are refused here:
+ * they are facts only that action can record, never a hand-written line.
  */
 export async function addMilestone(
   ctx: MutationCtx,
@@ -603,6 +623,13 @@ export async function addMilestone(
   input: StaffMilestoneInput,
   now: number = Date.now(),
 ): Promise<Id<"atelierOrderMilestones">> {
+  if (!isProductionMilestoneKind(input.kind)) {
+    throw appError(
+      "INVALID_INPUT",
+      `"${MILESTONE_KIND_LABELS[input.kind]}" is not recorded by hand; it is written by the action that makes it true.`,
+      { kind: input.kind },
+    );
+  }
   const label = input.label.trim();
   if (!label) throw appError("INVALID_INPUT", "Give the milestone a label.");
   if (!Number.isFinite(input.at)) throw appError("INVALID_INPUT", "Give the milestone a date.");
@@ -955,6 +982,31 @@ export async function setFirstFitChecklist(
 }
 
 /**
+ * The one place "Fit accepted" is written: the client's own acceptance (`acceptFit`) and the corrections
+ * model when the client's resolved reassessment closes the last open correction (C24). Stamps
+ * `fitAcceptedAt` the first time and records the `fit_accepted` milestone with the client as its source;
+ * a suit whose fit was accepted before keeps that date and gets no second milestone.
+ */
+export async function recordFitAcceptance(
+  ctx: MutationCtx,
+  order: Order,
+  now: number = Date.now(),
+  note?: string,
+): Promise<void> {
+  const first = order.fitAcceptedAt === undefined;
+  await ctx.db.patch(order._id, { status: "accepted", updatedAt: now, ...(first ? { fitAcceptedAt: now } : {}) });
+  if (!first) return;
+  await insertMilestone(ctx, order._id, {
+    kind: "fit_accepted",
+    label: ORDER_STATUS_LABELS.accepted,
+    at: now,
+    source: "client",
+    note,
+    estimated: false,
+  });
+}
+
+/**
  * C23. The client accepts the fit. Allowed with the suit in hand (shipped, collected or in fit review)
  * and no region still flagged as an issue. Accepting does not waive the house's alteration promise.
  */
@@ -978,14 +1030,7 @@ export async function acceptFit(ctx: MutationCtx, actor: Actor, order: Order, no
       { regions: [...issues] },
     );
   }
-  await ctx.db.patch(order._id, { status: "accepted", fitAcceptedAt: now, updatedAt: now });
-  await insertMilestone(ctx, order._id, {
-    kind: "fit_accepted",
-    label: ORDER_STATUS_LABELS.accepted,
-    at: now,
-    source: "client",
-    estimated: false,
-  });
+  await recordFitAcceptance(ctx, order, now);
   await appendMessage(
     ctx,
     order.caseId,

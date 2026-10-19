@@ -11,17 +11,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatDateTime, formatUsd, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import type { CaseView } from "@convex/atelier/cases";
 import type { QuoteView } from "@convex/atelier/quotes";
 import { REDEMPTION_STATUS_LABELS } from "@convex/shared/atelier/enums";
 
 /**
  * S27 (C21): one quote as the house priced it — lines by kind, the total, the benefit when one is
- * carried, lead time, fittings, terms and expiry — and the one action that is true for its state.
+ * carried, lead time, fittings, terms and expiry — and the one action that is true for its state. A quote
+ * on a request the house has closed can be read but not accepted; the server refuses it too.
  */
-export function QuoteDetail({ quote }: { quote: QuoteView }) {
+export function QuoteDetail({ quote, request }: { quote: QuoteView; request: Pick<CaseView, "open" | "statusLabel"> }) {
   const [now] = useState(() => Date.now());
   const expired = isQuoteExpired(quote, now);
-  const acceptable = quote.status === "offered" && quote.isCurrentRevision && !expired;
+  const acceptable = quote.status === "offered" && quote.isCurrentRevision && !expired && request.open;
   const groups = groupQuoteLines(quote.lines);
 
   return (
@@ -136,6 +138,11 @@ export function QuoteDetail({ quote }: { quote: QuoteView }) {
         </div>
       ) : acceptable ? (
         <QuoteAccept quote={quote} />
+      ) : quote.status === "offered" && !expired && !request.open ? (
+        <p className="max-w-2xl border-t border-foreground/15 pt-5 text-sm leading-relaxed text-muted-foreground">
+          This request is {request.statusLabel.toLowerCase()}; the quote can no longer be accepted. Send a new request
+          from your design and your concierge will quote it again.
+        </p>
       ) : expired ? (
         <p className="max-w-2xl border-t border-foreground/15 pt-5 text-sm leading-relaxed text-muted-foreground">
           This quote expired on {formatDate(quote.expiresAt)}. Ask your concierge for a fresh quote in the conversation

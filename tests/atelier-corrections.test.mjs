@@ -209,6 +209,44 @@ test("a fit issue on a delivered suit opens an aftercare case, records the fit p
   assert.equal(view.statusLabel, CORRECTION_STATUS_LABELS.requested);
 });
 
+test("staff read a photo count, and the photographs only through an audited look; the client's own view keeps the URLs", async () => {
+  const s = await setup();
+  const photos = [s.storage.addFile("_storage|photo1"), s.storage.addFile("_storage|photo2")];
+  const { correctionId } = await s.request({ photoStorageIds: photos });
+  const c = await s.correction(correctionId);
+
+  const staffView = await corrections.toStaffView(s.f.ctx, c);
+  assert.equal(staffView.photoCount, 2);
+  assert.equal("photoUrls" in staffView, false, "the staff view signs nothing");
+  assert.equal("photoStorageIds" in staffView, false);
+  assert.equal(s.audits("photo.view").length, 0, "reading the view is not a look");
+
+  const clientView = await corrections.toCorrectionView(s.f.ctx, c);
+  assert.deepEqual(
+    clientView.photoUrls,
+    photos.map((id) => `https://files.test/${id}`),
+    "the client sees their own photographs without ceremony",
+  );
+  assert.equal(s.audits("photo.view").length, 0);
+
+  const urls = await corrections.viewPhotosAsStaff(s.f.ctx, s.operations, c, NOW + 1);
+  assert.deepEqual(
+    urls,
+    photos.map((id) => `https://files.test/${id}`),
+  );
+  const looks = s.audits("photo.view");
+  assert.equal(looks.length, 2, "one audit row per photograph");
+  for (const [index, look] of looks.entries()) {
+    assert.equal(look.actorUserId, s.operations._id);
+    assert.equal(look.actorKind, "staff");
+    assert.equal(look.targetTable, "atelierCorrections");
+    assert.equal(look.targetId, correctionId);
+    assert.equal(look.meta.storageId, photos[index]);
+    assert.equal(look.meta.orderId, s.orderId);
+    assert.equal(look.at, NOW + 1);
+  }
+});
+
 test("a detail mismatch is named as a manufacturing check, not a fit correction", async () => {
   const s = await setup();
   const { caseId } = await s.request({
@@ -483,6 +521,75 @@ test("declined only from a triaged request, and only with a note; the order then
   assert.equal(s.audits("correction.setStatus").length, 1, "setting the same word again changes nothing");
 });
 
+test("a resolved reassessment records the fit acceptance, so a later declined correction returns the suit to accepted, not to the fit review", async () => {
+  const s = await setup({ status: "fit_review" });
+  const milestonesOf = (kind) => s.f.rowsOf("atelierOrderMilestones").filter((m) => m.kind === kind);
+  const { correctionId } = await s.request();
+  assert.equal((await s.order()).status, "correction_open");
+  await completeCorrection(s, correctionId);
+  await corrections.reassess(
+    s.f.ctx,
+    s.actor,
+    await s.correction(correctionId),
+    { outcome: "resolved", note: "Perfect now." },
+    NOW + 7,
+  );
+  let order = await s.order();
+  assert.equal(order.status, "accepted");
+  assert.equal(order.fitAcceptedAt, NOW + 7, "the acceptance is stamped, not inferred");
+  let accepted = milestonesOf("fit_accepted");
+  assert.equal(accepted.length, 1, "the fit_accepted milestone is written once");
+  assert.equal(accepted[0].source, "client");
+  assert.equal(accepted[0].at, NOW + 7);
+  assert.equal(accepted[0].estimated, false);
+  assert.match(accepted[0].note, /reassessed the alteration/);
+
+  // Weeks later the client asks about a refund (allowed on an accepted suit) and operations decline it.
+  const refund = await s.request(
+    { kind: "refund", region: undefined, description: "Could I have store credit instead?", submissionKey: "corr-2" },
+    NOW + 20 * DAY,
+  );
+  assert.equal((await s.order()).status, "correction_open");
+  await corrections.triage(
+    s.f.ctx,
+    s.operations,
+    await s.correction(refund.correctionId),
+    "Reviewing.",
+    NOW + 20 * DAY + 1,
+  );
+  await corrections.setStatus(
+    s.f.ctx,
+    s.operations,
+    await s.correction(refund.correctionId),
+    "declined",
+    "Bespoke commissions are final sale; the alteration promise stands.",
+    NOW + 20 * DAY + 2,
+  );
+  order = await s.order();
+  assert.equal(order.status, "accepted", "an accepted commission does not fall back to the fit review");
+  assert.equal(order.fitAcceptedAt, NOW + 7, "the original acceptance date is kept");
+  accepted = milestonesOf("fit_accepted");
+  assert.equal(accepted.length, 1, "no second acceptance is invented");
+
+  // And a correction resolved on an already-accepted suit keeps the first acceptance.
+  const again = await s.request(
+    { region: "trouser_length", description: "Trousers a touch long.", submissionKey: "corr-3" },
+    NOW + 30 * DAY,
+  );
+  await completeCorrection(s, again.correctionId, { at: NOW + 30 * DAY });
+  await corrections.reassess(
+    s.f.ctx,
+    s.actor,
+    await s.correction(again.correctionId),
+    { outcome: "resolved", note: "" },
+    NOW + 31 * DAY,
+  );
+  order = await s.order();
+  assert.equal(order.status, "accepted");
+  assert.equal(order.fitAcceptedAt, NOW + 7);
+  assert.equal(milestonesOf("fit_accepted").length, 1);
+});
+
 test("an order whose fit had been accepted returns to accepted when a correction is declined", async () => {
   const s = await setup({ status: "accepted", fitAcceptedAt: NOW - 12 * 3_600_000 });
   const { correctionId } = await s.request();
@@ -689,8 +796,16 @@ test("staff escalate any open correction once; a closed one cannot be escalated"
   const caseDoc = await s.f.ctx.db.get(caseId);
   assert.equal(caseDoc.priority, "high");
   assert.equal(caseDoc.ownerStaffId, s.operations._id, "the case has an owner");
+  assert.equal(s.audits("correction.escalate").length, 1);
   await corrections.escalate(s.f.ctx, s.operations, await c(), "Still nothing from the carrier.", NOW + 2);
   assert.equal((await c()).escalatedAt, NOW + 1, "escalating twice only adds the note");
+  const escalations = s.audits("correction.escalate");
+  assert.equal(escalations.length, 2, "the repeat is a staff write and is audited like the first");
+  assert.equal(escalations[1].meta.repeat, true);
+  assert.equal(escalations[1].meta.from, "escalated");
+  assert.equal(escalations[1].actorUserId, s.operations._id);
+  assert.equal(escalations[1].at, NOW + 2);
+  assert.equal(escalations[0].meta.repeat, undefined);
   await corrections.setStatus(
     s.f.ctx,
     s.operations,
