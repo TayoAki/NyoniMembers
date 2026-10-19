@@ -22,6 +22,7 @@ import {
   type Occasion,
   type ParticipantStatus,
 } from "../../shared/atelier/enums";
+import { GROUP_TRANSITIONS } from "../../shared/atelier/transitions";
 import { completedStepsFor, describeSpec, validateSpec, type SuitSpec } from "../../shared/atelier/spec";
 import { clothSummary, ensureCatalogueSeeded, getEntry, specNames } from "./catalogue";
 import { cloneSpec, DRAFT_NAME_MAX } from "./drafts";
@@ -66,13 +67,7 @@ export function isPermittedIndividualPath(value: string): value is PermittedIndi
 
 export { GROUP_STATUS_LABELS };
 
-export const GROUP_TRANSITIONS: Record<GroupStatus, readonly GroupStatus[]> = {
-  draft: ["inviting", "in_review", "closed"],
-  inviting: ["in_review", "closed"],
-  in_review: ["approved", "closed"],
-  approved: ["in_review", "closed"],
-  closed: [],
-};
+export { GROUP_TRANSITIONS };
 
 export function canTransitionGroup(from: GroupStatus, to: GroupStatus): boolean {
   return GROUP_TRANSITIONS[from].includes(to);

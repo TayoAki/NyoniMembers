@@ -292,6 +292,43 @@ export const MILESTONE_SOURCE_LABELS: Record<MilestoneSource, string> = {
   client: "You",
   system: "Recorded by the system",
 };
+
+/** Milestone kinds the house records. The table keeps `kind` as a string so older rows still read. */
+export const ORDER_MILESTONE_KINDS = [
+  "quote_accepted",
+  "payment",
+  "released",
+  "cloth_cut",
+  "making",
+  "quality_review",
+  "shipped",
+  "collected",
+  "delivered",
+  "fit_review",
+  "fit_accepted",
+  "correction_opened",
+  "risk",
+  "estimated_ready",
+  "note",
+] as const;
+export type OrderMilestoneKind = (typeof ORDER_MILESTONE_KINDS)[number];
+export const MILESTONE_KIND_LABELS: Record<OrderMilestoneKind, string> = {
+  quote_accepted: "Quote accepted",
+  payment: "Payment recorded",
+  released: "Released to the cutter",
+  cloth_cut: "Cloth cut",
+  making: "In the making",
+  quality_review: "Quality review",
+  shipped: "Shipped",
+  collected: "Collected",
+  delivered: "Delivered",
+  fit_review: "Fit review",
+  fit_accepted: "Fit accepted",
+  correction_opened: "Correction opened",
+  risk: "Risk to the date",
+  estimated_ready: "Estimated ready",
+  note: "Note",
+};
 export const CHECKLIST_STATES = ["unchecked", "ok", "issue"] as const;
 export type ChecklistState = (typeof CHECKLIST_STATES)[number];
 /** The first-fit checklist regions, which are also the regions a correction can name. */
@@ -448,6 +485,12 @@ export const PRIVACY_STATUS_LABELS: Record<PrivacyStatus, string> = {
 };
 export const PRIVACY_STEP_STATUSES = ["pending", "done", "failed", "exception"] as const;
 export type PrivacyStepStatus = (typeof PRIVACY_STEP_STATUSES)[number];
+export const PRIVACY_STEP_STATUS_LABELS: Record<PrivacyStepStatus, string> = {
+  pending: "Pending",
+  done: "Done",
+  failed: "Failed · can be re-run",
+  exception: "Kept · a disclosed exception",
+};
 
 export const GROUP_STATUSES = ["draft", "inviting", "in_review", "approved", "closed"] as const;
 export type GroupStatus = (typeof GROUP_STATUSES)[number];

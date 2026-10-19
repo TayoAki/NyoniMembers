@@ -19,8 +19,8 @@ import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { PrivacyRequestView } from "@convex/atelier/privacy";
-import { PRIVACY_STATUS_LABELS } from "@convex/shared/atelier/enums";
-import { PRIVACY_STATUS_TONES, STEP_STATUS_TONES, STEP_STATUS_WORDS } from "./privacy-words";
+import { PRIVACY_STATUS_LABELS, PRIVACY_STEP_STATUS_LABELS } from "@convex/shared/atelier/enums";
+import { PRIVACY_STATUS_TONES, STEP_STATUS_TONES } from "./privacy-words";
 
 /** O08 steps 2–3: one request's steps as they really stand, with re-run, complete and reject. */
 export function PrivacyRequestDetail({ requestId }: { requestId: Id<"atelierPrivacyRequests"> }) {
@@ -56,7 +56,9 @@ export function PrivacyRequestDetailView({ request }: { request: PrivacyRequestV
             <ol className="flex flex-col gap-1.5">
               {request.steps.map((step) => (
                 <li key={step.key} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                  <StatusLine tone={STEP_STATUS_TONES[step.status]}>{STEP_STATUS_WORDS[step.status]}</StatusLine>
+                  <StatusLine tone={STEP_STATUS_TONES[step.status]}>
+                    {PRIVACY_STEP_STATUS_LABELS[step.status]}
+                  </StatusLine>
                   <span>{step.label}</span>
                   {step.at !== null ? (
                     <Mono upper={false} className="text-[10px]">

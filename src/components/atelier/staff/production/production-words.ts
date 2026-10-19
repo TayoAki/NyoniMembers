@@ -1,12 +1,16 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
 import {
+  MILESTONE_KIND_LABELS,
   MILESTONE_SOURCE_LABELS,
+  ORDER_MILESTONE_KINDS,
   ORDER_STATUS_LABELS,
   ORDER_STATUSES,
   type MilestoneSource,
+  type OrderMilestoneKind,
   type OrderStatus,
   type PaymentState,
 } from "@convex/shared/atelier/enums";
+import { PAYMENT_TRANSITIONS, STATUS_FOR_MILESTONE } from "@convex/shared/atelier/transitions";
 
 /**
  * Words for the production desk (A05, O05). Status words the client reads come from the views
@@ -68,52 +72,7 @@ export function filterDescription(filter: ProductionFilter): string {
   return `Commissions the client reads as “${ORDER_STATUS_LABELS[filter]}”.`;
 }
 
-/** Mirror of ORDER_MILESTONE_KINDS in convex/model/atelier/orders.ts. */
-export const ORDER_MILESTONE_KINDS = [
-  "quote_accepted",
-  "payment",
-  "released",
-  "cloth_cut",
-  "making",
-  "quality_review",
-  "shipped",
-  "collected",
-  "delivered",
-  "fit_review",
-  "fit_accepted",
-  "correction_opened",
-  "risk",
-  "estimated_ready",
-  "note",
-] as const;
-export type OrderMilestoneKind = (typeof ORDER_MILESTONE_KINDS)[number];
-
-export const MILESTONE_KIND_WORDS: Record<OrderMilestoneKind, string> = {
-  quote_accepted: "Quote accepted",
-  payment: "Payment recorded",
-  released: "Released to the cutter",
-  cloth_cut: "Cloth cut",
-  making: "In the making",
-  quality_review: "Quality review",
-  shipped: "Shipped",
-  collected: "Collected",
-  delivered: "Delivered",
-  fit_review: "Fit review",
-  fit_accepted: "Fit accepted",
-  correction_opened: "Correction opened",
-  risk: "Risk to the date",
-  estimated_ready: "Estimated ready",
-  note: "Note",
-};
-
-/** Mirror of STATUS_FOR_MILESTONE in the model: a fact of these kinds moves the commission; an estimate never does. */
-export const STATUS_FOR_MILESTONE: Partial<Record<OrderMilestoneKind, OrderStatus>> = {
-  making: "making",
-  quality_review: "quality_review",
-  shipped: "shipped",
-  collected: "collected",
-  fit_review: "fit_review",
-};
+export { MILESTONE_KIND_LABELS, ORDER_MILESTONE_KINDS, STATUS_FOR_MILESTONE, type OrderMilestoneKind };
 
 /** The kinds the desk records by hand; the others are written by their own action (release, payment, shipping, risk). */
 export const HAND_RECORDED_KINDS: readonly OrderMilestoneKind[] = [
@@ -132,15 +91,7 @@ export const MILESTONE_SOURCE_STAFF_WORDS: Record<MilestoneSource, string> = {
   client: "The client",
 };
 
-/** Mirror of PAYMENT_TRANSITIONS in convex/model/atelier/orders.ts. */
-export const PAYMENT_TRANSITIONS: Record<PaymentState, readonly PaymentState[]> = {
-  none: ["pending", "confirmed"],
-  pending: ["confirmed", "failed"],
-  failed: ["pending", "confirmed"],
-  confirmed: ["refunded_partial", "refunded"],
-  refunded_partial: ["refunded"],
-  refunded: [],
-};
+export { PAYMENT_TRANSITIONS };
 
 export const SHIPPABLE_STATUSES: readonly OrderStatus[] = ["released", "making", "quality_review"];
 export const DELIVERABLE_STATUSES: readonly OrderStatus[] = ["shipped", "collected"];

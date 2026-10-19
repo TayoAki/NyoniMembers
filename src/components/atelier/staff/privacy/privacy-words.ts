@@ -21,13 +21,6 @@ export const PRIVACY_STATUS_TONES: Record<PrivacyStatus, StatusTone> = {
   rejected: "neutral",
 };
 
-export const STEP_STATUS_WORDS: Record<PrivacyStepStatus, string> = {
-  pending: "Pending",
-  done: "Done",
-  failed: "Failed · can be re-run",
-  exception: "Kept · a disclosed exception",
-};
-
 export const STEP_STATUS_TONES: Record<PrivacyStepStatus, StatusTone> = {
   pending: "warning",
   done: "success",

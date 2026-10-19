@@ -18,17 +18,20 @@ import {
   FIT_REGION_LABELS,
   FIT_REGIONS,
   MILESTONE_SOURCE_LABELS,
+  ORDER_MILESTONE_KINDS,
   ORDER_STATUS_LABELS,
   ORDER_STATUSES,
   PAYMENT_STATE_LABELS,
   QUOTE_STATUS_LABELS,
   type ChecklistState,
   type MilestoneSource,
+  type OrderMilestoneKind,
   type OrderStatus,
   type PaymentState,
 } from "../../shared/atelier/enums";
 import { eventReadiness, HOUSE_POLICY } from "../../shared/atelier/policy";
 import { describeSpec, specSummary, validateSpec } from "../../shared/atelier/spec";
+import { PAYMENT_TRANSITIONS, STATUS_FOR_MILESTONE } from "../../shared/atelier/transitions";
 import { clothSummary, getEntry, specNames } from "./catalogue";
 import { appendMessage } from "./case_core";
 
@@ -52,34 +55,7 @@ type Payment = Order["payment"];
  * after release is a new proposal on the case, never an edit of the released package (O05).
  */
 
-/** Milestone kinds the house records. The table keeps `kind` as a string so older rows still read. */
-export const ORDER_MILESTONE_KINDS = [
-  "quote_accepted",
-  "payment",
-  "released",
-  "cloth_cut",
-  "making",
-  "quality_review",
-  "shipped",
-  "collected",
-  "delivered",
-  "fit_review",
-  "fit_accepted",
-  "correction_opened",
-  "risk",
-  "estimated_ready",
-  "note",
-] as const;
-export type OrderMilestoneKind = (typeof ORDER_MILESTONE_KINDS)[number];
-
-/** Milestones that move the commission along the line when they are facts, not estimates. */
-const STATUS_FOR_MILESTONE: Partial<Record<OrderMilestoneKind, OrderStatus>> = {
-  making: "making",
-  quality_review: "quality_review",
-  shipped: "shipped",
-  collected: "collected",
-  fit_review: "fit_review",
-};
+export { ORDER_MILESTONE_KINDS, type OrderMilestoneKind };
 
 /** Position on the line, so production never runs backwards. Shipped and collected share a place. */
 const STATUS_RANK: Record<OrderStatus, number> = {
@@ -95,15 +71,7 @@ const STATUS_RANK: Record<OrderStatus, number> = {
   cancelled: 7,
 };
 
-/** The payment words that may follow each other. Nothing becomes "confirmed" except by a staff record. */
-export const PAYMENT_TRANSITIONS: Record<PaymentState, readonly PaymentState[]> = {
-  none: ["pending", "confirmed"],
-  pending: ["confirmed", "failed"],
-  failed: ["pending", "confirmed"],
-  confirmed: ["refunded_partial", "refunded"],
-  refunded_partial: ["refunded"],
-  refunded: [],
-};
+export { PAYMENT_TRANSITIONS };
 
 export { MILESTONE_SOURCE_LABELS };
 

@@ -1,4 +1,14 @@
-import type { AppointmentStatus, CaseStatus, CatalogueStatus, SampleState } from "./enums";
+import type {
+  AppointmentStatus,
+  CaseStatus,
+  CatalogueStatus,
+  CorrectionStatus,
+  GroupStatus,
+  OrderMilestoneKind,
+  OrderStatus,
+  PaymentState,
+  SampleState,
+} from "./enums";
 
 /**
  * The state machines staff drive by hand. They live here, beside the enums, so the staff desk can offer only
@@ -35,4 +45,56 @@ export const CATALOGUE_TRANSITIONS: Record<CatalogueStatus, readonly CatalogueSt
   draft: ["approved", "withdrawn"],
   approved: ["withdrawn"],
   withdrawn: ["approved", "draft"],
+};
+
+export const CORRECTION_TRANSITIONS: Record<CorrectionStatus, readonly CorrectionStatus[]> = {
+  requested: ["triaged", "escalated"],
+  triaged: ["remedy_proposed", "declined", "escalated"],
+  remedy_proposed: ["remedy_proposed", "accepted", "escalated"],
+  accepted: ["in_progress", "escalated"],
+  in_progress: ["received", "completed", "escalated"],
+  received: ["completed", "escalated"],
+  completed: ["closed", "escalated"],
+  escalated: ["triaged", "remedy_proposed", "declined", "closed"],
+  declined: ["closed"],
+  closed: [],
+};
+
+/** What `corrections.setStatus` may set directly; the other words have an action of their own or belong to the client. */
+export const STAFF_SETTABLE_STATUSES: readonly CorrectionStatus[] = [
+  "in_progress",
+  "received",
+  "completed",
+  "declined",
+  "closed",
+];
+
+/** Correction statuses that need a note the client can read. */
+export const NOTE_REQUIRED_STATUSES: readonly CorrectionStatus[] = ["declined", "closed"];
+
+/** The payment words that may follow each other. Nothing becomes "confirmed" except by a staff record. */
+export const PAYMENT_TRANSITIONS: Record<PaymentState, readonly PaymentState[]> = {
+  none: ["pending", "confirmed"],
+  pending: ["confirmed", "failed"],
+  failed: ["pending", "confirmed"],
+  confirmed: ["refunded_partial", "refunded"],
+  refunded_partial: ["refunded"],
+  refunded: [],
+};
+
+/** Milestones that move the commission along the line when they are facts, not estimates. */
+export const STATUS_FOR_MILESTONE: Partial<Record<OrderMilestoneKind, OrderStatus>> = {
+  making: "making",
+  quality_review: "quality_review",
+  shipped: "shipped",
+  collected: "collected",
+  fit_review: "fit_review",
+};
+
+export const GROUP_TRANSITIONS: Record<GroupStatus, readonly GroupStatus[]> = {
+  draft: ["inviting", "in_review", "closed"],
+  inviting: ["in_review", "closed"],
+  in_review: ["approved", "closed"],
+  approved: ["in_review", "closed"],
+  closed: [],
 };

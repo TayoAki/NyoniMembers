@@ -1,5 +1,10 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
 import {
+  CORRECTION_TRANSITIONS,
+  NOTE_REQUIRED_STATUSES,
+  STAFF_SETTABLE_STATUSES,
+} from "@convex/shared/atelier/transitions";
+import {
   CORRECTION_STATUS_LABELS,
   CORRECTION_STATUSES,
   type CorrectionStatus,
@@ -38,30 +43,7 @@ export const REFUND_STATE_TONES: Record<RefundState, StatusTone> = {
   refunded: "success",
 };
 
-/** Mirror of CORRECTION_TRANSITIONS in convex/model/atelier/corrections.ts. */
-export const CORRECTION_TRANSITIONS: Record<CorrectionStatus, readonly CorrectionStatus[]> = {
-  requested: ["triaged", "escalated"],
-  triaged: ["remedy_proposed", "declined", "escalated"],
-  remedy_proposed: ["remedy_proposed", "accepted", "escalated"],
-  accepted: ["in_progress", "escalated"],
-  in_progress: ["received", "completed", "escalated"],
-  received: ["completed", "escalated"],
-  completed: ["closed", "escalated"],
-  escalated: ["triaged", "remedy_proposed", "declined", "closed"],
-  declined: ["closed"],
-  closed: [],
-};
-
-/** Mirror of STAFF_SETTABLE_STATUSES: what `setStatus` may set directly; the rest have an action of their own. */
-export const STAFF_SETTABLE_STATUSES: readonly CorrectionStatus[] = [
-  "in_progress",
-  "received",
-  "completed",
-  "declined",
-  "closed",
-];
-/** Mirror of NOTE_REQUIRED_STATUSES: these need a note the client can read. */
-export const NOTE_REQUIRED_STATUSES: readonly CorrectionStatus[] = ["declined", "closed"];
+export { CORRECTION_TRANSITIONS, NOTE_REQUIRED_STATUSES, STAFF_SETTABLE_STATUSES };
 
 export function canTransition(from: CorrectionStatus, to: CorrectionStatus): boolean {
   return CORRECTION_TRANSITIONS[from].includes(to);

@@ -24,7 +24,7 @@ import {
 import { dateInputToTimestamp, timestampToDateInput } from "./date-input";
 import {
   HAND_RECORDED_KINDS,
-  MILESTONE_KIND_WORDS,
+  MILESTONE_KIND_LABELS,
   MILESTONE_SOURCE_STAFF_WORDS,
   type OrderMilestoneKind,
   STATUS_FOR_MILESTONE,
@@ -52,7 +52,7 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
 
   function chooseKind(next: OrderMilestoneKind) {
     setKind(next);
-    if (!labelTouched) setLabel(MILESTONE_KIND_WORDS[next]);
+    if (!labelTouched) setLabel(MILESTONE_KIND_LABELS[next]);
     if (next === "estimated_ready") setEstimated(true);
   }
 
@@ -96,7 +96,7 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
     const advancesTo = STATUS_FOR_MILESTONE[candidate];
     return {
       code: candidate,
-      label: MILESTONE_KIND_WORDS[candidate],
+      label: MILESTONE_KIND_LABELS[candidate],
       description: advancesTo ? `As a fact, moves the commission to “${ORDER_STATUS_LABELS[advancesTo]}”.` : undefined,
     };
   });
@@ -195,7 +195,7 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
           <p className="text-xs text-muted-foreground">
             Client reads:{" "}
             <span className="text-foreground">
-              “{label.trim() || MILESTONE_KIND_WORDS[kind]}”{estimated ? " · Estimate" : ""}
+              “{label.trim() || MILESTONE_KIND_LABELS[kind]}”{estimated ? " · Estimate" : ""}
             </span>
             {!estimated && target ? ` and the status “${ORDER_STATUS_LABELS[target]}”` : ""}
           </p>

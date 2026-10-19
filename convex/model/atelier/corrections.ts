@@ -39,9 +39,15 @@ import {
 } from "../../shared/atelier/enums";
 import { HOUSE_POLICY } from "../../shared/atelier/policy";
 import { describeSpec, specSummary } from "../../shared/atelier/spec";
+import {
+  CORRECTION_TRANSITIONS,
+  NOTE_REQUIRED_STATUSES,
+  PAYMENT_TRANSITIONS,
+  STAFF_SETTABLE_STATUSES,
+} from "../../shared/atelier/transitions";
 import { clothSummary, specNames } from "./catalogue";
 import { appendMessage, createCase, touchCase, type Contact } from "./case_core";
-import { PAYMENT_TRANSITIONS, recordPayment } from "./orders";
+import { recordPayment } from "./orders";
 
 type Ctx = QueryCtx | MutationCtx;
 type Correction = Doc<"atelierCorrections">;
@@ -99,29 +105,7 @@ export const OPEN_CORRECTION_STATUSES: readonly CorrectionStatus[] = [
 ];
 export const TERMINAL_CORRECTION_STATUSES: readonly CorrectionStatus[] = ["declined", "closed"];
 
-export const CORRECTION_TRANSITIONS: Record<CorrectionStatus, readonly CorrectionStatus[]> = {
-  requested: ["triaged", "escalated"],
-  triaged: ["remedy_proposed", "declined", "escalated"],
-  remedy_proposed: ["remedy_proposed", "accepted", "escalated"],
-  accepted: ["in_progress", "escalated"],
-  in_progress: ["received", "completed", "escalated"],
-  received: ["completed", "escalated"],
-  completed: ["closed", "escalated"],
-  escalated: ["triaged", "remedy_proposed", "declined", "closed"],
-  declined: ["closed"],
-  closed: [],
-};
-
-/** What `setStatus` may set directly; the other words have a function of their own or belong to the client. */
-export const STAFF_SETTABLE_STATUSES: readonly CorrectionStatus[] = [
-  "in_progress",
-  "received",
-  "completed",
-  "declined",
-  "closed",
-];
-/** Statuses that need a note the client can read. */
-const NOTE_REQUIRED_STATUSES: readonly CorrectionStatus[] = ["declined", "closed"];
+export { CORRECTION_TRANSITIONS, STAFF_SETTABLE_STATUSES };
 
 export function canTransition(from: CorrectionStatus, to: CorrectionStatus): boolean {
   return CORRECTION_TRANSITIONS[from].includes(to);

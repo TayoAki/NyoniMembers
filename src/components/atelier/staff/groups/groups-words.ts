@@ -1,4 +1,5 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
+import { GROUP_TRANSITIONS } from "@convex/shared/atelier/transitions";
 import type { GroupReviewStatus } from "@convex/atelier/groups";
 import { GROUP_STATUS_LABELS, type GroupStatus, type ParticipantStatus } from "@convex/shared/atelier/enums";
 
@@ -30,14 +31,7 @@ export const PARTICIPANT_STATUS_TONES: Record<ParticipantStatus, StatusTone> = {
   declined: "neutral",
 };
 
-/** Mirror of GROUP_TRANSITIONS in convex/model/atelier/groups.ts. */
-export const GROUP_TRANSITIONS: Record<GroupStatus, readonly GroupStatus[]> = {
-  draft: ["inviting", "in_review", "closed"],
-  inviting: ["in_review", "closed"],
-  in_review: ["approved", "closed"],
-  approved: ["in_review", "closed"],
-  closed: [],
-};
+export { GROUP_TRANSITIONS };
 
 /** The outcomes `groups.review` accepts (vGroupReviewStatus), in the order the desk offers them. */
 export const REVIEW_STATUSES: readonly GroupReviewStatus[] = ["approved", "in_review", "closed"];
