@@ -14,7 +14,9 @@ Phase 1 of the plan is under way on this branch:
 - The Nyoni capsule: twenty-two curated pieces (four suits and a tuxedo, a blazer and an overcoat, three trousers, shirts and knitwear, three pairs of shoes, four accessories) seeded into every wardrobe after onboarding (`convex/collection.ts`); "Add the Nyoni capsule" in the wardrobe restores it.
 - Menswear-only onboarding.
 
-Next, per `docs/05-mobile-app-plan.md`: **Nyoni Circle**, a new Expo app built from scratch in `circle/` on its own Convex deployment, with WooCommerce checkout. It carries over only the tuned image prompts and the concierge persona, and sells two things: the Circle membership on WooCommerce and an Atelier app subscription through the stores. This web app is frozen while it is built. Still to do from the web plan: tier-based preview allowances replacing the credit meter, measurements, commissions and fittings, the staff console. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; the capsule's photography was pulled the same way.
+- **The Atelier**, the made-to-measure suit experience from `docs/journeys/`: a seven-step design studio (occasion, cloth from the house's real books, silhouette and tailoring details on a parametric figure, buttons, lining and monogram, an illustrative personal preview, fit, review) that works without an account and saves to the browser; fit profiles and the guided measurement sheet; fitting requests; quote and design-review requests with a concierge conversation, proposals and quotes; production tracking, delivery, first fit and aftercare; the privacy centre; group commissions. Staff run intake, the case desk, catalogue approval, fit review, quotes, production, preview operations, aftercare and privacy from `/admin/atelier`. Every state the client reads is a fixed, truthful word: a request is received, not booked; a quote is accepted, not paid; a preview is an illustration, not a fitting. `docs/08-atelier-build-contract.md` is the contract and `docs/09-atelier-coverage.md` maps each journey to the code.
+
+Next, per `docs/05-mobile-app-plan.md`: **Nyoni Circle**, a new Expo app built from scratch in `circle/` on its own Convex deployment, with WooCommerce checkout. It carries over only the tuned image prompts and the concierge persona, and sells two things: the Circle membership on WooCommerce and an Atelier app subscription through the stores. The freeze on this web app while it is built was lifted for the Atelier. Still to do from the web plan: tier-based preview allowances replacing the credit meter. The catalogue (775 products) and the live site's branding were captured through Firecrawl on 21 September; the capsule's photography was pulled the same way.
 
 ## Documents
 
@@ -25,6 +27,9 @@ Next, per `docs/05-mobile-app-plan.md`: **Nyoni Circle**, a new Expo app built f
 | [docs/03-nyoni-members-app-plan.md](docs/03-nyoni-members-app-plan.md)           | Concept, feature map, tiers and entitlements, data model, routes, design system, content pipeline, roadmap                            |
 | [docs/04-launch-checklist.md](docs/04-launch-checklist.md)                       | Everything needed to run, deploy and fill the app: accounts, environment variables, data from the house, hosting, order of operations |
 | [research/nyoni/catalogue-snapshot.json](research/nyoni/catalogue-snapshot.json) | The store's products and price bands as indexed on 21 Sep 2026                                                                        |
+| [docs/journeys/](docs/journeys/)                                                 | The Atelier specification: client and service journeys, screens and states, staff surfaces, acceptance scenarios                      |
+| [docs/08-atelier-build-contract.md](docs/08-atelier-build-contract.md)           | The Atelier build contract: routes, access, schema, Convex modules, state language, acceptance → enforcement, ownership               |
+| [docs/09-atelier-coverage.md](docs/09-atelier-coverage.md)                       | Where each Atelier journey, screen and staff surface lives in the code, and what is deliberately not built                            |
 | [AGENTS.md](AGENTS.md) and [DESIGN.md](DESIGN.md)                                | Working rules and design direction for anyone (or any agent) changing the code                                                        |
 
 ## Run it locally
@@ -66,6 +71,17 @@ The SDK, provider, proxy and sign-in/sign-up routes are already in place, so `cl
 ### Membership status
 
 Memberships are sold by the house, not the app. A member's tier lives on their record (`users.membership`: Signature, Prestige, Circle Elite, or Client for everyone else) and is set by staff in Admin → Membership by looking the account up by email. Members see their tier, its benefits and the concierge contacts on the Membership page. A WooCommerce sync can replace the manual step later without changing the model.
+
+### The Atelier locally
+
+The Atelier needs no account: open `http://localhost:3000/atelier` and design. To fill a local deployment with a
+full scenario (drafts, a shared design, fittings, cases with proposals and quotes, an order, a correction, a group
+with an invite), set `ALLOW_DEV_SMOKE=1` on the deployment and run
+`npx convex run dev/atelier_fixtures:seedScenario '{"guestKey":"<any 32 hex characters>"}'`; it prints ids and
+URLs, and `?guest=<that key>` on any Atelier page makes the browser adopt that guest. Personal previews need
+`OPENAI_API_KEY` on the deployment; without it the studio says so and keeps the illustration. On a machine
+without working Clerk keys, `ATELIER_PREVIEW_NO_AUTH=1` in `.env.local` lets `src/proxy.ts` serve the Atelier
+routes without authentication (development only; the signed-in app and `/admin/atelier` need Clerk).
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format:check`.
 

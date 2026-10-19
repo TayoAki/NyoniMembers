@@ -21,7 +21,11 @@ skills in `.claude/skills/` run its milestones. It
 is not a port: only `convex/ai/*` (the tuned image prompts and model calls) and the `agent/` persona carry
 over. It sells two separate things: **the Circle** (physical membership, bought on WooCommerce, never via
 in-app purchase) and **Atelier** (the digital app subscription, sold through Apple, Google and Stripe via
-RevenueCat, mirroring Indyx Insider). This web app and its backend are frozen while Circle is built. Everything below this section describes the codebase itself.
+RevenueCat, mirroring Indyx Insider). The freeze on this web app while Circle is built was lifted for one build,
+the **Atelier**: the made-to-measure suit experience specified in `docs/journeys/` (28 client journeys, 8 service
+journeys, 35 client screens, 8 staff surfaces) and built to `docs/08-atelier-build-contract.md`, the binding contract
+for its routes, access model, schema, Convex modules, state language and ownership; `docs/09-atelier-coverage.md` maps
+every journey and screen to the code that serves it. Everything below this section describes the codebase itself.
 
 What differs from the Fitcheck base so far:
 
@@ -55,6 +59,29 @@ What differs from the Fitcheck base so far:
 - **Brand.** Bodoni Moda display (`font-display`), Manrope body, IBM Plex Mono captions; ivory / onyx
   tokens with a brass ring in `src/app/globals.css`; the wordmark is `src/components/common/wordmark.tsx`.
 
+- **The Atelier is a second product surface in this app, open without an account.** Client routes live in the
+  `(atelier)` route group (`/atelier`, `/atelier/design/[draftId]/[step]`, drafts, fit, fittings, requests,
+  orders, privacy, groups, shared designs) behind `src/components/atelier/shell/` with no sign-in and no
+  onboarding gate; staff pages live under `/admin/atelier/*` inside the signed-in shell. Guests hold a bearer
+  `guestKey` in this browser (`src/lib/atelier/session-store.ts`); every Atelier row carries `userId` or
+  `guestKey`, resolved by `resolveActor`/`requireOwned` in `convex/atelier/access.ts`, and linking a browser's
+  designs to an account is explicit (`/atelier/link`). Staff authority is `users.staffRoles` checked by
+  `requireStaff`; admins hold every role. The backend is `convex/atelier/*` (thin public functions) over
+  `convex/model/atelier/*` (the rules), with shared constants in `convex/shared/atelier/` — `enums.ts` (every
+  status and its label map: use the labels, never hand-written status strings), `spec.ts` (the suit spec and
+  its engine: `applyChange` reports every move it makes, `allowedOptions`, `validateSpec`, `describeSpec` with
+  production ids, `specHash`), `cloths.ts` (the real cloth books, photographed as books, with a representative
+  shade until staff confirm it), `policy.ts` (house policy copy, photo consent, event readiness). The words
+  the client reads are fixed by the state-language table in the contract (§6): "Saved to this browser",
+  "Request received", "Requested · awaiting confirmation", "Quote accepted · payment not yet recorded",
+  "Refund approved · not yet returned to you", "Illustrative preview — not a fitting"; payments are recorded by
+  staff, never processed here; notifications are recorded, not sent. Personal previews call gpt-image-2 only
+  when a key exists and otherwise answer `PREVIEWS_UNAVAILABLE`. Hourly crons expire previews, photographs and
+  quotes and escalate overdue cases (`convex/crons.ts`). Locally, `ALLOW_DEV_SMOKE=1` on the deployment enables
+  `npx convex run dev/atelier_fixtures:seedScenario '{"guestKey":"<32 hex>"}'`, and `ATELIER_PREVIEW_NO_AUTH=1`
+  in `.env.local` lets `src/proxy.ts` serve the Atelier without Clerk (dev only; the signed-in shell 500s under
+  it by design). Convex module paths cannot contain hyphens: `case_core.ts`, `catalogue_staff.ts`,
+  `atelier_fixtures.ts`.
 - **Membership is a house-set status, never a Clerk plan.** `users.membership` (`convex/shared/membership.ts`:
   client / signature / prestige / circle_elite, active or lapsed, optional dates) is written only by
   `setMembership` in `convex/model/users.ts`, from the staff form in Admin (`admin.setMembershipTier`, lookup
