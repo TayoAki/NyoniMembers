@@ -3,7 +3,7 @@
 import { useQuery } from "convex/react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { AtelierSection } from "@/components/atelier/common/atelier-section";
 import { Mono } from "@/components/atelier/common/mono";
 import { OrderBook, OrderBookRow, OrderBookSection } from "@/components/atelier/common/order-book";
@@ -175,7 +175,7 @@ function GroupDetail({ group }: { group: GroupView }) {
             <div className="min-w-0 space-y-6">
               <OrderBook aria-label="The shared design">
                 {sections.map((section) => (
-                  <div key={section.section}>
+                  <Fragment key={section.section}>
                     <OrderBookSection>{section.section}</OrderBookSection>
                     {section.lines.map((line) => (
                       <OrderBookRow
@@ -189,7 +189,7 @@ function GroupDetail({ group }: { group: GroupView }) {
                         }
                       />
                     ))}
-                  </div>
+                  </Fragment>
                 ))}
               </OrderBook>
               <div className="space-y-2">

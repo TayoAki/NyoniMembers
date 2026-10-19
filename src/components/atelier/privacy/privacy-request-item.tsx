@@ -133,7 +133,7 @@ export function PrivacyRequestItem({
 function StepRow({ step }: { step: PrivacyStepView }) {
   const Icon = STEP_ICONS[step.status];
   return (
-    <li className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[1.25rem_1fr_auto] sm:items-start">
+    <li className="grid grid-cols-[1.25rem_1fr] gap-x-4 gap-y-1 py-3 sm:grid-cols-[1.25rem_1fr_auto] sm:items-start">
       <Icon
         aria-hidden
         className={cn(
@@ -143,13 +143,13 @@ function StepRow({ step }: { step: PrivacyStepView }) {
           (step.status === "failed" || step.status === "exception") && "text-warning",
         )}
       />
-      <div className="min-w-0 space-y-1 sm:col-start-2">
+      <div className="min-w-0 space-y-1">
         <p className="text-sm">{step.label}</p>
         <StatusLine tone={STEP_TONES[step.status]}>{STEP_WORDS[step.status]}</StatusLine>
         {step.note ? <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">{step.note}</p> : null}
       </div>
       {step.at ? (
-        <Mono upper={false} className="sm:col-start-3 sm:pt-1">
+        <Mono upper={false} className="col-start-2 sm:col-start-3 sm:pt-1">
           {formatDateTime(step.at)}
         </Mono>
       ) : null}

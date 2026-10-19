@@ -3,7 +3,7 @@
 import { useConvex, useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { notFound, usePathname, useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { toast } from "sonner";
 import { AtelierSection } from "@/components/atelier/common/atelier-section";
 import { OrderBook, OrderBookRow, OrderBookSection } from "@/components/atelier/common/order-book";
@@ -132,7 +132,7 @@ function Invitation({ token, invite }: { token: string; invite: InviteView }) {
         >
           <OrderBook aria-label="The shared design">
             {sections.map((section) => (
-              <div key={section.section}>
+              <Fragment key={section.section}>
                 <OrderBookSection>{section.section}</OrderBookSection>
                 {section.lines.map((line) => (
                   <OrderBookRow
@@ -147,7 +147,7 @@ function Invitation({ token, invite }: { token: string; invite: InviteView }) {
                     }
                   />
                 ))}
-              </div>
+              </Fragment>
             ))}
           </OrderBook>
         </AtelierSection>
