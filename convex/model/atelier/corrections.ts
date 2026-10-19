@@ -47,7 +47,7 @@ import {
   STAFF_SETTABLE_STATUSES,
 } from "../../shared/atelier/transitions";
 import { clothSummary, specNames } from "./catalogue";
-import { appendMessage, createCase, touchCase, type Contact } from "./case_core";
+import { appendMessage, createCase, touchCase, type CaseContactInput } from "./case_core";
 import { recordFitAcceptance, recordPayment } from "./orders";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -502,9 +502,9 @@ export async function requestCorrection(
   const photoStorageIds = await validatePhotos(ctx, input.photoStorageIds ?? []);
 
   const orderCase = await ctx.db.get(order.caseId);
-  const contact: Contact = orderCase?.contact ?? {
+  const contact: CaseContactInput = orderCase?.contact ?? {
     name: clientDisplayName(actor.user),
-    email: actor.user?.email ?? "guest",
+    ...(actor.user?.email ? { email: actor.user.email } : {}),
     channel: "email",
   };
   const owner = ownerOf(order);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useMutation } from "convex/react";
+import type { FunctionArgs } from "convex/server";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import {
   emptyWindow,
+  localToday,
   PreferredWindowsField,
   toPreferredWindows,
   utcToDay,
@@ -21,6 +23,9 @@ import { reportError, type ClientError } from "@/lib/errors";
 import { api } from "@convex/_generated/api";
 import type { AppointmentView } from "@convex/atelier/appointments";
 import { APPOINTMENT_STATUS_LABELS } from "@convex/shared/atelier/enums";
+
+/** The server names the argument a window error belongs to in `details.field`. */
+const WINDOWS_ARG = "preferredWindows" satisfies keyof FunctionArgs<typeof api.atelier.appointments.reschedule>;
 
 /** C18 step 3: new preferred windows. Any confirmed time is released and the house confirms again. */
 export function RescheduleForm({
@@ -48,10 +53,13 @@ export function RescheduleForm({
   const [attempted, setAttempted] = useState(false);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<ClientError | null>(null);
+  const windowServerError =
+    failure?.code === "INVALID_INPUT" && failure.details?.field === WINDOWS_ARG ? failure.message : null;
 
   async function send() {
     setAttempted(true);
-    if (windows.length === 0 || windows.some((item) => windowProblem(item) !== null)) return;
+    const today = localToday(new Date(), appointment.timeZone);
+    if (windows.length === 0 || windows.some((item) => windowProblem(item, today) !== null)) return;
     setPending(true);
     setFailure(null);
     try {
@@ -85,6 +93,8 @@ export function RescheduleForm({
         onChange={setWindows}
         disabled={pending}
         showErrors={attempted}
+        timeZone={appointment.timeZone}
+        serverError={windowServerError}
       />
       <Field>
         <FieldLabel htmlFor={`${ids}-note`}>
@@ -102,7 +112,7 @@ export function RescheduleForm({
         <ErrorAlert
           title="The new windows were not sent"
           message={failure.message}
-          onRetry={failure.code === "INVALID_INPUT" || failure.code === "INVALID_STATE" ? undefined : () => void send()}
+          onRetry={failure.code === "INVALID_STATE" || failure.code === "RATE_LIMITED" ? undefined : () => void send()}
           retryLabel="Send again"
           className="rounded-none"
         />
@@ -118,8 +128,8 @@ export function RescheduleForm({
       </div>
       <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
         {appointment.confirmed
-          ? "Sending releases the confirmed time. The appointment reads “Rescheduled · awaiting confirmation” until the house confirms again."
-          : "The appointment reads “Rescheduled · awaiting confirmation” until the house confirms a time."}
+          ? `Sending releases the confirmed time. The appointment reads “${APPOINTMENT_STATUS_LABELS.rescheduled}” until the house confirms again.`
+          : `The appointment reads “${APPOINTMENT_STATUS_LABELS.rescheduled}” until the house confirms a time.`}
       </p>
     </form>
   );

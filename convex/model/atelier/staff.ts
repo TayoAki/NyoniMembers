@@ -120,7 +120,7 @@ async function readAudit(ctx: Ctx, filter: AuditFilter, limit: number): Promise<
   if (table) {
     return ctx.db
       .query("atelierAuditLog")
-      .withIndex("by_target", (q) => q.eq("targetTable", table))
+      .withIndex("by_table_at", (q) => q.eq("targetTable", table))
       .order("desc")
       .take(limit);
   }

@@ -16,6 +16,7 @@ import type { Contact } from "./case_core";
 import { benefitDescription, moveReservation, redeemReservation, releaseReservation, tierLabel } from "./benefits";
 import { getEntry } from "./catalogue";
 import { appendMessage, touchCase } from "./case_core";
+import { markParticipantOrdered } from "./groups";
 import { queueNotification } from "./notifications";
 import { createOrder, formatDay, formatUsd, orderForQuote } from "./orders";
 import { latestRevision, toRevisionSummary } from "./revisions";
@@ -681,6 +682,7 @@ export async function acceptQuote(
     now,
   );
   if (redemption) await redeemReservation(ctx, actor, redemption, quote._id, orderId, now);
+  await markParticipantOrdered(ctx, draft._id, now);
   await ctx.db.patch(caseDoc._id, { orderId });
   await appendMessage(
     ctx,

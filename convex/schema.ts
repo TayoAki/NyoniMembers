@@ -774,6 +774,7 @@ export default defineSchema({
     at: v.number(),
   })
     .index("by_target", ["targetTable", "targetId", "at"])
+    .index("by_table_at", ["targetTable", "at"])
     .index("by_actor", ["actorUserId", "at"])
     .index("by_at", ["at"]),
 });

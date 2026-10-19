@@ -62,7 +62,8 @@ function Invitation({ token, invite }: { token: string; invite: InviteView }) {
   const readiness = invite.eventDate !== undefined ? eventReadiness(invite.eventDate, now) : null;
   const sections = groupLines(invite.sharedLines);
   const signedIn = viewer.status === "signed_in";
-  const canJoin = ready && (signedIn || guestKeyArg.guestKey !== undefined);
+  // A signed-in visitor joins once the backend knows the account, or the design would be saved to this browser.
+  const canJoin = ready && (signedIn ? viewer.convexReady : guestKeyArg.guestKey !== undefined);
 
   const handleJoin = async () => {
     setPending(true);
@@ -255,7 +256,8 @@ function Invitation({ token, invite }: { token: string; invite: InviteView }) {
           </Link>
         </div>
         {!ready ? <StatusLine live>Preparing this browser…</StatusLine> : null}
-        {ready && !canJoin ? (
+        {ready && !canJoin && signedIn ? <StatusLine live>Checking your account…</StatusLine> : null}
+        {ready && !canJoin && !signedIn ? (
           <p className="text-sm text-muted-foreground">
             This browser cannot keep a design for you.{" "}
             <Link href={signInHref(pathname)} className="underline underline-offset-4">

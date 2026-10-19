@@ -5,13 +5,13 @@ import { isValidGuestKey, randomToken } from "../atelier/access";
 import { optionalEnv } from "../lib/env";
 import { appError } from "../lib/errors";
 import { ensureCatalogueSeeded } from "../model/atelier/catalogue";
+import { planSteps, PROVIDER_RETENTION_EXCEPTION } from "../model/atelier/privacy";
 import { clothSeedByCode } from "../shared/atelier/cloths";
 import {
   CASE_KIND_LABELS,
   FIT_REGIONS,
   ORDER_STATUS_LABELS,
   PAYMENT_STATE_LABELS,
-  PRIVACY_STATUS_LABELS,
   STAFF_ROLES,
   type AppointmentPeriod,
   type AppointmentService,
@@ -235,6 +235,29 @@ export type ScenarioPlan = {
   };
   notifications: { subject: string; body: string; at: number }[];
 };
+
+/**
+ * A photograph removal as the real plan runs it for a browser: every step settled, the provider's own retention
+ * disclosed as the one exception, so the request reads "Completed with exceptions" and has nothing left to run.
+ */
+function privacyStepsSettled(requestedAt: number): PrivacyStep[] {
+  const outcomes: Record<string, Pick<PrivacyStep, "status" | "note"> & { after: number }> = {
+    revoke_preview_links: { status: "done", note: "1 preview result withdrawn", after: 60_000 },
+    cancel_preview_jobs: { status: "done", note: "No preview job was waiting", after: 60_000 },
+    delete_photos: { status: "done", note: "1 photograph deleted", after: 5 * 60_000 },
+    delete_fit_photos: {
+      status: "done",
+      note: "Posture photographs belong to an account; this browser holds none.",
+      after: 5 * 60_000,
+    },
+    notify_provider: { status: "exception", note: PROVIDER_RETENTION_EXCEPTION, after: 6 * 60_000 },
+  };
+  return planSteps("delete_photos").map((step) => {
+    const outcome = outcomes[step.key];
+    if (!outcome) throw new Error(`The fixture has no outcome for privacy step ${step.key}.`);
+    return { ...step, status: outcome.status, note: outcome.note, at: requestedAt + outcome.after };
+  });
+}
 
 export function utcNoon(ms: number): number {
   const day = new Date(ms);
@@ -579,30 +602,10 @@ export function scenarioPlan(now: number): ScenarioPlan {
     },
     privacy: {
       kind: "delete_photos",
-      status: "downstream_pending",
+      status: "completed",
       requestedAt: privacyRequestedAt,
-      steps: [
-        {
-          key: "access_revoked",
-          label: PRIVACY_STATUS_LABELS.access_revoked,
-          status: "done",
-          at: privacyRequestedAt + 60_000,
-        },
-        {
-          key: "previews_deleted",
-          label: "Previews deleted from the house's systems",
-          status: "done",
-          at: privacyRequestedAt + 5 * 60_000,
-        },
-        {
-          key: "photo_deleted",
-          label: "Photograph deleted from the house's systems",
-          status: "done",
-          at: privacyRequestedAt + 6 * 60_000,
-        },
-        { key: "provider_deletion", label: "Waiting on provider deletion", status: "pending" },
-      ],
-      exceptions: ["Your released order keeps its specification and fit profile."],
+      steps: privacyStepsSettled(privacyRequestedAt),
+      exceptions: [PROVIDER_RETENTION_EXCEPTION],
     },
     group: {
       name: "Okafor wedding party",
@@ -1169,7 +1172,7 @@ export const seedScenario = internalMutation({
       createdAt: a.share.createdAt,
     });
 
-    // 8. A privacy request waiting on the provider.
+    // 8. A photograph removal, run and completed with the provider's retention disclosed.
     const privacyRequestId = await ctx.db.insert("atelierPrivacyRequests", {
       ...owner,
       kind: plan.privacy.kind,
@@ -1177,6 +1180,7 @@ export const seedScenario = internalMutation({
       steps: plan.privacy.steps,
       exceptions: plan.privacy.exceptions,
       requestedAt: plan.privacy.requestedAt,
+      completedAt: Math.max(...plan.privacy.steps.map((step) => step.at ?? plan.privacy.requestedAt)),
       handledByStaffId: staffId,
     });
     await audit("privacy.handle", "atelierPrivacyRequests", privacyRequestId, plan.privacy.requestedAt + 6 * 60_000, {

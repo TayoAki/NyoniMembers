@@ -891,16 +891,12 @@ test("the by_photo index lists every job made from a photograph, whoever it is s
   );
 });
 
-test(
-  "removing a photograph retires every job made from it, including one stamped with another owner",
-  { todo: "lead action: retireJobsForPhoto in convex/model/atelier/photos.ts reads by_photo instead of by owner" },
-  async () => {
-    const f = setup();
-    const { photo, jobId, resultStorageId } = await legacyMismatchedJob(f);
-    await photos.removePhoto(f.ctx, accountActor, photo._id, NOW + MINUTE);
-    const job = await f.ctx.db.get(jobId);
-    assert.equal(job.status, "expired");
-    assert.equal(job.resultStorageId, undefined);
-    assert.equal(f.files.has(resultStorageId), false, "the result made from the photograph is deleted with it");
-  },
-);
+test("removing a photograph retires every job made from it, including one stamped with another owner", async () => {
+  const f = setup();
+  const { photo, jobId, resultStorageId } = await legacyMismatchedJob(f);
+  await photos.removePhoto(f.ctx, accountActor, photo._id, NOW + MINUTE);
+  const job = await f.ctx.db.get(jobId);
+  assert.equal(job.status, "expired");
+  assert.equal(job.resultStorageId, undefined);
+  assert.equal(f.files.has(resultStorageId), false, "the result made from the photograph is deleted with it");
+});

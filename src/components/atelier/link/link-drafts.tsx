@@ -32,7 +32,7 @@ const WHAT_MOVES =
  */
 export function LinkDrafts() {
   const { status, convexReady } = useAtelierViewer();
-  const { ready, guestKey } = useAtelierSession();
+  const { ready, guestKey, rememberDraft } = useAtelierSession();
   const drafts = useQuery(api.atelier.drafts.listMine, useOwnerArgs({}, status === "signed_in"));
   const link = useMutation(api.atelier.drafts.link);
   const [kept, setKept] = useState<ReadonlySet<Id<"atelierDrafts">>>(new Set());
@@ -90,6 +90,8 @@ export function LinkDrafts() {
     setError(null);
     try {
       await link({ draftId, guestKey });
+      const linked = drafts?.find((draft) => draft._id === draftId);
+      if (linked) rememberDraft({ draftId, name: linked.name, updatedAt: linked.updatedAt, account: true });
       toast.success("Saved to your account");
     } catch (caught) {
       setError(toClientError(caught));

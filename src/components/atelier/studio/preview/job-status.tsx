@@ -161,6 +161,22 @@ export function StartFailure({
       );
     case "INVALID_INPUT":
     case "INVALID_STATE":
+      if (failure.details?.linkRequired === true) {
+        return (
+          <ErrorAlert
+            title="Could not start the preview"
+            message={
+              <>
+                {failure.message}{" "}
+                <Link href={routes.atelier.link} className="underline underline-offset-4">
+                  Save to my account
+                </Link>
+              </>
+            }
+            className="rounded-sm"
+          />
+        );
+      }
       return <ErrorAlert title="Could not start the preview" message={failure.message} className="rounded-sm" />;
     case "UNAUTHENTICATED":
       return (

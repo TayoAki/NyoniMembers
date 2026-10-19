@@ -102,15 +102,6 @@ function ownerPhotos(ctx: Ctx, owner: Owned, status: Photo["status"]) {
     .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey).eq("status", status));
 }
 
-function ownerJobs(ctx: Ctx, owner: Owned) {
-  const userId = owner.userId;
-  if (userId !== undefined) {
-    return ctx.db.query("atelierPreviewJobs").withIndex("by_user", (q) => q.eq("userId", userId));
-  }
-  const guestKey = owner.guestKey;
-  return ctx.db.query("atelierPreviewJobs").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey));
-}
-
 function ownerDrafts(ctx: Ctx, owner: Owned) {
   const userId = owner.userId;
   if (userId !== undefined) {
@@ -245,13 +236,13 @@ export async function retireJobsForPhoto(
   photo: Photo,
   now: number,
 ): Promise<{ cancelled: number; expired: number }> {
-  const owner = ownerOf(photo);
-  if (owner.userId === undefined && owner.guestKey === undefined) return { cancelled: 0, expired: 0 };
-  const jobs = await ownerJobs(ctx, owner).order("desc").take(OWNER_SCAN);
+  const jobs = await ctx.db
+    .query("atelierPreviewJobs")
+    .withIndex("by_photo", (q) => q.eq("personPhotoId", photo._id))
+    .take(OWNER_SCAN);
   let cancelled = 0;
   let expired = 0;
   for (const job of jobs) {
-    if (job.personPhotoId !== photo._id) continue;
     if (job.status === "queued" || job.status === "processing") {
       await ctx.db.patch(job._id, {
         status: "cancelled",

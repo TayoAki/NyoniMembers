@@ -261,6 +261,38 @@ test("supersede is create + offer in one and keeps the history of the quote it r
   );
 });
 
+test("accepting a quote for a group participant's design marks the participant ordered, once", async () => {
+  const { f, client, actor, draft, offered } = await setup();
+  const groupId = await f.ctx.db.insert("atelierGroups", {
+    organizerUserId: client._id,
+    name: "Okafor wedding party",
+    occasion: "wedding",
+    brief: "Navy for the groomsmen.",
+    sharedSpec: draft.spec,
+    permittedIndividual: ["monogram"],
+    status: "approved",
+    createdAt: NOW - 2 * DAY,
+    updatedAt: NOW - 2 * DAY,
+  });
+  await f.ctx.db.patch(draft._id, { groupId });
+  const participantId = await f.ctx.db.insert("atelierGroupParticipants", {
+    groupId,
+    inviteToken: "t".repeat(32),
+    name: "Nia",
+    userId: client._id,
+    draftId: draft._id,
+    status: "design_ready",
+    consent: { shareStyleStatus: true, shareFitStatus: false },
+    joinedAt: NOW - DAY,
+    createdAt: NOW - 2 * DAY,
+  });
+  const q = await offered();
+  await quotes.acceptQuote(f.ctx, actor, q, NOW + 1);
+  assert.equal((await f.ctx.db.get(participantId)).status, "ordered");
+  await quotes.acceptQuote(f.ctx, actor, await f.ctx.db.get(q._id), NOW + 2);
+  assert.equal(f.rowsOf("atelierAuditLog").filter((row) => row.action === "group.participant.ordered").length, 1);
+});
+
 test("accept creates the commission in preflight with no payment, a client milestone and a truthful message", async () => {
   const { f, actor, caseDoc, draft, revision, quote, offered } = await setup();
   const q = await offered();

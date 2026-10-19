@@ -287,18 +287,24 @@ test("the New York clock arithmetic agrees with Intl on both sides of daylight t
   }
 });
 
-test("the privacy request is waiting on the provider with three steps done and the released order excepted", () => {
+test("the privacy request runs the real photograph plan to completion, with the provider's retention disclosed", async () => {
+  const { PRIVACY_STEPS_BY_KIND, PROVIDER_RETENTION_EXCEPTION, deriveStatus, statusLabelFor } =
+    await import("../convex/model/atelier/privacy.ts");
   const { privacy } = scenarioPlan(NOW);
   assert.equal(privacy.kind, "delete_photos");
-  assert.equal(privacy.status, "downstream_pending");
+  assert.deepEqual(
+    privacy.steps.map((step) => step.key),
+    [...PRIVACY_STEPS_BY_KIND.delete_photos],
+    "only step keys the model can run, so staff re-runs never meet an unknown step",
+  );
   assert.deepEqual(
     privacy.steps.map((step) => step.status),
-    ["done", "done", "done", "pending"],
+    ["done", "done", "done", "done", "exception"],
   );
-  assert.equal(privacy.steps.at(-1).label, "Waiting on provider deletion");
-  assert.equal(privacy.steps.at(-1).at, undefined);
-  for (const step of privacy.steps.slice(0, 3)) assert.ok(step.at >= privacy.requestedAt);
-  assert.deepEqual(privacy.exceptions, ["Your released order keeps its specification and fit profile."]);
+  for (const step of privacy.steps) assert.ok(step.at >= privacy.requestedAt);
+  assert.equal(privacy.status, deriveStatus(privacy.steps, "requested"), "the stored status is the derived one");
+  assert.equal(statusLabelFor(privacy), "Completed with exceptions");
+  assert.deepEqual(privacy.exceptions, [PROVIDER_RETENTION_EXCEPTION]);
 });
 
 test("the wedding party shares the Armada with its cloth and lets three fields vary", () => {

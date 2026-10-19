@@ -41,7 +41,7 @@ type Draft = Doc<"atelierDrafts">;
 
 export const DEFAULT_DRAFT_NAME = "Your suit";
 export const DRAFT_NAME_MAX = 80;
-export const SHARE_AUDIENCE_MAX = 80;
+export const SHARE_AUDIENCE_MAX: number = ATELIER_LIMITS.shareAudienceMax;
 
 /** Rows moved by `linkDraft` per table; a guest browser holds at most a few of each. */
 const LINK_BATCH = 200;
@@ -373,7 +373,7 @@ export async function linkDraft(
     .query("atelierPrivacyRequests")
     .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
     .take(LINK_BATCH);
-  for (const row of privacyRequests) await ctx.db.patch(row._id, claim);
+  for (const row of privacyRequests) if (row.userId === undefined) await ctx.db.patch(row._id, claim);
 
   const shares = await ctx.db
     .query("atelierShares")

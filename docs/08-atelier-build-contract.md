@@ -49,7 +49,7 @@ The surface is called **the Atelier** (the house's own word: "Private Atelier Ex
 | `/atelier/privacy`                                                                   | S34 privacy centre                                                                                                                                             | C11, C27               | Photos, results, designs, fit records, account closure.                                                            |
 | `/atelier/groups`, `/atelier/groups/[groupId]`, `/atelier/groups/join/[inviteToken]` | S35                                                                                                                                                            | C28                    | Organizer and participant views; staff review in A01.                                                              |
 
-### Staff (inside the signed-in `(app)` shell, `requireAdminPage()` on every page, role checks on every function)
+### Staff (inside the signed-in `(app)` shell, `requireStaffPage()` on every page — admins and anyone holding a role in `users.staffRoles` — with `StaffRoleGate` narrowing each page to its role, and role checks on every function)
 
 | Route                                                                    | Surface                                                                                                                       | Journeys |
 | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | -------- |

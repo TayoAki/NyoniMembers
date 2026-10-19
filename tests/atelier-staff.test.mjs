@@ -183,6 +183,18 @@ test("auditLog: bounded, newest first, narrowed by target, actors by first name 
     oneRecord.map((entry) => entry.action),
     ["case.step4", "case.step3", "case.step2", "case.step1", "case.step0"],
   );
+  await audit(
+    f.ctx,
+    { actor: null, action: "case.older", targetTable: "atelierCases", targetId: "atelierCases|9" },
+    NOW - 5,
+  );
+  const casesTable = await staff.listAudit(f.ctx, { targetTable: "atelierCases", limit: 200 });
+  assert.deepEqual(
+    casesTable.map((entry) => entry.at),
+    [...casesTable.map((entry) => entry.at)].sort((a, b) => b - a),
+    "a table filter reads newest first across records, not in record-id order",
+  );
+  assert.equal(casesTable.at(-1).action, "case.older");
   const oneTable = await staff.listAudit(f.ctx, { targetTable: "users", limit: 200 });
   assert.deepEqual(
     oneTable.map((entry) => entry.action),
