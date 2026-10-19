@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { Inbox } from "lucide-react";
 import Link from "next/link";
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { AtelierSection } from "@/components/atelier/common/atelier-section";
 import { hasStaffRole, StaffRoleGate, StaffShell, useStaffStanding } from "@/components/atelier/staff/staff-shell";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorAlert } from "@/components/common/error-alert";
@@ -25,15 +26,19 @@ import { ProposalsSection } from "./proposal-list";
 import { QuotesSection } from "./quote-list";
 import { SamplePanel } from "./sample-panel";
 
+const ROLES = ["concierge", "finance"] as const;
+
 /**
  * The case desk (A01 detail; O01, O04, C18, C04, C20): one request, everything the house knows about it
- * and every action a concierge or finance member can take. `staffGet` throws for an unknown id, so the
- * read sits inside a boundary that turns NOT_FOUND into the segment's not-found page and anything else
- * into an inline error with a retry.
+ * and every action a concierge or finance member can take. Either role opens the desk (`cases.staffGet`
+ * admits both); each write panel shows only for the role its function demands, and the two reads that
+ * are concierge-only (the fitting and the notification records) say so instead of failing the page.
+ * `staffGet` throws for an unknown id, so the read sits inside a boundary that turns NOT_FOUND into the
+ * segment's not-found page and anything else into an inline error with a retry.
  */
 export function CaseDesk({ caseId }: { caseId: string }) {
   return (
-    <StaffRoleGate role="concierge" fallback={<CaseSkeleton />}>
+    <StaffRoleGate role={ROLES} fallback={<CaseSkeleton />}>
       <CaseLoadBoundary>
         <CaseLoader caseId={caseId} />
       </CaseLoadBoundary>
@@ -51,6 +56,7 @@ function CaseLoader({ caseId }: { caseId: string }) {
 
 /** Pure composition: give it a case view and the standing and it renders deterministically. */
 export function CaseDeskView({ caseView, me }: { caseView: StaffCaseView; me: StaffStatus | null }) {
+  const concierge = hasStaffRole(me, "concierge");
   const finance = hasStaffRole(me, "finance");
   return (
     <StaffShell
@@ -58,23 +64,47 @@ export function CaseDeskView({ caseView, me }: { caseView: StaffCaseView; me: St
       description={`${caseView.statusLabel} · received ${formatDate(caseView.createdAt)} · last activity ${formatRelative(caseView.lastActivityAt)}.`}
     >
       <div className="space-y-2">
-        <RequestSection caseView={caseView} me={me} />
+        <RequestSection caseView={caseView} me={me} concierge={concierge} />
         <DesignSection caseView={caseView} />
         {caseView.sample ? (
           <SamplePanel
             caseId={caseView._id}
             sample={caseView.sample}
             open={caseView.open}
+            concierge={concierge}
             clientFirstName={firstName(caseView.contact.name)}
           />
         ) : null}
-        {caseView.appointment ? <AppointmentPanel appointmentId={caseView.appointment.appointmentId} /> : null}
-        <CaseConversation caseView={caseView} />
-        {caseView.draft ? <ProposalsSection caseView={caseView} /> : null}
+        {caseView.appointment ? (
+          concierge ? (
+            <AppointmentPanel appointmentId={caseView.appointment.appointmentId} />
+          ) : (
+            <ConciergeOnlyPanel
+              id="appointment"
+              title="Fitting request"
+              what={`The fitting on this request reads “${caseView.appointment.statusLabel}”; its windows and booking`}
+            />
+          )
+        ) : null}
+        <CaseConversation caseView={caseView} concierge={concierge} />
+        {caseView.draft ? <ProposalsSection caseView={caseView} concierge={concierge} /> : null}
         <QuotesSection caseView={caseView} me={me} finance={finance} />
-        <NotificationsPanel caseId={caseView._id} />
+        {concierge ? (
+          <NotificationsPanel caseId={caseView._id} />
+        ) : (
+          <ConciergeOnlyPanel id="notifications" title="Notifications" what="The notification records" />
+        )}
       </div>
     </StaffShell>
+  );
+}
+
+/** A panel whose read is concierge-only, for a finance member at the desk: named, not pretended or failed. */
+function ConciergeOnlyPanel({ id, title, what }: { id: string; title: string; what: string }) {
+  return (
+    <AtelierSection id={id} title={title}>
+      <p className="text-sm text-muted-foreground">{what} can be read with the concierge role.</p>
+    </AtelierSection>
   );
 }
 

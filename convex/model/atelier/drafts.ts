@@ -19,7 +19,9 @@ import {
   completedStepsFor,
   DEFAULT_SPEC,
   describeSpec,
+  specDifferences,
   specHash,
+  specPathLabel,
   specSummary,
   type Monogram,
   type SpecPatch,
@@ -138,6 +140,7 @@ export async function toDraftView(ctx: Ctx, draft: Draft, now: number): Promise<
     catalogueVersion: draft.catalogueVersion,
     lookKey: draft.lookKey,
     sourceOrderId: draft.sourceOrderId,
+    groupId: draft.groupId,
     cloth,
     shortlistCloths: shortlistCloths.filter((entry): entry is ClothSummary => entry !== null),
     warnings,
@@ -378,6 +381,19 @@ export async function linkDraft(
     .take(LINK_BATCH);
   for (const share of shares) if (share.guestKey === guestKey) await ctx.db.patch(share._id, claim);
 
+  // C28: a guest who joined a group holds a participant row with no account; once the design is the
+  // account's, so is the participation, or the fit readiness the participant consented to share would
+  // never be read from the account's approved profile.
+  const groupId = draft.groupId;
+  const participants = groupId
+    ? await ctx.db
+        .query("atelierGroupParticipants")
+        .withIndex("by_group", (q) => q.eq("groupId", groupId))
+        .filter((q) => q.eq(q.field("draftId"), draft._id))
+        .take(LINK_BATCH)
+    : [];
+  for (const participant of participants) await ctx.db.patch(participant._id, { userId: user._id });
+
   await audit(
     ctx,
     {
@@ -393,6 +409,7 @@ export async function linkDraft(
         appointments: appointments.length,
         orders: orders.length,
         shares: shares.length,
+        participants: participants.length,
       },
     },
     now,
@@ -481,6 +498,7 @@ export async function commitChange(
   const normalized: SpecPatch = patch.monogram ? { ...patch, monogram: normalizeMonogram(patch.monogram) } : patch;
   await assertMaterialsExist(ctx, normalized);
   const { spec, conflicts } = applyChange(draft.spec, normalized);
+  await requireWithinGroupBrief(ctx, draft, spec);
   if (conflicts.length > 0 && !acceptedConflicts) return { revision: draft.revision, conflicts, spec, applied: false };
   if (specHash(spec) === specHash(draft.spec)) return { revision: draft.revision, conflicts, spec, applied: false };
   const revision = await writeSpec(ctx, draft, spec, now);
@@ -501,6 +519,7 @@ export async function applyLook(
   if (specHash(spec) === specHash(draft.spec) && draft.lookKey === look.key) {
     return { revision: draft.revision, conflicts: [], spec, applied: false };
   }
+  await requireWithinGroupBrief(ctx, draft, spec);
   const revision = await writeSpec(ctx, draft, spec, now, { lookKey: look.key });
   return { revision, conflicts: [], spec, applied: true };
 }
@@ -634,6 +653,30 @@ async function writeSpec(
     lastSavedAt: now,
   });
   return revision;
+}
+
+/**
+ * C28: a design made from a group's brief keeps to it. A change may move only the lines the organizer
+ * left to each participant (`permittedIndividual`), and the cloth when the brief leaves it open; any
+ * other line this change moves away from the shared design is refused, naming the line, before anything
+ * is proposed or written. Lines already apart from the brief are not re-litigated, so a permitted change
+ * always goes through and a line can be brought back into agreement. A design that has left its group
+ * carries no `groupId` and is private again.
+ */
+async function requireWithinGroupBrief(ctx: Ctx, draft: Draft, next: SuitSpec): Promise<void> {
+  if (!draft.groupId) return;
+  const group = await ctx.db.get(draft.groupId);
+  if (!group) return;
+  const permitted = new Set<string>(group.permittedIndividual);
+  if (group.sharedSpec.clothCode === null) permitted.add("clothCode");
+  const apartFromBrief = new Set<string>(specDifferences(group.sharedSpec, next));
+  const offending = specDifferences(draft.spec, next).find((path) => !permitted.has(path) && apartFromBrief.has(path));
+  if (!offending) return;
+  throw appError(
+    "INVALID_STATE",
+    `${specPathLabel(offending)} follows the shared design for ${group.name} and is not yours to change here. Ask the organizer to change it for the whole group, or to leave it to each participant.`,
+    { field: offending, groupId: group._id },
+  );
 }
 
 /** The client may hold `draftsPerOwner` live designs; archived ones do not count. */

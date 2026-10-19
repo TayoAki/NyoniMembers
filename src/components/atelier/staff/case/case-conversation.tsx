@@ -18,11 +18,12 @@ import type { CaseMessageView, StaffCaseView } from "@convex/atelier/cases";
 import { authorWords } from "./case-words";
 
 /**
- * The conversation as the client sees it, plus the concierge's composer. System lines are the house's
- * own notes (status changes, sample steps, confirmations). A reply makes the request "Waiting on you"
- * for the client and records a notification; it does not send anything by itself.
+ * The conversation as the client sees it, plus the concierge's composer (`cases.reply` is concierge-only,
+ * so a finance member reads without it). System lines are the house's own notes (status changes, sample
+ * steps, confirmations). A reply makes the request "Waiting on you" for the client and records a
+ * notification; it does not send anything by itself.
  */
-export function CaseConversation({ caseView }: { caseView: StaffCaseView }) {
+export function CaseConversation({ caseView, concierge }: { caseView: StaffCaseView; concierge: boolean }) {
   const clientFirstName = caseView.contact.name.trim().split(/\s+/)[0] || "Client";
   return (
     <AtelierSection
@@ -40,7 +41,11 @@ export function CaseConversation({ caseView }: { caseView: StaffCaseView }) {
             ))}
           </ol>
         )}
-        <Composer caseView={caseView} />
+        {concierge ? (
+          <Composer caseView={caseView} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Replying to the client needs the concierge role.</p>
+        )}
       </div>
     </AtelierSection>
   );

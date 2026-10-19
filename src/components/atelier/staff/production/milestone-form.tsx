@@ -52,13 +52,15 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
   const [error, setError] = useState<string | null>(null);
   const at = dateInputToTimestamp(date);
   const ready = kind !== null && label.trim().length > 0 && at !== null;
-  const target = kind ? STATUS_FOR_MILESTONE[kind] : undefined;
+  // An "Estimated ready" line is an estimate by nature (the server records it so) and becomes the commission's estimate.
+  const estimateLocked = kind === "estimated_ready";
+  const isEstimate = estimateLocked || estimated;
+  const target = kind && !isEstimate ? STATUS_FOR_MILESTONE[kind] : undefined;
   const closed = order.status === "cancelled";
 
   function chooseKind(next: ProductionMilestoneKind) {
     setKind(next);
     if (!labelTouched) setLabel(MILESTONE_KIND_LABELS[next]);
-    if (next === "estimated_ready") setEstimated(true);
   }
 
   async function submit() {
@@ -72,15 +74,17 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
         label: label.trim(),
         at,
         source,
-        estimated,
+        estimated: isEstimate,
         ...(note.trim() ? { note: note.trim() } : {}),
       });
       toast.success(
-        estimated
-          ? "Estimate recorded; the client reads it with the word “Estimate”."
-          : target
-            ? `Recorded. The client now reads “${ORDER_STATUS_LABELS[target]}”.`
-            : "Milestone recorded.",
+        estimateLocked
+          ? "Estimate recorded; the client reads it with the word “Estimate” and the commission's estimated ready date now says the same."
+          : isEstimate
+            ? "Estimate recorded; the client reads it with the word “Estimate”."
+            : target
+              ? `Recorded. The client now reads “${ORDER_STATUS_LABELS[target]}”.`
+              : "Milestone recorded.",
       );
       setKind(null);
       setLabel("");
@@ -102,7 +106,11 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
     return {
       code: candidate,
       label: MILESTONE_KIND_LABELS[candidate],
-      description: advancesTo ? `As a fact, moves the commission to “${ORDER_STATUS_LABELS[advancesTo]}”.` : undefined,
+      description: advancesTo
+        ? `As a fact, moves the commission to “${ORDER_STATUS_LABELS[advancesTo]}”.`
+        : candidate === "estimated_ready"
+          ? "Always an estimate; also becomes the commission's estimated ready date."
+          : undefined,
     };
   });
   const sourceOptions = MILESTONE_SOURCES.map((candidate) => ({
@@ -150,7 +158,7 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
         </Field>
         <Field>
           <FieldLabel htmlFor={`milestone-date-${order._id}`}>Date</FieldLabel>
-          <FieldDescription>{estimated ? "The date the house expects." : "The date it happened."}</FieldDescription>
+          <FieldDescription>{isEstimate ? "The date the house expects." : "The date it happened."}</FieldDescription>
           <Input
             id={`milestone-date-${order._id}`}
             type="date"
@@ -170,15 +178,19 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
           />
         </Field>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Switch
           id={`milestone-estimated-${order._id}`}
-          checked={estimated}
+          checked={isEstimate}
+          disabled={estimateLocked}
           onCheckedChange={(checked) => setEstimated(checked)}
         />
         <Label htmlFor={`milestone-estimated-${order._id}`} className="text-sm">
           This is an estimate, not something that happened
         </Label>
+        {estimateLocked ? (
+          <span className="text-xs text-muted-foreground">An estimated ready date is always an estimate.</span>
+        ) : null}
       </div>
       <Field>
         <FieldLabel htmlFor={`milestone-note-${order._id}`}>Note</FieldLabel>
@@ -201,9 +213,9 @@ export function MilestoneForm({ order }: { order: StaffOrderView }) {
           <p className="text-xs text-muted-foreground">
             Client reads:{" "}
             <span className="text-foreground">
-              “{label.trim() || MILESTONE_KIND_LABELS[kind]}”{estimated ? " · Estimate" : ""}
+              “{label.trim() || MILESTONE_KIND_LABELS[kind]}”{isEstimate ? " · Estimate" : ""}
             </span>
-            {!estimated && target ? ` and the status “${ORDER_STATUS_LABELS[target]}”` : ""}
+            {target ? ` and the status “${ORDER_STATUS_LABELS[target]}”` : ""}
           </p>
         ) : null}
       </div>

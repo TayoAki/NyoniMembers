@@ -65,6 +65,8 @@ export const vDraftView = v.object({
   catalogueVersion: v.number(),
   lookKey: v.optional(v.string()),
   sourceOrderId: v.optional(v.id("atelierOrders")),
+  /** Set when the design was made from a group's brief (C28): the studio reads `groups.myParticipation` for it. */
+  groupId: v.optional(v.id("atelierGroups")),
   cloth: v.union(vClothSummary, v.null()),
   shortlistCloths: v.array(vClothSummary),
   warnings: v.array(vDraftWarning),
@@ -168,7 +170,8 @@ export const listMine = query({
  * that, the conflicts and proposed spec come back and nothing is written. `baseRevision` is the revision
  * the client previewed against: a draft that has moved on since (another tab or window) answers
  * STALE_REVISION with the current spec in its details, and nothing is written. An empty patch is a no-op
- * even on a submitted draft; any other change to a submitted or archived draft is INVALID_STATE.
+ * even on a submitted draft; any other change to a submitted or archived draft is INVALID_STATE, as is a
+ * change that moves a line of a group design the organizer did not leave to each participant (C28).
  */
 export const commit = mutation({
   args: { ...draftArgs, patch: vSpecPatch, acceptedConflicts: v.boolean(), baseRevision: v.number() },

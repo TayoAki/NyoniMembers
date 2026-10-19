@@ -40,6 +40,8 @@ const {
   SHOULDERS,
   SINGLE_STANCES,
   SLEEVE_BUTTONS,
+  SPEC_PATHS,
+  SPEC_PATH_LABELS,
   TROUSER_FITS,
   VENTS,
   WAISTBANDS,
@@ -51,7 +53,9 @@ const {
   canonicalSpec,
   completedStepsFor,
   describeSpec,
+  specDifferences,
   specHash,
+  specPathLabel,
   specSummary,
   validateSpec,
 } = await import("../convex/shared/atelier/spec.ts");
@@ -650,6 +654,51 @@ test("validateSpec reports every problem at once, each once", () => {
   assert.ok(many.includes("A double-breasted jacket is cut with a peak lapel."));
   assert.ok(many.includes("A tuxedo is cut without a vent or with side vents."));
   assert.ok(many.includes("A tuxedo has no waistcoat."));
+});
+
+// specDifferences and the path vocabulary (the grain a group's brief uses, C28).
+
+test("the path vocabulary names every line of the design once, each with a label", () => {
+  const expected = [
+    ...Object.keys(DEFAULT_SPEC).filter((key) => key !== "jacket" && key !== "trousers"),
+    ...Object.keys(DEFAULT_SPEC.jacket).map((key) => `jacket.${key}`),
+    ...Object.keys(DEFAULT_SPEC.trousers).map((key) => `trousers.${key}`),
+  ];
+  assert.deepEqual([...SPEC_PATHS].sort(), expected.sort());
+  for (const path of SPEC_PATHS) {
+    assert.equal(typeof SPEC_PATH_LABELS[path], "string", path);
+    assert.equal(specPathLabel(path), SPEC_PATH_LABELS[path]);
+  }
+  assert.equal(specPathLabel("jacket.buttons"), "Button stance");
+  assert.equal(specPathLabel("trousers.hem"), "Trouser hem");
+  assert.equal(specPathLabel("not.a.line"), "not.a.line", "an unknown path is shown as itself");
+});
+
+test("specDifferences lists the lines two designs differ on, in order-book order, and nothing else", () => {
+  assert.deepEqual(specDifferences(suit(), suit()), []);
+  const changed = suit({
+    garment: "three_piece",
+    waistcoat: DEFAULT_WAISTCOAT,
+    jacket: { lapel: "peak", vents: "none" },
+    trousers: { hem: "cuffed" },
+    liningCode: "lin-bemberg-gold",
+    monogram: MONOGRAM,
+  });
+  const lines = ["garment", "jacket.lapel", "jacket.vents", "trousers.hem", "waistcoat", "liningCode", "monogram"];
+  assert.deepEqual(specDifferences(suit(), changed), lines);
+  assert.deepEqual(specDifferences(changed, suit()), lines, "the comparison is symmetric");
+  assert.deepEqual(specDifferences(suit(), suit({ clothCode: null })), ["clothCode"]);
+  assert.deepEqual(specDifferences(suit(), suit({ jacket: { ticketPocket: true } })), ["jacket.ticketPocket"]);
+  const reordered = {
+    ...changed,
+    monogram: { font: "script", thread: "gold", placement: "inside_pocket", text: "N.S." },
+  };
+  assert.deepEqual(specDifferences(changed, reordered), [], "key order inside a line does not make a difference");
+  assert.deepEqual(
+    specDifferences(changed, { ...changed, waistcoat: { ...DEFAULT_WAISTCOAT, back: "cloth" } }),
+    ["waistcoat"],
+    "a waistcoat detail is the one waistcoat line",
+  );
 });
 
 // canonicalSpec and specHash.

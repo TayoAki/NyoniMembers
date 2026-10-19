@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { reportError } from "@/lib/errors";
 import { api } from "@convex/_generated/api";
 import type { StaffCorrectionView } from "@convex/atelier/corrections";
-import { CORRECTION_STATUS_LABELS, type CorrectionStatus } from "@convex/shared/atelier/enums";
+import { CORRECTION_STATUS_LABELS, correctionStatusLabel, type CorrectionStatus } from "@convex/shared/atelier/enums";
 import { canTransition, clientReadsAfter, NOTE_REQUIRED_STATUSES, settableNextStatuses } from "./aftercare-words";
 
 /**
@@ -124,7 +124,7 @@ function SetStatusForm({ correction, statuses }: { correction: StaffCorrectionVi
     setError(null);
     try {
       await setStatus({ correctionId: correction._id, status: chosen, ...(note.trim() ? { note: note.trim() } : {}) });
-      toast.success(`Now “${CORRECTION_STATUS_LABELS[chosen]}”.`);
+      toast.success(`Now “${correctionStatusLabel(correction.kind, chosen)}”.`);
       setChosen(null);
       setNote("");
     } catch (caught) {
@@ -158,7 +158,7 @@ function SetStatusForm({ correction, statuses }: { correction: StaffCorrectionVi
             className="h-10 rounded-none px-4"
             onClick={() => setChosen(status)}
           >
-            {CORRECTION_STATUS_LABELS[status]}
+            {correctionStatusLabel(correction.kind, status)}
           </Button>
         ))}
       </div>
@@ -189,7 +189,7 @@ function SetStatusForm({ correction, statuses }: { correction: StaffCorrectionVi
         </Button>
         {chosen ? (
           <p className="text-xs text-muted-foreground">
-            Client reads: <span className="text-foreground">{clientReadsAfter(chosen)}</span>
+            Client reads: <span className="text-foreground">{clientReadsAfter(chosen, correction.kind)}</span>
           </p>
         ) : null}
       </div>

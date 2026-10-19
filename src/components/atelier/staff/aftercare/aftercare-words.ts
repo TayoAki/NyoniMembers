@@ -7,6 +7,8 @@ import {
 import {
   CORRECTION_STATUS_LABELS,
   CORRECTION_STATUSES,
+  correctionStatusLabel,
+  type CorrectionKind,
   type CorrectionStatus,
   type RefundState,
 } from "@convex/shared/atelier/enums";
@@ -56,16 +58,19 @@ export function settableNextStatuses(from: CorrectionStatus): CorrectionStatus[]
   );
 }
 
-/** What the client reads after a status is set; the status word itself is CORRECTION_STATUS_LABELS. */
-export function clientReadsAfter(status: CorrectionStatus): string {
+/** What the client reads after a status is set; the status word itself is `correctionStatusLabel` (kind-aware for a cancellation). */
+export function clientReadsAfter(status: CorrectionStatus, kind: CorrectionKind): string {
+  const word = correctionStatusLabel(kind, status);
   switch (status) {
     case "completed":
-      return `“${CORRECTION_STATUS_LABELS.completed}” and the question “Is the fit right now?”`;
+      return kind === "cancellation"
+        ? `“${word}”; the commission is cancelled and any refund is recorded separately. No reassessment is asked for`
+        : `“${word}” and the question “Is the fit right now?”`;
     case "declined":
     case "closed":
-      return `“${CORRECTION_STATUS_LABELS[status]}” with your note; the request closes`;
+      return `“${word}” with your note; the request closes`;
     default:
-      return `“${CORRECTION_STATUS_LABELS[status]}”`;
+      return `“${word}”`;
   }
 }
 

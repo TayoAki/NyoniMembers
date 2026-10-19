@@ -8,11 +8,12 @@ import { Mono } from "@/components/atelier/common/mono";
 import { OrderBook, OrderBookRow } from "@/components/atelier/common/order-book";
 import { StatusLine } from "@/components/atelier/common/status-line";
 import { SpecOrderBook } from "@/components/atelier/staff/case/case-design";
-import { StaffRoleGate, StaffShell } from "@/components/atelier/staff/staff-shell";
+import { hasStaffRole, StaffRoleGate, StaffShell, useStaffStanding } from "@/components/atelier/staff/staff-shell";
 import { formatDate, formatDateTime, formatUsd, pluralize } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { api } from "@convex/_generated/api";
 import type { StaffOrderView } from "@convex/atelier/orders";
+import type { StaffStatus } from "@convex/atelier/staff";
 import { FIT_ROUTE_LABELS } from "@convex/shared/atelier/enums";
 import { MilestoneForm } from "./milestone-form";
 import { MilestoneTimeline } from "./milestone-timeline";
@@ -23,11 +24,16 @@ import { ReleasePanel } from "./release-panel";
 import { RiskForm } from "./risk-form";
 import { ShippingPanel } from "./shipping-panel";
 
+/** Operations run the desk; finance open it to record a payment (O04). The server gates every write the same way. */
+const ROLES = ["operations", "finance"] as const;
+
+const OPERATIONS_ONLY = "This needs the operations role.";
+
 /** A05 detail (O05). `staffGet` reads a malformed or unknown id as null, which becomes the segment's not-found page. */
 export function OrderDesk({ orderId }: { orderId: string }) {
   return (
     <StaffRoleGate
-      role="operations"
+      role={ROLES}
       fallback={
         <StaffShell title="Commission">
           <OrderDeskSkeleton />
@@ -40,8 +46,9 @@ export function OrderDesk({ orderId }: { orderId: string }) {
 }
 
 function OrderLoader({ orderId }: { orderId: string }) {
+  const standing = useStaffStanding();
   const order = useQuery(api.atelier.orders.staffGet, { orderId });
-  if (order === undefined) {
+  if (order === undefined || standing.status !== "ready") {
     return (
       <StaffShell title="Commission">
         <OrderDeskSkeleton />
@@ -49,11 +56,12 @@ function OrderLoader({ orderId }: { orderId: string }) {
     );
   }
   if (order === null) notFound();
-  return <OrderDeskView order={order} />;
+  return <OrderDeskView order={order} me={standing.me} />;
 }
 
-/** Pure composition: give it the staff order view and it renders deterministically. */
-export function OrderDeskView({ order }: { order: StaffOrderView }) {
+/** Pure composition: give it the staff order view and the standing and it renders deterministically. */
+export function OrderDeskView({ order, me }: { order: StaffOrderView; me: StaffStatus | null }) {
+  const operations = hasStaffRole(me, "operations");
   const readiness = order.eventReadiness;
   return (
     <StaffShell
@@ -199,7 +207,11 @@ export function OrderDeskView({ order }: { order: StaffOrderView }) {
           title="Preflight and release"
           description="What stands between this commission and the cutter. Release sends the immutable package with the production ids below."
         >
-          <ReleasePanel order={order} />
+          {operations ? (
+            <ReleasePanel order={order} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{OPERATIONS_ONLY}</p>
+          )}
         </AtelierSection>
 
         <AtelierSection
@@ -225,7 +237,11 @@ export function OrderDeskView({ order }: { order: StaffOrderView }) {
         >
           <div className="space-y-8">
             <MilestoneTimeline milestones={order.milestones} />
-            <MilestoneForm order={order} />
+            {operations ? (
+              <MilestoneForm order={order} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Recording a milestone needs the operations role.</p>
+            )}
           </div>
         </AtelierSection>
 
@@ -234,7 +250,11 @@ export function OrderDeskView({ order }: { order: StaffOrderView }) {
           title="Shipping and delivery"
           description="Shipped is not fitted. Delivery opens the client's fit review; only they accept the fit."
         >
-          <ShippingPanel order={order} />
+          {operations ? (
+            <ShippingPanel order={order} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{OPERATIONS_ONLY}</p>
+          )}
         </AtelierSection>
 
         <AtelierSection
@@ -242,7 +262,7 @@ export function OrderDeskView({ order }: { order: StaffOrderView }) {
           title="Risk to the date"
           description="When the event date is at risk, tell the client honestly on their request."
         >
-          <RiskForm order={order} />
+          {operations ? <RiskForm order={order} /> : <p className="text-sm text-muted-foreground">{OPERATIONS_ONLY}</p>}
         </AtelierSection>
       </div>
     </StaffShell>

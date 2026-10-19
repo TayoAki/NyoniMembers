@@ -16,15 +16,22 @@ import { reportError } from "@/lib/errors";
 import { formatDateTime, formatUsd } from "@/lib/format";
 import { api } from "@convex/_generated/api";
 import type { StaffOrderView } from "@convex/atelier/orders";
-import { PAYMENT_STATE_LABELS, type PaymentState } from "@convex/shared/atelier/enums";
+import { PAYMENT_STATE_LABELS, REFUND_PAYMENT_STATES, type PaymentState } from "@convex/shared/atelier/enums";
 import { PAYMENT_STATE_TONES, PAYMENT_TRANSITIONS } from "./production-words";
+
+const REFUNDS_ON_THE_CORRECTION =
+  "A refund is approved and confirmed on the client's correction, by finance, from the payment system's reference; the record here follows it. Nothing reads “Refunded” from this form.";
 
 /**
  * O04/O05: the payment record, written from what the house's payment system reported. There is no
- * checkout here. Only the legal next states are offered; the reference makes a repeat harmless.
+ * checkout here. Only the legal next states are offered, and never a refund: those are finance's words,
+ * written from the correction when the payment system confirms them (C25, O07). The reference makes a
+ * repeat harmless.
  */
 export function PaymentPanel({ order }: { order: StaffOrderView }) {
-  const legal = PAYMENT_TRANSITIONS[order.payment.state];
+  const next = PAYMENT_TRANSITIONS[order.payment.state];
+  const legal = next.filter((candidate) => !REFUND_PAYMENT_STATES.includes(candidate));
+  const refundsFollow = next.length > legal.length;
   return (
     <div className="space-y-6">
       <OrderBook>
@@ -51,7 +58,8 @@ export function PaymentPanel({ order }: { order: StaffOrderView }) {
       </OrderBook>
       {legal.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Payment is “{order.payment.stateLabel}”; nothing further can be recorded.
+          Payment is “{order.payment.stateLabel}”; nothing further is recorded here.
+          {refundsFollow ? ` ${REFUNDS_ON_THE_CORRECTION}` : ""}
         </p>
       ) : (
         <RecordPaymentForm order={order} legal={legal} />

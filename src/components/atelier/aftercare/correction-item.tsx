@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CORRECTION_TONES, correctionTitle } from "@/components/atelier/aftercare/aftercare-words";
+import { correctionTitle, correctionTone } from "@/components/atelier/aftercare/aftercare-words";
 import { CorrectionDetail } from "@/components/atelier/aftercare/correction-detail";
 import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
@@ -19,7 +19,7 @@ export function CorrectionItem({ summary }: { summary: CorrectionSummary }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
           <div className="min-w-0 space-y-1.5">
             <h3 className="text-base font-medium">{correctionTitle(summary)}</h3>
-            <StatusLine tone={CORRECTION_TONES[summary.status]}>{summary.statusLabel}</StatusLine>
+            <StatusLine tone={correctionTone(summary)}>{summary.statusLabel}</StatusLine>
             {summary.refundStateLabel ? (
               <p className="text-sm text-muted-foreground">{summary.refundStateLabel}</p>
             ) : null}

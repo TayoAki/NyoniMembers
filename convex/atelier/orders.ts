@@ -241,12 +241,15 @@ export const list = query({
   },
 });
 
-/** A05. One commission with its blockers and payment record. A malformed id reads as null. */
+/**
+ * A05. One commission with its blockers and payment record. Operations run the desk; finance read it to
+ * record a payment (O04). A malformed id reads as null.
+ */
 export const staffGet = query({
   args: { orderId: v.string() },
   returns: v.union(vStaffOrderView, v.null()),
   handler: async (ctx, { orderId }) => {
-    await requireStaff(ctx, "operations");
+    await requireStaff(ctx, ["operations", "finance"]);
     const id = ctx.db.normalizeId("atelierOrders", orderId);
     if (!id) return null;
     const order = await ctx.db.get(id);
@@ -326,7 +329,9 @@ export const markDelivered = mutation({
 
 /**
  * O04/O05. Records what the house's payment system reported, idempotent on the provider's reference.
- * Operations or finance. `changed` is false when the same reference in the same state was already recorded.
+ * Operations or finance for pending, confirmed and failed; a refund state needs finance and is normally
+ * written by `corrections.confirmRefund` (the model refuses it otherwise). `changed` is false when the
+ * same reference in the same state was already recorded.
  */
 export const recordPayment = mutation({
   args: {

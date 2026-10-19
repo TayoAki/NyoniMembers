@@ -214,9 +214,28 @@ test("offer tells the client, queues a notification, moves the case and supersed
   const lateId = await quotes.createQuote(f.ctx, finance, caseDoc, input({ expiresAt: NOW + 1 }), NOW);
   await assert.rejects(
     quotes.offerQuote(f.ctx, finance, await quote(lateId), NOW + 2),
-    isAppError("INVALID_INPUT"),
-    "an expiry already passed cannot be offered",
+    (error) =>
+      isAppError("INVALID_INPUT")(error) &&
+      /Supersede it with a new version/.test(error.data.message) &&
+      /never expired by the hourly check/.test(error.data.message),
+    "an expiry already passed cannot be offered; the refusal names the one way forward",
   );
+});
+
+test("a quote still being prepared is never expired by the hourly check; only a new version moves it on", async () => {
+  const { f, finance, caseDoc, quote } = await setup();
+  const staleId = await quotes.createQuote(f.ctx, finance, caseDoc, input({ expiresAt: NOW + 1 }), NOW);
+  assert.equal(await quotes.expireQuotes(f.ctx, NOW + DAY), 0, "the cron reads offered quotes only");
+  const stale = await quote(staleId);
+  assert.equal(stale.status, "draft");
+  assert.equal(QUOTE_STATUS_LABELS[stale.status], "Being prepared", "what the desk reads is still true");
+  assert.equal((await f.ctx.db.get(caseDoc._id)).status, "received", "nothing was said to the client");
+  assert.ok(!auditActions(f).includes("quote.expire"));
+
+  const nextId = await quotes.supersedeQuote(f.ctx, finance, stale, input({ expiresAt: NOW + 7 * DAY }), NOW + DAY);
+  assert.equal((await quote(staleId)).status, "superseded");
+  assert.equal((await quote(nextId)).status, "offered");
+  assert.equal((await quote(nextId)).supersedesId, staleId);
 });
 
 test("supersede is create + offer in one and keeps the history of the quote it replaces", async () => {

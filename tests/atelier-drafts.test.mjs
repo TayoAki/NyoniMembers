@@ -13,10 +13,12 @@ import {
 } from "./atelier-fake-ctx.mjs";
 
 const drafts = await import("../convex/model/atelier/drafts.ts");
+const groups = await import("../convex/model/atelier/groups.ts");
 const { ATELIER_LIMITS } = await import("../convex/shared/atelier/enums.ts");
-const { DEFAULT_SPEC, specHash } = await import("../convex/shared/atelier/spec.ts");
+const { DEFAULT_SPEC, specDifferences, specHash } = await import("../convex/shared/atelier/spec.ts");
 const { LOOKS } = await import("../convex/shared/atelier/looks.ts");
 const { CLOTH_SEED } = await import("../convex/shared/atelier/cloths.ts");
+const { LINING_SEED } = await import("../convex/shared/atelier/materials.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
 const DAY = 86_400_000;
@@ -543,6 +545,156 @@ test("link moves the draft and what hangs off it to the account, and only with t
   );
   assert.ok(await drafts.findAccessible(f.ctx, draft._id, accountActor));
   assert.equal(await drafts.findAccessible(f.ctx, draft._id, guestActor), null, "the old key no longer opens it");
+});
+
+/** A group with one joined participant: the organizer's row, the group, the participant and the design it made. */
+async function groupDraft(f, actor, overrides = {}, now = NOW) {
+  const organizer = await f.ctx.db.get(
+    await f.ctx.db.insert("users", { clerkId: "clerk_kwame", role: "user", name: "Kwame Mensah", createdAt: 1 }),
+  );
+  const groupId = await groups.createGroup(
+    f.ctx,
+    organizer,
+    {
+      name: "Mensah wedding party",
+      eventDate: now + 120 * DAY,
+      occasion: "wedding",
+      brief: "",
+      sharedSpec: { ...DEFAULT_SPEC, clothCode: null },
+      permittedIndividual: ["liningCode", "monogram", "trousers.hem"],
+      ...overrides,
+    },
+    now,
+  );
+  const { participantId, inviteToken } = await groups.inviteParticipant(
+    f.ctx,
+    organizer,
+    groupId,
+    { name: "Yaw" },
+    now,
+  );
+  const { draftId } = await groups.joinGroup(f.ctx, actor, inviteToken, now + 1);
+  return { organizer, group: await f.ctx.db.get(groupId), participantId, draftId };
+}
+
+test("a group design may move only the lines the brief leaves to each participant, and the cloth when it is open (C28)", async () => {
+  const f = fakeCtx();
+  await makeDraft(f, otherGuestActor); // seeds the catalogue
+  const { organizer, group, participantId, draftId } = await groupDraft(f, guestActor);
+  let draft = await f.ctx.db.get(draftId);
+  assert.equal(draft.groupId, group._id);
+
+  // A shared line is refused by name before anything is proposed or written, accepted conflicts or not.
+  const written = f.log.patches.length;
+  await assert.rejects(drafts.commitChange(f.ctx, draft, { garment: "tuxedo" }, true, NOW + 2), (error) => {
+    assert.ok(isAppError("INVALID_STATE")(error));
+    assert.equal(error.data.details.field, "garment");
+    assert.equal(error.data.details.groupId, group._id);
+    assert.match(error.data.message, /^Garment follows the shared design for Mensah wedding party/);
+    return true;
+  });
+  await assert.rejects(
+    drafts.commitChange(f.ctx, draft, { jacket: { lapel: "peak" } }, false, NOW + 2),
+    (error) => isAppError("INVALID_STATE")(error) && error.data.details.field === "jacket.lapel",
+  );
+  assert.equal(f.log.patches.length, written, "a refused change writes nothing");
+  assert.deepEqual((await f.ctx.db.get(draftId)).spec, { ...DEFAULT_SPEC, clothCode: null });
+
+  // The brief leaves the cloth open, so it is the participant's; so are the permitted lines.
+  assert.equal((await drafts.commitChange(f.ctx, draft, { clothCode: CLOTHS[0] }, false, NOW + 3)).applied, true);
+  draft = await f.ctx.db.get(draftId);
+  const permitted = await drafts.commitChange(
+    f.ctx,
+    draft,
+    {
+      liningCode: LINING_SEED[0].code,
+      trousers: { hem: "cuffed" },
+      monogram: { text: "Y.M.", placement: "cuff", thread: "gold", font: "block" },
+    },
+    false,
+    NOW + 4,
+  );
+  assert.equal(permitted.applied, true);
+  draft = await f.ctx.db.get(draftId);
+  assert.equal(draft.spec.liningCode, LINING_SEED[0].code);
+  assert.equal(draft.spec.trousers.hem, "cuffed");
+
+  // A recommended look replaces the whole design, so it is refused as the first shared line it would move.
+  const look = LOOKS.find((candidate) =>
+    specDifferences(group.sharedSpec, candidate.spec).some(
+      (path) => path !== "clothCode" && !group.permittedIndividual.includes(path),
+    ),
+  );
+  assert.ok(look, "a look that departs from the brief exists");
+  await assert.rejects(drafts.applyLook(f.ctx, draft, look.key, NOW + 5), isAppError("INVALID_STATE"));
+  assert.equal((await f.ctx.db.get(draftId)).revision, draft.revision);
+
+  // The organizer moves the brief: lines already apart from it are not re-litigated, a permitted change
+  // still goes through, a shared line may be brought back into agreement but not moved anywhere else.
+  await groups.updateGroup(
+    f.ctx,
+    organizer,
+    group._id,
+    { sharedSpec: { ...DEFAULT_SPEC, clothCode: null, jacket: { ...DEFAULT_SPEC.jacket, lapelWidth: "wide" } } },
+    NOW + 6,
+  );
+  draft = await f.ctx.db.get(draftId);
+  assert.equal((await drafts.commitChange(f.ctx, draft, { trousers: { hem: "plain" } }, false, NOW + 7)).applied, true);
+  draft = await f.ctx.db.get(draftId);
+  await assert.rejects(
+    drafts.commitChange(f.ctx, draft, { jacket: { lapelWidth: "slim" } }, false, NOW + 8),
+    (error) => isAppError("INVALID_STATE")(error) && error.data.details.field === "jacket.lapelWidth",
+  );
+  assert.equal(
+    (await drafts.commitChange(f.ctx, draft, { jacket: { lapelWidth: "wide" } }, false, NOW + 9)).applied,
+    true,
+    "back into agreement with the brief",
+  );
+
+  // Leaving the group makes the design private again.
+  await groups.leaveGroup(f.ctx, guestActor, participantId, NOW + 10);
+  draft = await f.ctx.db.get(draftId);
+  assert.equal(draft.groupId, undefined);
+  assert.equal((await drafts.commitChange(f.ctx, draft, { garment: "tuxedo" }, true, NOW + 11)).applied, true);
+});
+
+test("a brief that fixes the cloth keeps the participant to it", async () => {
+  const f = fakeCtx();
+  await makeDraft(f, otherGuestActor);
+  const { draftId } = await groupDraft(f, guestActor, { sharedSpec: { ...DEFAULT_SPEC, clothCode: CLOTHS[0] } });
+  const draft = await f.ctx.db.get(draftId);
+  assert.equal(draft.spec.clothCode, CLOTHS[0]);
+  await assert.rejects(
+    drafts.commitChange(f.ctx, draft, { clothCode: CLOTHS[1] }, false, NOW + 2),
+    (error) => isAppError("INVALID_STATE")(error) && error.data.details.field === "clothCode",
+  );
+  assert.equal(
+    (await drafts.commitChange(f.ctx, draft, { liningCode: LINING_SEED[0].code }, false, NOW + 3)).applied,
+    true,
+  );
+});
+
+test("link carries a guest's group participation to the account, and no one else's (C28)", async () => {
+  const f = fakeCtx();
+  const { organizer, group, participantId, draftId } = await groupDraft(f, guestActor);
+  const kofi = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Kofi" }, NOW + 2);
+  const { draftId: kofiDraft } = await groups.joinGroup(f.ctx, otherGuestActor, kofi.inviteToken, NOW + 3);
+  assert.equal((await f.ctx.db.get(participantId)).userId, undefined, "a guest's participation names no account");
+
+  await drafts.linkDraft(f.ctx, accountUser, draftId, GUEST_KEY, NOW + 5);
+  const participant = await f.ctx.db.get(participantId);
+  assert.equal(participant.userId, accountUser._id);
+  assert.equal(participant.draftId, draftId);
+  assert.equal(participant.status, "joined");
+  const other = await f.ctx.db.get(kofi.participantId);
+  assert.equal(other.userId, undefined, "another participant of the same group is untouched");
+  assert.equal((await f.ctx.db.get(kofiDraft)).guestKey, OTHER_GUEST_KEY);
+  const entry = f.rowsOf("atelierAuditLog").find((row) => row.action === "draft.link" && row.targetId === draftId);
+  assert.equal(entry.meta.participants, 1);
+
+  // The participation now reads as the account's: its fit readiness can come from the account's profile.
+  const view = await groups.participationForDraft(f.ctx, await f.ctx.db.get(draftId));
+  assert.equal(view.participantId, participantId);
 });
 
 test("duplicate keeps history: a new draft named (again), the source untouched, warnings from the old catalogue", async () => {

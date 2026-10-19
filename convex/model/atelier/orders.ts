@@ -1,6 +1,6 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import { audit, isOwner, staffDisplayName, type Actor, type Owned } from "../../atelier/access";
+import { audit, hasStaffRole, isOwner, staffDisplayName, type Actor, type Owned } from "../../atelier/access";
 import type {
   ChecklistEntryView,
   MilestoneView,
@@ -13,7 +13,7 @@ import type {
 import { appError } from "../../lib/errors";
 import {
   CORRECTION_KIND_LABELS,
-  CORRECTION_STATUS_LABELS,
+  correctionStatusLabel,
   FIT_PROFILE_STATUS_LABELS,
   FIT_REGION_LABELS,
   FIT_REGIONS,
@@ -24,6 +24,7 @@ import {
   ORDER_STATUSES,
   PAYMENT_STATE_LABELS,
   QUOTE_STATUS_LABELS,
+  REFUND_PAYMENT_STATES,
   type ChecklistState,
   type MilestoneSource,
   type OrderMilestoneKind,
@@ -312,7 +313,7 @@ export async function toOrderView(ctx: Ctx, order: Order, now: number = Date.now
       kind: correction.kind,
       kindLabel: CORRECTION_KIND_LABELS[correction.kind],
       status: correction.status,
-      statusLabel: CORRECTION_STATUS_LABELS[correction.status],
+      statusLabel: correctionStatusLabel(correction.kind, correction.status),
       createdAt: correction.createdAt,
     })),
     createdAt: order.createdAt,
@@ -612,9 +613,11 @@ export type StaffMilestoneInput = {
 /**
  * Records a dated, sourced milestone of a production kind (PRODUCTION_MILESTONE_KINDS). A fact of kind
  * making, quality_review, shipped, collected or fit_review moves the status forward; an estimate of any
- * kind moves nothing (C22: estimates are labelled, never promoted). The kinds with an action of their
- * own (quote_accepted, payment, released, delivered, fit_accepted, correction_opened) are refused here:
- * they are facts only that action can record, never a hand-written line.
+ * kind moves nothing (C22: estimates are labelled, never promoted). An `estimated_ready` line is an
+ * estimate by nature, whatever the caller said, and becomes the commission's current estimate so the
+ * timeline and the order's "Estimated ready" never disagree. The kinds with an action of their own
+ * (quote_accepted, payment, released, delivered, fit_accepted, correction_opened) are refused here: they
+ * are facts only that action can record, never a hand-written line.
  */
 export async function addMilestone(
   ctx: MutationCtx,
@@ -634,7 +637,9 @@ export async function addMilestone(
   if (!label) throw appError("INVALID_INPUT", "Give the milestone a label.");
   if (!Number.isFinite(input.at)) throw appError("INVALID_INPUT", "Give the milestone a date.");
   if (order.status === "cancelled") throw appError("INVALID_STATE", "This commission was cancelled.");
-  const target = input.estimated ? undefined : STATUS_FOR_MILESTONE[input.kind];
+  const isEstimatedReady = input.kind === "estimated_ready";
+  const estimated = isEstimatedReady || input.estimated;
+  const target = estimated ? undefined : STATUS_FOR_MILESTONE[input.kind];
   if (target) {
     assertProductionOpen(order);
     if (STATUS_RANK[target] < STATUS_RANK[order.status]) {
@@ -651,10 +656,11 @@ export async function addMilestone(
     source: input.source,
     byUserId: staff._id,
     note: input.note?.trim() || undefined,
-    estimated: input.estimated,
+    estimated,
   });
-  const patch: { updatedAt: number; status?: OrderStatus } = { updatedAt: now };
+  const patch: { updatedAt: number; status?: OrderStatus; estimatedReadyAt?: number } = { updatedAt: now };
   if (target && target !== order.status) patch.status = target;
+  if (isEstimatedReady) patch.estimatedReadyAt = input.at;
   await ctx.db.patch(order._id, patch);
   await audit(
     ctx,
@@ -663,7 +669,12 @@ export async function addMilestone(
       action: "order.milestone",
       targetTable: "atelierOrders",
       targetId: order._id,
-      meta: { kind: input.kind, estimated: input.estimated, status: patch.status ?? order.status },
+      meta: {
+        kind: input.kind,
+        estimated,
+        status: patch.status ?? order.status,
+        ...(isEstimatedReady ? { estimatedReadyAt: input.at } : {}),
+      },
     },
     now,
   );
@@ -789,6 +800,9 @@ function paymentMessage(payment: Payment): string | null {
  * Records a payment the house's real payment system reported, idempotent on the provider's reference:
  * the same reference in the same state is one record and one milestone however many times it arrives
  * (cross-cutting scenario 10). A record never implies production: release is a separate decision.
+ * "Refunded" and "Partly refunded" are finance's words alone (C25, O07): the corrections model records
+ * them here when finance confirms a refund with the payment system's reference, and operations cannot
+ * write them by hand.
  */
 export async function recordPayment(
   ctx: MutationCtx,
@@ -804,6 +818,13 @@ export async function recordPayment(
     throw appError("INVALID_INPUT", "Give the amount recorded by the provider.");
   if (input.state === "none")
     throw appError("INVALID_INPUT", "Record what the provider reported: pending, confirmed, failed or a refund.");
+  if (REFUND_PAYMENT_STATES.includes(input.state) && !hasStaffRole(staff, "finance")) {
+    throw appError(
+      "FORBIDDEN",
+      `"${PAYMENT_STATE_LABELS[input.state]}" is recorded by finance, when the payment system confirms the refund approved on the client's correction.`,
+      { state: input.state },
+    );
+  }
   const current = order.payment;
   if (current.reference === reference && current.state === input.state) return { changed: false, payment: current };
   if (!PAYMENT_TRANSITIONS[current.state].includes(input.state)) {

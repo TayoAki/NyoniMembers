@@ -326,9 +326,9 @@ export const vRespondResult = v.object({
 });
 
 /**
- * C20, S26. Accept writes the proposed design as a new revision (`proposal_accepted`) and supersedes an
- * offered quote when the change carries a price; decline keeps the design. A proposal made against an
- * earlier revision is refused with STALE_REVISION.
+ * C20, S26. Accept writes the proposed design as a new revision (`proposal_accepted`) and withdraws an
+ * offered quote when the change carries a price (nothing has replaced it yet, so it is not "superseded");
+ * decline keeps the design. A proposal made against an earlier revision is refused with STALE_REVISION.
  */
 export const respondToProposal = mutation({
   args: { ...ownerArgs, proposalId: v.id("atelierProposals"), accept: v.boolean() },
@@ -353,11 +353,12 @@ export const queue = query({
   },
 });
 
+/** The case desk's read (A01 detail, A04 composer): a concierge or finance member; each write below keeps its own role. */
 export const staffGet = query({
   args: { caseId: v.id("atelierCases"), now: v.optional(v.number()) },
   returns: vStaffCaseView,
   handler: async (ctx, { caseId, now }) => {
-    await requireStaff(ctx, "concierge");
+    await requireStaff(ctx, ["concierge", "finance"]);
     return staffGetCase(ctx, caseId, now ?? Date.now());
   },
 });

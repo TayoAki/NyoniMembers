@@ -1,5 +1,5 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
-import type { CorrectionView } from "@convex/atelier/corrections";
+import type { CorrectionSummary, CorrectionView } from "@convex/atelier/corrections";
 import type { OrderView } from "@convex/atelier/orders";
 import {
   ATELIER_LIMITS,
@@ -30,6 +30,19 @@ export const REFUND_TONES: Record<RefundState, StatusTone> = {
   processing: "neutral",
   refunded: "success",
 };
+
+/**
+ * A completed correction waits on the client's reassessment, except a cancellation: the commission is
+ * cancelled, there is no fit to reassess and the house closes it once any refund is recorded (C25).
+ */
+export function awaitsReassessment(c: Pick<CorrectionView, "kind" | "status" | "reassessment">): boolean {
+  return c.status === "completed" && c.kind !== "cancellation" && !c.reassessment;
+}
+
+/** The tone for a status word; a completed cancellation waits on nobody, so it is not gold. */
+export function correctionTone(c: Pick<CorrectionSummary, "kind" | "status">): StatusTone {
+  return c.kind === "cancellation" && c.status === "completed" ? "neutral" : CORRECTION_TONES[c.status];
+}
 
 /** Mirror `CORRECTION_TEXT_MAX` and `CORRECTION_PHOTOS_MAX` in convex/model/atelier/corrections.ts (not imported into the client bundle). */
 export const CORRECTION_TEXT_MAX: number = ATELIER_LIMITS.correctionTextMax;
@@ -80,6 +93,8 @@ export const ESCALATED_SENTENCE =
   "A senior member of the house decides on this one and replies on your request; you will not be asked to describe it again.";
 export const SPEC_UNCHANGED_SENTENCE =
   "A correction never rewrites the released order: the specification and the fit profile it was cut to stay on record.";
+export const CANCELLED_SENTENCE =
+  "Your commission has been cancelled. Any refund is recorded here separately, from the house's payment system, when it is made.";
 
 /** What a correction form is for: a fresh `key` makes a fresh form (and submission key) for each intent. */
 export type CorrectionIntent = { key: number; kind: CorrectionKind; region: FitRegion | null };

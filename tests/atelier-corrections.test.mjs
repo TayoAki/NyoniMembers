@@ -3,10 +3,16 @@ import test from "node:test";
 import { fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
 
 const corrections = await import("../convex/model/atelier/corrections.ts");
+const orders = await import("../convex/model/atelier/orders.ts");
 const caseCore = await import("../convex/model/atelier/case_core.ts");
 const { DEFAULT_SPEC, specHash } = await import("../convex/shared/atelier/spec.ts");
-const { CORRECTION_STATUSES, CORRECTION_STATUS_LABELS, REFUND_STATE_LABELS } =
-  await import("../convex/shared/atelier/enums.ts");
+const {
+  CANCELLATION_COMPLETED_LABEL,
+  CORRECTION_STATUSES,
+  CORRECTION_STATUS_LABELS,
+  correctionStatusLabel,
+  REFUND_STATE_LABELS,
+} = await import("../convex/shared/atelier/enums.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
 const DAY = 86_400_000;
@@ -608,7 +614,7 @@ test("an order whose fit had been accepted returns to accepted when a correction
 
 test("a completed cancellation cancels the commission; nothing else does", async () => {
   const s = await setup({ status: "released" });
-  const { correctionId } = await s.request({
+  const { correctionId, caseId } = await s.request({
     kind: "cancellation",
     region: undefined,
     description: "The wedding is off.",
@@ -635,9 +641,51 @@ test("a completed cancellation cancels the commission; nothing else does", async
   await corrections.acceptRemedy(s.f.ctx, s.actor, await c(), NOW + 3);
   await corrections.setStatus(s.f.ctx, s.operations, await c(), "in_progress", undefined, NOW + 4);
   assert.equal((await s.order()).status, "released", "in progress is not cancelled");
+  assert.equal(
+    (await corrections.toCorrectionView(s.f.ctx, await c())).statusLabel,
+    CORRECTION_STATUS_LABELS.in_progress,
+  );
   await corrections.setStatus(s.f.ctx, s.operations, await c(), "completed", undefined, NOW + 5);
   assert.equal((await s.order()).status, "cancelled");
   assert.equal(s.f.rowsOf("atelierOrderMilestones").length, 1, "no milestone written from here");
+
+  // A cancelled, never-made suit is not "awaiting your reassessment": every view says what happened instead.
+  const completed = await c();
+  assert.equal(completed.status, "completed");
+  assert.equal(correctionStatusLabel("cancellation", "completed"), CANCELLATION_COMPLETED_LABEL);
+  assert.notEqual(CANCELLATION_COMPLETED_LABEL, CORRECTION_STATUS_LABELS.completed);
+  assert.doesNotMatch(CANCELLATION_COMPLETED_LABEL, /reassess/i);
+  assert.equal(correctionStatusLabel("alteration", "completed"), CORRECTION_STATUS_LABELS.completed);
+  assert.equal((await corrections.toCorrectionView(s.f.ctx, completed)).statusLabel, CANCELLATION_COMPLETED_LABEL);
+  assert.equal(corrections.toCorrectionSummary(completed).statusLabel, CANCELLATION_COMPLETED_LABEL);
+  assert.equal((await corrections.toStaffView(s.f.ctx, completed)).statusLabel, CANCELLATION_COMPLETED_LABEL);
+  assert.equal((await corrections.toStaffRow(s.f.ctx, completed)).statusLabel, CANCELLATION_COMPLETED_LABEL);
+  const orderView = await orders.toOrderView(s.f.ctx, await s.order(), NOW + 6);
+  assert.equal(orderView.corrections[0].statusLabel, CANCELLATION_COMPLETED_LABEL);
+  const last = s.messagesOf(caseId).at(-1);
+  assert.ok(last.startsWith(`${CANCELLATION_COMPLETED_LABEL}.`), last);
+  assert.doesNotMatch(last, /fit is right/);
+  assert.equal(
+    (await s.f.ctx.db.get(caseId)).status,
+    "awaiting_staff",
+    "the refund and the close are the house's move, not the client's",
+  );
+  await assert.rejects(
+    corrections.reassess(s.f.ctx, s.actor, completed, { outcome: "resolved", note: "" }, NOW + 7),
+    (error) => isAppError("INVALID_STATE")(error) && /no fit to reassess/.test(error.data.message),
+    "there is no fit to reassess on a cancellation",
+  );
+  assert.equal((await c()).status, "completed");
+  assert.equal((await s.order()).status, "cancelled", "a refused reassessment changes nothing");
+
+  // The refund that follows is recorded on the correction, then the house closes it.
+  await corrections.approveRefund(s.f.ctx, s.finance, await c(), 2580, NOW + 8);
+  await corrections.confirmRefund(s.f.ctx, s.finance, await c(), { amountUsd: 2580, reference: "sq_r9" }, NOW + 9);
+  assert.equal((await s.order()).payment.state, "refunded");
+  await corrections.setStatus(s.f.ctx, s.operations, await c(), "closed", "Refunded in full.", NOW + 10);
+  assert.equal((await c()).status, "closed");
+  assert.equal((await corrections.toCorrectionView(s.f.ctx, await c())).statusLabel, CORRECTION_STATUS_LABELS.closed);
+  assert.equal((await s.order()).status, "cancelled", "closing never un-cancels the commission");
 });
 
 // ------------------------------------------------------------------------------------------------

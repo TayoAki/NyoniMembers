@@ -25,6 +25,7 @@ import {
   CORRECTION_KIND_LABELS,
   CORRECTION_STATUS_LABELS,
   CORRECTION_STATUSES,
+  correctionStatusLabel,
   FIT_REGION_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_STATE_LABELS,
@@ -293,7 +294,7 @@ async function toCorrectionFields(ctx: Ctx, c: Correction): Promise<Omit<Correct
     isDetailMismatch: c.region === "detail_mismatch",
     description: c.description,
     status: c.status,
-    statusLabel: CORRECTION_STATUS_LABELS[c.status],
+    statusLabel: correctionStatusLabel(c.kind, c.status),
     open: isOpen(c),
     remedy,
     refund: toRefundView(c.refund),
@@ -357,7 +358,7 @@ export function toCorrectionSummary(c: Correction): CorrectionSummary {
     region: c.region ?? null,
     regionLabel: c.region ? FIT_REGION_LABELS[c.region] : null,
     status: c.status,
-    statusLabel: CORRECTION_STATUS_LABELS[c.status],
+    statusLabel: correctionStatusLabel(c.kind, c.status),
     open: isOpen(c),
     refundStateLabel: c.refund ? REFUND_STATE_LABELS[c.refund.state] : null,
     createdAt: c.createdAt,
@@ -659,6 +660,13 @@ export async function reassess(
   now: number = Date.now(),
 ): Promise<void> {
   if (!isOwner(c, actor)) throw appError("NOT_FOUND", "That correction doesn't exist.");
+  if (c.kind === "cancellation") {
+    throw appError(
+      "INVALID_STATE",
+      "There is no fit to reassess on a cancellation. The house closes it once any refund has been recorded.",
+      { status: c.status, kind: c.kind },
+    );
+  }
   if (c.status !== "completed") {
     throw appError(
       "INVALID_STATE",
@@ -852,8 +860,9 @@ export async function proposeRemedy(
 /**
  * The staff-settable words along the line: accepted → in_progress → received → completed, declined from a
  * triaged request with a note, closed from an escalated or declined one with a note. A completed
- * cancellation cancels the commission; a completed correction records the client's current approved fit
- * profile version and asks them to reassess.
+ * correction records the client's current approved fit profile version and asks them to reassess. A
+ * completed cancellation cancels the commission instead: there is no fit to reassess, the client reads
+ * "Completed · commission cancelled", and the case stays with the house for any refund and the close.
  */
 export async function setStatus(
   ctx: MutationCtx,
@@ -882,12 +891,12 @@ export async function setStatus(
   }
   await ctx.db.patch(c._id, patch);
 
-  if (status === "completed") {
+  if (status === "completed" && c.kind === "cancellation") {
+    const order = await ctx.db.get(c.orderId);
+    if (order && order.status !== "cancelled") await ctx.db.patch(order._id, { status: "cancelled", updatedAt: now });
+    await touchCase(ctx, c.caseId, { status: "awaiting_staff" }, now);
+  } else if (status === "completed") {
     await touchCase(ctx, c.caseId, { status: "awaiting_client" }, now);
-    if (c.kind === "cancellation") {
-      const order = await ctx.db.get(c.orderId);
-      if (order && order.status !== "cancelled") await ctx.db.patch(order._id, { status: "cancelled", updatedAt: now });
-    }
   } else if (status === "declined" || status === "closed") {
     await touchCase(ctx, c.caseId, { status: "completed", closedAt: now }, now);
     await settleOrder(ctx, { ...c, status }, false, now);
@@ -898,7 +907,7 @@ export async function setStatus(
   const line =
     status === "completed"
       ? c.kind === "cancellation"
-        ? "Your commission has been cancelled. Any refund is recorded here separately, from the house's payment system, when it is made."
+        ? `${correctionStatusLabel(c.kind, status)}. Any refund is recorded here separately, from the house's payment system, when it is made.`
         : `${CORRECTION_STATUS_LABELS.completed}. Tell the house whether the fit is right now, or what is still wrong.`
       : `${CORRECTION_STATUS_LABELS[status]}.`;
   await appendMessage(ctx, c.caseId, { author: "system", body: body ? `${line} ${body}` : line }, now);

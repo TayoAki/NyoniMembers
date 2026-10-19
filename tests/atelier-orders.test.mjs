@@ -9,7 +9,8 @@ const revisions = await import("../convex/model/atelier/revisions.ts");
 const caseCore = await import("../convex/model/atelier/case_core.ts");
 const { DEFAULT_SPEC } = await import("../convex/shared/atelier/spec.ts");
 const { CLOTH_SEED } = await import("../convex/shared/atelier/cloths.ts");
-const { ORDER_STATUS_LABELS, PAYMENT_STATE_LABELS, FIT_REGIONS } = await import("../convex/shared/atelier/enums.ts");
+const { ORDER_STATUS_LABELS, PAYMENT_STATE_LABELS, FIT_REGIONS, REFUND_PAYMENT_STATES } =
+  await import("../convex/shared/atelier/enums.ts");
 const { HOUSE_POLICY } = await import("../convex/shared/atelier/policy.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
@@ -96,14 +97,8 @@ async function setup({ fitRoute = "atelier", eventDate = NOW + 120 * DAY, fitPro
       .rowsOf("atelierCaseMessages")
       .filter((row) => row.caseId === caseId)
       .map((row) => row.body);
-  const pay = async (state = "confirmed", reference = "sq_1", at = NOW + 1) =>
-    orders.recordPayment(
-      f.ctx,
-      operations,
-      await order(),
-      { state, amountUsd: 2580, reference, provider: "Square" },
-      at,
-    );
+  const pay = async (state = "confirmed", reference = "sq_1", at = NOW + 1, staff = operations) =>
+    orders.recordPayment(f.ctx, staff, await order(), { state, amountUsd: 2580, reference, provider: "Square" }, at);
   const release = async (at = NOW + 2) => orders.releaseOrder(f.ctx, operations, await order(), "CLT-2026-0301", at);
   return {
     f,
@@ -248,7 +243,7 @@ test("release fails with the blockers, then releases once with a maker reference
 // ------------------------------------------------------------------------------------------------
 
 test("payment is idempotent on the provider reference and only moves along the allowed transitions", async () => {
-  const { f, operations, order, milestones, messages, pay } = await setup();
+  const { f, operations, finance, order, milestones, messages, pay } = await setup();
   const first = await pay("pending", "sq_1", NOW + 1);
   assert.equal(first.changed, true);
   assert.equal((await order()).payment.state, "pending");
@@ -283,14 +278,46 @@ test("payment is idempotent on the provider reference and only moves along the a
     ),
     isAppError("INVALID_INPUT"),
   );
-  await pay("refunded_partial", "rf_1", NOW + 5);
+  await pay("refunded_partial", "rf_1", NOW + 5, finance);
   assert.equal((await order()).payment.state, "refunded_partial");
   assert.equal((await order()).payment.confirmedAt, NOW + 3, "the confirmation date is kept through a refund");
-  await pay("refunded", "rf_2", NOW + 6);
-  await assert.rejects(pay("confirmed", "sq_3", NOW + 7), isAppError("INVALID_STATE"));
+  await pay("refunded", "rf_2", NOW + 6, finance);
+  await assert.rejects(pay("confirmed", "sq_3", NOW + 7, finance), isAppError("INVALID_STATE"));
   assert.equal(paymentMilestones().length, 4);
   assert.equal(f.rowsOf("atelierAuditLog").filter((row) => row.action === "order.payment").length, 4);
   assert.equal((await order()).status, "preflight", "a payment record never releases anything");
+});
+
+test("“Refunded” and “Partly refunded” are finance's words: operations cannot record them, finance can, and the admin holds every role", async () => {
+  const { f, operations, finance, order, milestones, pay } = await setup();
+  await pay("confirmed", "sq_1", NOW + 1);
+  const before = milestones().length;
+  for (const state of REFUND_PAYMENT_STATES) {
+    await assert.rejects(
+      pay(state, `rf_${state}`, NOW + 2),
+      (error) =>
+        isAppError("FORBIDDEN")(error) &&
+        error.data.details.state === state &&
+        /finance/.test(error.data.message) &&
+        /correction/.test(error.data.message),
+      `${state} from operations`,
+    );
+  }
+  assert.equal((await order()).payment.state, "confirmed", "nothing changed");
+  assert.equal(milestones().length, before, "no milestone was written");
+  assert.equal(f.rowsOf("atelierAuditLog").filter((row) => row.action === "order.payment").length, 1);
+  assert.deepEqual(REFUND_PAYMENT_STATES, ["refunded_partial", "refunded"]);
+  assert.ok(!REFUND_PAYMENT_STATES.includes("confirmed") && !REFUND_PAYMENT_STATES.includes("failed"));
+
+  const admin = await f.ctx.db.get(
+    await f.ctx.db.insert("users", { clerkId: "clerk_admin", role: "admin", name: "Zuri Adeyemi", createdAt: 1 }),
+  );
+  await pay("refunded_partial", "rf_1", NOW + 3, admin);
+  assert.equal((await order()).payment.state, "refunded_partial");
+  await pay("refunded", "rf_2", NOW + 4, finance);
+  assert.equal((await order()).payment.state, "refunded");
+  assert.equal(milestones().at(-1).label, PAYMENT_STATE_LABELS.refunded);
+  void operations;
 });
 
 test("a failed payment can be retried and says nothing was charged twice", async () => {
@@ -404,6 +431,64 @@ test("addMilestone records production kinds only; the kinds with an action of th
     NOW + 4,
   );
   assert.equal(milestones().at(-1).kind, "cloth_cut");
+});
+
+test("an “Estimated ready” milestone is always an estimate and becomes the commission's estimated ready date", async () => {
+  const { f, operations, order, milestones, pay, release } = await setup();
+  await pay();
+  await release();
+  assert.equal((await order()).estimatedReadyAt, undefined);
+  const readyAt = NOW + 45 * DAY;
+  // The desk's switch says "a fact"; the server records it as the estimate it is.
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "estimated_ready", label: "Estimated ready", at: readyAt, source: "maker", estimated: false },
+    NOW + 3,
+  );
+  let current = await order();
+  const written = milestones().at(-1);
+  assert.equal(written.kind, "estimated_ready");
+  assert.equal(written.estimated, true, "never a solid dot on the client's timeline");
+  assert.equal(written.at, readyAt);
+  assert.equal(current.estimatedReadyAt, readyAt, "the order's estimate follows the milestone");
+  assert.equal(current.status, "released", "an estimate moves nothing");
+  const audit = f
+    .rowsOf("atelierAuditLog")
+    .filter((row) => row.action === "order.milestone")
+    .at(-1);
+  assert.equal(audit.meta.estimated, true);
+  assert.equal(audit.meta.estimatedReadyAt, readyAt);
+
+  const view = await orders.toOrderView(f.ctx, current, NOW + 4);
+  assert.equal(view.estimatedReadyAt, readyAt);
+  assert.equal(view.milestones.at(-1).estimated, true);
+
+  // A later estimate replaces the earlier one; the timeline keeps both.
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "estimated_ready", label: "Estimated ready", at: readyAt + 7 * DAY, source: "staff", estimated: true },
+    NOW + 5,
+  );
+  current = await order();
+  assert.equal(current.estimatedReadyAt, readyAt + 7 * DAY);
+  assert.equal(milestones().filter((row) => row.kind === "estimated_ready").length, 2);
+
+  // Other kinds keep the caller's word and never touch the estimate.
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "making", label: "In the making", at: NOW + 6, source: "maker", estimated: false },
+    NOW + 6,
+  );
+  current = await order();
+  assert.equal(current.status, "making");
+  assert.equal(current.estimatedReadyAt, readyAt + 7 * DAY);
+  assert.equal(milestones().at(-1).estimated, false);
 });
 
 test("shipped is a carrier fact that opens no fit review; delivered opens it and never closes it", async () => {

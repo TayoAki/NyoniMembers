@@ -1,9 +1,13 @@
 "use client";
 
+import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
+import { api } from "@convex/_generated/api";
+import type { ParticipationView } from "@convex/atelier/groups";
 import { STEP_LABELS } from "@convex/shared/atelier/enums";
 import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
+import { permittedLabel } from "@/components/atelier/groups/group-words";
 import { useStudio } from "./panel-contract";
 import { SaveStatus } from "./save-status";
 import { Stage } from "./stage";
@@ -37,14 +41,42 @@ const STATE_NOTE: Partial<Record<string, string>> = {
   archived: "This design has been archived. Duplicate it to work on it again.",
 };
 
+/** "Vents, Lining and Monogram": the permitted lines as the organizer's screen names them. */
+function listWords(words: string[]): string {
+  if (words.length <= 1) return words[0] ?? "";
+  return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+}
+
+/**
+ * C28: a design made from a group's brief says so where the client works on it, and names the lines
+ * that are theirs to choose, so a line the server refuses is a line this sentence already placed with
+ * the organizer. The group's words come from the participation view, never from here.
+ */
+function GroupBriefLine({ participation }: { participation: ParticipationView }) {
+  const yours = participation.permittedIndividual.map(permittedLabel);
+  return (
+    <p className="text-sm text-pretty text-muted-foreground">
+      Part of <span className="text-foreground">{participation.groupName}</span>, {participation.organizerFirstName}
+      ’s shared design.{" "}
+      {yours.length > 0
+        ? `Yours to choose: ${listWords(yours)}. The other lines follow the shared design and cannot be changed here.`
+        : "Every line follows the shared design and cannot be changed here."}
+    </p>
+  );
+}
+
 /**
  * The studio's two columns: the stage (7/12, sticky) beside a panel that reads like an order book
  * (5/12). Stacked on phones with the stage as a collapsing sticky header above the rail and the panel;
  * the panel keeps its own primary actions, never under a fixed bar (S&S contract).
  */
 export function StudioFrame({ children }: { children: ReactNode }) {
-  const { draft, step } = useStudio();
+  const { draft, step, ownerArgs } = useStudio();
   const note = STATE_NOTE[draft.status];
+  const participation = useQuery(
+    api.atelier.groups.myParticipation,
+    draft.groupId ? { ...ownerArgs, draftId: draft._id } : "skip",
+  );
   return (
     <div className="lg:grid lg:grid-cols-12 lg:gap-x-10 xl:gap-x-14">
       <style href="atelier-studio-stage" precedence="default">
@@ -64,6 +96,7 @@ export function StudioFrame({ children }: { children: ReactNode }) {
             {STEP_LABELS[step]}
           </h1>
           <SaveStatus />
+          {participation ? <GroupBriefLine participation={participation} /> : null}
           {note ? (
             <StatusLine tone="warning" className="text-pretty">
               {note}

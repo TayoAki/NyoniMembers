@@ -617,20 +617,88 @@ export function validateSpec(spec: SuitSpec): string[] {
   return errors;
 }
 
-/** Deterministic string for hashing: keys sorted at every level, so two equal specs hash alike. */
-export function canonicalSpec(spec: SuitSpec): string {
-  const sort = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(sort);
-    if (value && typeof value === "object") {
+/**
+ * One decision in the design as a dot path, at the grain a group's brief uses (C28): each jacket and
+ * trouser line on its own, the waistcoat and the monogram as one line each.
+ */
+export type SpecPath =
+  | "garment"
+  | "clothCode"
+  | `jacket.${keyof JacketSpec}`
+  | `trousers.${keyof TrouserSpec}`
+  | "waistcoat"
+  | "buttonCode"
+  | "liningCode"
+  | "monogram";
+
+/** The label each line carries when named on its own, in order-book order. */
+export const SPEC_PATH_LABELS: Record<SpecPath, string> = {
+  garment: "Garment",
+  clothCode: "Cloth",
+  "jacket.breast": "Front",
+  "jacket.buttons": "Button stance",
+  "jacket.lapel": "Lapel",
+  "jacket.lapelWidth": "Lapel width",
+  "jacket.vents": "Vents",
+  "jacket.pockets": "Pockets",
+  "jacket.ticketPocket": "Ticket pocket",
+  "jacket.canvas": "Construction",
+  "jacket.shoulder": "Shoulder",
+  "jacket.sleeveButtons": "Sleeve buttons",
+  "jacket.workingCuffs": "Working cuffs",
+  "trousers.fit": "Trouser fit",
+  "trousers.pleats": "Trouser front",
+  "trousers.rise": "Rise",
+  "trousers.hem": "Trouser hem",
+  "trousers.waistband": "Waistband",
+  waistcoat: "Waistcoat",
+  buttonCode: "Buttons",
+  liningCode: "Lining",
+  monogram: "Monogram",
+};
+
+export const SPEC_PATHS: readonly SpecPath[] = Object.keys(SPEC_PATH_LABELS) as SpecPath[];
+
+export function isSpecPath(value: string): value is SpecPath {
+  return value in SPEC_PATH_LABELS;
+}
+
+/** The line's label, or the path itself for one this vocabulary does not know. */
+export function specPathLabel(path: string): string {
+  return isSpecPath(path) ? SPEC_PATH_LABELS[path] : path;
+}
+
+function valueAt(spec: SuitSpec, path: SpecPath): unknown {
+  const [head, key] = path.split(".");
+  if (head === "jacket" && key) return spec.jacket[key as keyof JacketSpec];
+  if (head === "trousers" && key) return spec.trousers[key as keyof TrouserSpec];
+  return spec[head as keyof SuitSpec];
+}
+
+/** The lines on which two designs differ, in order-book order; empty when they are the same design. */
+export function specDifferences(a: SuitSpec, b: SuitSpec): SpecPath[] {
+  return SPEC_PATHS.filter((path) => canonicalJson(valueAt(a, path)) !== canonicalJson(valueAt(b, path)));
+}
+
+/** JSON with keys sorted at every level, so two equal values read alike whatever order they were written in. */
+function canonicalJson(value: unknown): string {
+  const sort = (entry: unknown): unknown => {
+    if (Array.isArray(entry)) return entry.map(sort);
+    if (entry && typeof entry === "object") {
       return Object.fromEntries(
-        Object.keys(value as Record<string, unknown>)
+        Object.keys(entry as Record<string, unknown>)
           .sort()
-          .map((key) => [key, sort((value as Record<string, unknown>)[key])]),
+          .map((key) => [key, sort((entry as Record<string, unknown>)[key])]),
       );
     }
-    return value;
+    return entry;
   };
-  return JSON.stringify(sort(spec));
+  return JSON.stringify(sort(value));
+}
+
+/** Deterministic string for hashing: keys sorted at every level, so two equal specs hash alike. */
+export function canonicalSpec(spec: SuitSpec): string {
+  return canonicalJson(spec);
 }
 
 /** FNV-1a (64-bit, as two 32-bit halves) over the canonical spec. Runs in the browser and in Convex. */

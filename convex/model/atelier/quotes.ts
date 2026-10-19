@@ -324,8 +324,12 @@ export async function offerQuote(ctx: MutationCtx, staff: User, quote: Quote, no
       `Quote version ${quote.version} is ${QUOTE_STATUS_LABELS[quote.status].toLowerCase()} and cannot be offered. Prepare a new version instead.`,
     );
   }
-  if (quote.expiresAt <= now)
-    throw appError("INVALID_INPUT", "This quote's expiry has passed. Set a new expiry before offering it.");
+  if (quote.expiresAt <= now) {
+    throw appError(
+      "INVALID_INPUT",
+      `Quote version ${quote.version} carries an expiry that has passed, and a quote still being prepared is never expired by the hourly check. Supersede it with a new version that carries a later expiry.`,
+    );
+  }
   const caseDoc = await requireQuoteCase(ctx, quote);
   requireOpenCase(caseDoc, "a quote cannot be offered on it. The client can send a new request from their design");
   const previous = offeredAmong(await listForCase(ctx, caseDoc._id));

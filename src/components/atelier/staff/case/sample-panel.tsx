@@ -21,17 +21,20 @@ type Sample = NonNullable<StaffCaseView["sample"]>;
 /**
  * C04 fulfilment: requested → accepted → shipped, or declined. Each step writes a message the client reads;
  * "Shipped" is recorded only once the sample has left the house. The address is shown here because the
- * house needs it; it never appears in any client-facing list.
+ * house needs it; it never appears in any client-facing list. Recording a step is the concierge's
+ * (`cases.markSample`); a finance member reads the state.
  */
 export function SamplePanel({
   caseId,
   sample,
   open,
+  concierge,
   clientFirstName,
 }: {
   caseId: Id<"atelierCases">;
   sample: Sample;
   open: boolean;
+  concierge: boolean;
   clientFirstName: string;
 }) {
   const markSample = useMutation(api.atelier.cases.markSample);
@@ -79,7 +82,7 @@ export function SamplePanel({
           }
         />
       </OrderBook>
-      {open && next.length > 0 ? (
+      {concierge && open && next.length > 0 ? (
         <div className="mt-5 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {next.map((state) => (

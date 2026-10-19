@@ -26,18 +26,29 @@ export const EXPIRING_SOON_DAYS = 3;
 
 export type ExpiryWords = { words: string; tone: StatusTone; soon: boolean };
 
-/** "Expires" is the client's word too; the desk adds how soon, in days, never a countdown clock. */
+/**
+ * "Expires" is the client's word too; the desk adds how soon, in days, never a countdown clock. The hourly
+ * check expires offered quotes only: a draft whose expiry has passed stays "Being prepared" until finance
+ * supersedes it with a new version, and the words say so rather than promising a check that never comes.
+ */
 export function expiryWords(expiresAt: number, now: number, status: QuoteStatus): ExpiryWords {
   if (status !== "offered" && status !== "draft") {
     return { words: `Expiry was ${formatDate(expiresAt)}`, tone: "neutral", soon: false };
   }
   const daysLeft = Math.ceil((expiresAt - now) / DAY_MS);
-  if (expiresAt <= now)
-    return {
-      words: `Expired ${formatDate(expiresAt)} · the hourly check will mark it`,
-      tone: "destructive",
-      soon: true,
-    };
+  if (expiresAt <= now) {
+    return status === "draft"
+      ? {
+          words: `Expiry ${formatDate(expiresAt)} has passed · replace it with a new version`,
+          tone: "warning",
+          soon: true,
+        }
+      : {
+          words: `Expired ${formatDate(expiresAt)} · the hourly check will mark it`,
+          tone: "destructive",
+          soon: true,
+        };
+  }
   if (daysLeft <= 0) return { words: "Expires today", tone: "warning", soon: true };
   if (daysLeft <= EXPIRING_SOON_DAYS) {
     return { words: `Expires in ${pluralize(daysLeft, "day")} · expiring soon`, tone: "warning", soon: true };

@@ -61,7 +61,7 @@ export const COMMERCIAL_IMPACT_WORDS: Record<CommercialImpact, { label: string; 
   none: { label: "No change to the price", description: "The offered quote, if any, stays as it is." },
   new_quote: {
     label: "A new quote will follow",
-    description: "Accepting supersedes the offered quote; finance prepares a fresh version for approval.",
+    description: "Accepting withdraws the offered quote; finance prepares a fresh version for approval.",
   },
 };
 

@@ -283,6 +283,8 @@ export const PAYMENT_STATE_LABELS: Record<PaymentState, string> = {
   refunded_partial: "Partly refunded",
   refunded: "Refunded",
 };
+/** The payment words only finance records, from the correction the refund was approved on (C25, O07). */
+export const REFUND_PAYMENT_STATES: readonly PaymentState[] = ["refunded_partial", "refunded"];
 export const MILESTONE_SOURCES = ["staff", "maker", "carrier", "client", "system"] as const;
 export type MilestoneSource = (typeof MILESTONE_SOURCES)[number];
 export const MILESTONE_SOURCE_LABELS: Record<MilestoneSource, string> = {
@@ -395,6 +397,14 @@ export const CORRECTION_STATUS_LABELS: Record<CorrectionStatus, string> = {
   declined: "Declined",
   closed: "Closed",
 };
+/** A completed cancellation has no fit to reassess: the commission is cancelled and any refund follows on the correction. */
+export const CANCELLATION_COMPLETED_LABEL = "Completed · commission cancelled";
+/** The status word the client reads; `completed` asks for a reassessment unless the correction is a cancellation. */
+export function correctionStatusLabel(kind: CorrectionKind, status: CorrectionStatus): string {
+  return kind === "cancellation" && status === "completed"
+    ? CANCELLATION_COMPLETED_LABEL
+    : CORRECTION_STATUS_LABELS[status];
+}
 export const REMEDY_COVERAGES = ["included", "member_included", "quoted", "store_credit"] as const;
 export type RemedyCoverage = (typeof REMEDY_COVERAGES)[number];
 export const REMEDY_COVERAGE_LABELS: Record<RemedyCoverage, string> = {

@@ -13,14 +13,14 @@ import type { ProposalView, StaffCaseView } from "@convex/atelier/cases";
 import { COMMERCIAL_IMPACT_WORDS, PROPOSAL_STATUS_TONES } from "./case-words";
 import { ProposalComposer } from "./proposal-composer";
 
-/** C20 from the house's side: the proposals made on this request, newest first, and the composer for a new one. */
-export function ProposalsSection({ caseView }: { caseView: StaffCaseView }) {
+/** C20 from the house's side: the proposals made on this request, newest first, and the concierge's composer for a new one. */
+export function ProposalsSection({ caseView, concierge }: { caseView: StaffCaseView; concierge: boolean }) {
   const proposals = [...caseView.proposals].sort((a, b) => b.createdAt - a.createdAt);
   return (
     <AtelierSection
       id="proposals"
       title="Proposed changes"
-      description="A proposal is pinned to the client's current design. Nothing changes until they accept; a change that carries a price supersedes the offered quote."
+      description="A proposal is pinned to the client's current design. Nothing changes until they accept; a change that carries a price withdraws the offered quote, and finance offers a fresh one for the agreed design."
     >
       <div className="space-y-8">
         {proposals.length === 0 ? (
@@ -28,17 +28,20 @@ export function ProposalsSection({ caseView }: { caseView: StaffCaseView }) {
         ) : (
           <ol className="divide-y divide-foreground/10 border-y border-foreground/15">
             {proposals.map((proposal) => (
-              <ProposalRow key={proposal._id} proposal={proposal} />
+              <ProposalRow key={proposal._id} proposal={proposal} concierge={concierge} />
             ))}
           </ol>
         )}
-        {caseView.open && caseView.draft ? <ProposalComposer caseView={caseView} /> : null}
+        {concierge && caseView.open && caseView.draft ? <ProposalComposer caseView={caseView} /> : null}
+        {!concierge ? (
+          <p className="text-sm text-muted-foreground">Proposing or withdrawing a change needs the concierge role.</p>
+        ) : null}
       </div>
     </AtelierSection>
   );
 }
 
-function ProposalRow({ proposal }: { proposal: ProposalView }) {
+function ProposalRow({ proposal, concierge }: { proposal: ProposalView; concierge: boolean }) {
   const withdraw = useMutation(api.atelier.cases.withdrawProposal);
   return (
     <li className="space-y-3 py-4">
@@ -61,7 +64,7 @@ function ProposalRow({ proposal }: { proposal: ProposalView }) {
       <p className="text-sm leading-relaxed">{proposal.rationale}</p>
       <p className="text-xs text-muted-foreground">{COMMERCIAL_IMPACT_WORDS[proposal.commercialImpact].label}.</p>
       <ChangesList changes={proposal.changes} />
-      {proposal.status === "proposed" ? (
+      {concierge && proposal.status === "proposed" ? (
         <ConfirmDialog
           title="Withdraw this proposal?"
           description="The client can no longer accept it. Their design is unchanged either way."

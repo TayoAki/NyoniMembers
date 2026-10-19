@@ -90,7 +90,7 @@ function FinanceQuotes({ caseView, me }: { caseView: StaffCaseView; me: StaffSta
       title="Quotes"
       description="Every version on this request, newest first. A draft is invisible to the client; offering it supersedes any version already offered. Acceptance opens a commission and records no payment."
       actions={
-        composer.mode === "closed" ? (
+        composer.mode === "closed" && caseView.open ? (
           <Button className="h-10 rounded-none px-4" onClick={() => setComposer({ mode: "create" })}>
             Prepare a quote
           </Button>
@@ -98,6 +98,12 @@ function FinanceQuotes({ caseView, me }: { caseView: StaffCaseView; me: StaffSta
       }
     >
       <div className="space-y-8">
+        {!caseView.open ? (
+          <p className="text-sm text-muted-foreground">
+            This request is {caseView.statusLabel.toLowerCase()}; no quote is prepared or offered on it. A version still
+            open can be withdrawn.
+          </p>
+        ) : null}
         <MemberBenefit member={member} />
         {quotes === undefined ? (
           <LoadingRows count={2} />
@@ -110,6 +116,7 @@ function FinanceQuotes({ caseView, me }: { caseView: StaffCaseView; me: StaffSta
                 key={quote._id}
                 quote={quote}
                 member={member}
+                open={caseView.open}
                 onSupersede={() => setComposer({ mode: "supersede", quote })}
               />
             ))}
@@ -211,13 +218,16 @@ function MemberBenefit({ member }: { member: MemberStanding }) {
   );
 }
 
+/** One version. Offering, superseding and reserving need an open request (the server refuses otherwise); withdrawing never does. */
 function QuoteRow({
   quote,
   member,
+  open,
   onSupersede,
 }: {
   quote: QuoteView;
   member: MemberStanding;
+  open: boolean;
   onSupersede: () => void;
 }) {
   const offer = useMutation(api.atelier.quotes.offer);
@@ -227,7 +237,7 @@ function QuoteRow({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const live = quote.status === "draft" || quote.status === "offered";
-  const canReserve = live && member.state === "ready" && member.eligibility.available && quote.benefit === null;
+  const canReserve = open && live && member.state === "ready" && member.eligibility.available && quote.benefit === null;
 
   async function run(action: "offer" | "reserve") {
     setPending(action);
@@ -317,13 +327,13 @@ function QuoteRow({
       <p className="text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">{quote.terms}</p>
       {error ? <ErrorAlert title="That did not go through" message={error} /> : null}
       <div className="flex flex-wrap items-center gap-2">
-        {quote.status === "draft" ? (
+        {open && quote.status === "draft" ? (
           <Button size="sm" className="h-8" disabled={pending !== null} onClick={() => void run("offer")}>
             {pending === "offer" ? <Spinner data-icon="inline-start" /> : null}
             Offer to the client
           </Button>
         ) : null}
-        {live ? (
+        {open && live ? (
           <Button variant="outline" size="sm" className="h-8" onClick={onSupersede}>
             Supersede with a new version
           </Button>

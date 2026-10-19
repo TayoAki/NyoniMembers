@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  awaitsReassessment,
+  CANCELLED_SENTENCE,
   DETAIL_MISMATCH_SENTENCE,
   ESCALATED_SENTENCE,
   HOUSE_REVIEW_SENTENCE,
@@ -84,7 +86,9 @@ function CorrectionBody({ correction }: { correction: CorrectionView }) {
       {correction.isDetailMismatch ? (
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{DETAIL_MISMATCH_SENTENCE}</p>
       ) : null}
-      {correction.kind === "cancellation" && correction.requiresHouseReview && correction.open ? (
+      {correction.kind === "cancellation" && correction.order.status === "cancelled" ? (
+        <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{CANCELLED_SENTENCE}</p>
+      ) : correction.kind === "cancellation" && correction.requiresHouseReview && correction.open ? (
         <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{HOUSE_REVIEW_SENTENCE}</p>
       ) : null}
       {correction.status === "escalated" ? (
@@ -96,9 +100,7 @@ function CorrectionBody({ correction }: { correction: CorrectionView }) {
 
       {correction.remedy ? <RemedyPanel correction={correction} /> : null}
 
-      {correction.status === "completed" && !correction.reassessment ? (
-        <ReassessForm correctionId={correction._id} />
-      ) : null}
+      {awaitsReassessment(correction) ? <ReassessForm correctionId={correction._id} /> : null}
       {correction.reassessment ? (
         <p className="max-w-2xl text-sm leading-relaxed">
           <span className="font-medium">

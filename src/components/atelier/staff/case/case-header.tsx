@@ -34,22 +34,35 @@ import { WordSelect } from "./word-select";
 /**
  * The request's facts as an order book, each with its one action: status (legal transitions only),
  * owner (assign, transfer, or take it), the next action with its date, then the client's contact as they
- * gave it. Staff see the full contact; the client sees only their concierge's first name.
+ * gave it. Staff see the full contact; the client sees only their concierge's first name. The actions
+ * are the concierge's (`cases.setStatus/assign/transfer/setNextAction`); a finance member reads the facts.
  */
-export function RequestSection({ caseView, me }: { caseView: StaffCaseView; me: StaffStatus | null }) {
+export function RequestSection({
+  caseView,
+  me,
+  concierge,
+}: {
+  caseView: StaffCaseView;
+  me: StaffStatus | null;
+  concierge: boolean;
+}) {
   const showroom = SHOWROOMS.find((entry) => entry.id === caseView.contact.preferredShowroom) ?? null;
   return (
     <AtelierSection
       id="request"
       title="Request"
-      description="Status, owner and next action. Every change here is written to the audit log."
+      description={
+        concierge
+          ? "Status, owner and next action. Every change here is written to the audit log."
+          : "Status, owner and next action. Changing them needs the concierge role."
+      }
     >
       <OrderBook>
         <OrderBookRow
           label="Status"
           value={<StatusLine tone={CASE_STATUS_TONES[caseView.status]}>{caseView.statusLabel}</StatusLine>}
           note={caseView.closedAt !== null ? `Closed ${formatDateTime(caseView.closedAt)}.` : undefined}
-          action={<StatusChange caseView={caseView} />}
+          action={concierge ? <StatusChange caseView={caseView} /> : undefined}
         />
         <OrderBookRow
           label="Owner"
@@ -60,7 +73,7 @@ export function RequestSection({ caseView, me }: { caseView: StaffCaseView; me: 
               ? `Assigned ${formatDateTime(caseView.assignedAt)}.`
               : "The client reads “Received · awaiting a concierge” until someone takes it."
           }
-          action={caseView.open ? <OwnerControl caseView={caseView} me={me} /> : undefined}
+          action={concierge && caseView.open ? <OwnerControl caseView={caseView} me={me} /> : undefined}
         />
         <OrderBookRow
           label="Next action"
@@ -71,7 +84,7 @@ export function RequestSection({ caseView, me }: { caseView: StaffCaseView; me: 
               ? `By ${formatDate(caseView.nextActionDueAt)}${caseView.overdue ? " · overdue" : ""}`
               : undefined
           }
-          action={caseView.open ? <NextActionControl caseView={caseView} /> : undefined}
+          action={concierge && caseView.open ? <NextActionControl caseView={caseView} /> : undefined}
         />
         <OrderBookRow
           label="Priority"
