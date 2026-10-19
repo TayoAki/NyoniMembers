@@ -165,7 +165,15 @@ export const vExportPayload = v.object({
         amountUsd: v.union(v.number(), v.null()),
         confirmedAt: v.union(v.number(), v.null()),
       }),
-      milestones: v.array(v.object({ kind: v.string(), label: v.string(), at: v.number(), source: vMilestoneSource, estimated: v.boolean() })),
+      milestones: v.array(
+        v.object({
+          kind: v.string(),
+          label: v.string(),
+          at: v.number(),
+          source: vMilestoneSource,
+          estimated: v.boolean(),
+        }),
+      ),
       createdAt: v.number(),
     }),
   ),

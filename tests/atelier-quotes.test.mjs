@@ -4,7 +4,6 @@ import { fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor } from "./a
 
 const quotes = await import("../convex/model/atelier/quotes.ts");
 const benefits = await import("../convex/model/atelier/benefits.ts");
-const orders = await import("../convex/model/atelier/orders.ts");
 const catalogue = await import("../convex/model/atelier/catalogue.ts");
 const revisions = await import("../convex/model/atelier/revisions.ts");
 const caseCore = await import("../convex/model/atelier/case_core.ts");
@@ -26,14 +25,32 @@ const LINES = [
 ];
 
 function input(overrides = {}) {
-  return { lines: LINES, leadTimeWeeks: 6, fittingsIncluded: 2, terms: "Final sale on confirmation of the design.", expiresAt: NOW + 14 * DAY, ...overrides };
+  return {
+    lines: LINES,
+    leadTimeWeeks: 6,
+    fittingsIncluded: 2,
+    terms: "Final sale on confirmation of the design.",
+    expiresAt: NOW + 14 * DAY,
+    ...overrides,
+  };
 }
 
 /** A seeded catalogue, a member with a Signature membership, finance staff, and a submitted design with a quote case. */
-async function setup({ owner = "account", membership = { tier: "signature", status: "active", since: Date.UTC(2026, 2, 15), updatedAt: 1 } } = {}) {
+async function setup({
+  owner = "account",
+  membership = { tier: "signature", status: "active", since: Date.UTC(2026, 2, 15), updatedAt: 1 },
+} = {}) {
   const f = fakeCtx();
   await catalogue.ensureCatalogueSeeded(f.ctx, NOW);
-  const insertUser = async (doc) => f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: Date.UTC(2025, 0, 10), ...doc }));
+  const insertUser = async (doc) =>
+    f.ctx.db.get(
+      await f.ctx.db.insert("users", {
+        clerkId: `clerk_${doc.name}`,
+        role: "user",
+        createdAt: Date.UTC(2025, 0, 10),
+        ...doc,
+      }),
+    );
   const client = await insertUser({ name: "Nia Okafor", membership });
   const finance = await insertUser({ name: "Ada Mensah", staffRoles: ["finance"] });
   const actor = owner === "account" ? { user: client, guestKey: null } : guestActor;
@@ -81,12 +98,22 @@ async function setup({ owner = "account", membership = { tier: "signature", stat
   return { f, client, finance, actor, draft, revision, caseDoc, quote, offered };
 }
 
-const messages = (f, caseId) => f.rowsOf("atelierCaseMessages").filter((row) => row.caseId === caseId).map((row) => row.body);
+const messages = (f, caseId) =>
+  f
+    .rowsOf("atelierCaseMessages")
+    .filter((row) => row.caseId === caseId)
+    .map((row) => row.body);
 const auditActions = (f) => f.rowsOf("atelierAuditLog").map((row) => row.action);
 
 test("create prices the lines server-side, versions count up and the client never sees a draft quote", async () => {
   const { f, finance, caseDoc, quote } = await setup();
-  const first = await quotes.createQuote(f.ctx, finance, caseDoc, input({ lines: [...LINES].map((line) => ({ ...line, label: ` ${line.label} ` })) }), NOW);
+  const first = await quotes.createQuote(
+    f.ctx,
+    finance,
+    caseDoc,
+    input({ lines: [...LINES].map((line) => ({ ...line, label: ` ${line.label} ` })) }),
+    NOW,
+  );
   const q1 = await quote(first);
   assert.equal(q1.status, "draft");
   assert.equal(q1.version, 1);
@@ -104,19 +131,46 @@ test("create prices the lines server-side, versions count up and the client neve
 
 test("create refuses bad lines, a past expiry, empty terms and a case without a submitted design", async () => {
   const { f, finance, caseDoc } = await setup();
-  await assert.rejects(quotes.createQuote(f.ctx, finance, caseDoc, input({ lines: [] }), NOW), isAppError("INVALID_INPUT"));
   await assert.rejects(
-    quotes.createQuote(f.ctx, finance, caseDoc, input({ lines: [{ code: "BENEFIT", label: "Annual suit", amountUsd: 500, kind: "benefit" }] }), NOW),
+    quotes.createQuote(f.ctx, finance, caseDoc, input({ lines: [] }), NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    quotes.createQuote(
+      f.ctx,
+      finance,
+      caseDoc,
+      input({ lines: [{ code: "BENEFIT", label: "Annual suit", amountUsd: 500, kind: "benefit" }] }),
+      NOW,
+    ),
     (error) => isAppError("INVALID_INPUT")(error) && /takes money off/.test(error.data.message),
   );
   await assert.rejects(
-    quotes.createQuote(f.ctx, finance, caseDoc, input({ lines: [{ code: "COMMISSION", label: "Commission", amountUsd: -10, kind: "commission" }] }), NOW),
+    quotes.createQuote(
+      f.ctx,
+      finance,
+      caseDoc,
+      input({ lines: [{ code: "COMMISSION", label: "Commission", amountUsd: -10, kind: "commission" }] }),
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
-  await assert.rejects(quotes.createQuote(f.ctx, finance, caseDoc, input({ expiresAt: NOW - 1 }), NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(quotes.createQuote(f.ctx, finance, caseDoc, input({ terms: "  " }), NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(quotes.createQuote(f.ctx, finance, caseDoc, input({ leadTimeWeeks: 2.5 }), NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(quotes.createQuote(f.ctx, finance, { ...caseDoc, revisionId: undefined }, input(), NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    quotes.createQuote(f.ctx, finance, caseDoc, input({ expiresAt: NOW - 1 }), NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    quotes.createQuote(f.ctx, finance, caseDoc, input({ terms: "  " }), NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    quotes.createQuote(f.ctx, finance, caseDoc, input({ leadTimeWeeks: 2.5 }), NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    quotes.createQuote(f.ctx, finance, { ...caseDoc, revisionId: undefined }, input(), NOW),
+    isAppError("INVALID_STATE"),
+  );
   assert.equal(f.rowsOf("atelierQuotes").length, 0, "nothing was written");
 });
 
@@ -152,15 +206,29 @@ test("offer tells the client, queues a notification, moves the case and supersed
   assert.equal((await quote(secondId)).status, "offered");
   assert.ok(messages(f, caseDoc._id).at(-1).includes("It replaces version 1"));
 
-  await assert.rejects(quotes.offerQuote(f.ctx, finance, await quote(firstId), NOW + 3), isAppError("INVALID_STATE"), "a superseded quote cannot be offered again");
+  await assert.rejects(
+    quotes.offerQuote(f.ctx, finance, await quote(firstId), NOW + 3),
+    isAppError("INVALID_STATE"),
+    "a superseded quote cannot be offered again",
+  );
   const lateId = await quotes.createQuote(f.ctx, finance, caseDoc, input({ expiresAt: NOW + 1 }), NOW);
-  await assert.rejects(quotes.offerQuote(f.ctx, finance, await quote(lateId), NOW + 2), isAppError("INVALID_INPUT"), "an expiry already passed cannot be offered");
+  await assert.rejects(
+    quotes.offerQuote(f.ctx, finance, await quote(lateId), NOW + 2),
+    isAppError("INVALID_INPUT"),
+    "an expiry already passed cannot be offered",
+  );
 });
 
 test("supersede is create + offer in one and keeps the history of the quote it replaces", async () => {
-  const { f, finance, caseDoc, quote, offered } = await setup();
+  const { f, finance, quote, offered } = await setup();
   const first = await offered();
-  const nextId = await quotes.supersedeQuote(f.ctx, finance, first, input({ lines: [...LINES, { code: "RUSH", label: "Rush making", amountUsd: 300, kind: "option" }] }), NOW + 1);
+  const nextId = await quotes.supersedeQuote(
+    f.ctx,
+    finance,
+    first,
+    input({ lines: [...LINES, { code: "RUSH", label: "Rush making", amountUsd: 300, kind: "option" }] }),
+    NOW + 1,
+  );
   const next = await quote(nextId);
   assert.equal(next.status, "offered");
   assert.equal(next.version, 2);
@@ -168,7 +236,10 @@ test("supersede is create + offer in one and keeps the history of the quote it r
   assert.equal(next.totalUsd, 3073.5);
   assert.equal((await quote(first._id)).status, "superseded");
   assert.equal((await quote(first._id)).totalUsd, 2773.5, "history is kept");
-  await assert.rejects(quotes.supersedeQuote(f.ctx, finance, await quote(first._id), input(), NOW + 2), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    quotes.supersedeQuote(f.ctx, finance, await quote(first._id), input(), NOW + 2),
+    isAppError("INVALID_STATE"),
+  );
 });
 
 test("accept creates the commission in preflight with no payment, a client milestone and a truthful message", async () => {
@@ -234,7 +305,10 @@ test("accept refuses a quote that is not offered, one that has expired, and a st
 test("accept refuses a stale hash: the client cannot pay an old quote for a new design", async () => {
   const { f, actor, draft, quote, offered } = await setup();
   const q = await offered();
-  await f.ctx.db.patch(draft._id, { spec: { ...draft.spec, jacket: { ...draft.spec.jacket, lapel: "peak" } }, revision: 2 });
+  await f.ctx.db.patch(draft._id, {
+    spec: { ...draft.spec, jacket: { ...draft.spec.jacket, lapel: "peak" } },
+    revision: 2,
+  });
   await revisions.createRevision(f.ctx, await f.ctx.db.get(draft._id), "proposal_accepted", NOW + 1);
   await assert.rejects(quotes.acceptQuote(f.ctx, actor, q, NOW + 2), isAppError("STALE_REVISION"));
   assert.equal((await quote(q._id)).status, "offered");
@@ -250,12 +324,18 @@ test("accept refuses a cloth the house withdrew or ran out of, with an explicit 
   await f.ctx.db.patch(entry._id, { inStock: false });
   await assert.rejects(
     quotes.acceptQuote(f.ctx, actor, q, NOW),
-    (error) => isAppError("INVALID_STATE")(error) && /not in stock/.test(error.data.message) && /new quote will follow/.test(error.data.message),
+    (error) =>
+      isAppError("INVALID_STATE")(error) &&
+      /not in stock/.test(error.data.message) &&
+      /new quote will follow/.test(error.data.message),
   );
   await f.ctx.db.patch(entry._id, { inStock: true, status: "withdrawn" });
   await assert.rejects(
     quotes.acceptQuote(f.ctx, actor, q, NOW),
-    (error) => isAppError("INVALID_STATE")(error) && /no longer offered/.test(error.data.message) && /nothing has been changed on your behalf/.test(error.data.message),
+    (error) =>
+      isAppError("INVALID_STATE")(error) &&
+      /no longer offered/.test(error.data.message) &&
+      /nothing has been changed on your behalf/.test(error.data.message),
   );
   assert.equal(f.rowsOf("atelierOrders").length, 0);
 });
@@ -282,7 +362,10 @@ test("withdraw frees the quote's benefit and tells the client only when it had b
   await quotes.withdrawQuote(f.ctx, finance, q, "Pricing error", NOW + 1);
   assert.equal((await quote(q._id)).status, "withdrawn");
   assert.ok(messages(f, caseDoc._id).at(-1).includes("withdrawn by the house"));
-  await assert.rejects(quotes.withdrawQuote(f.ctx, finance, await quote(q._id), undefined, NOW + 2), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    quotes.withdrawQuote(f.ctx, finance, await quote(q._id), undefined, NOW + 2),
+    isAppError("INVALID_STATE"),
+  );
 });
 
 test("expire marks offered quotes past their expiry, says so on the case and leaves the rest", async () => {
@@ -340,13 +423,51 @@ test("the queue lists offered quotes soonest to expire, then drafts, with the cl
 
 test("the membership year is counted from the date the house recorded, or the account's creation", () => {
   const since = Date.UTC(2026, 2, 15);
-  assert.equal(benefits.membershipYearKey({ createdAt: 1, membership: { tier: "signature", status: "active", since, updatedAt: 1 } }, Date.UTC(2026, 9, 18)), "2026");
-  assert.equal(benefits.membershipYearKey({ createdAt: 1, membership: { tier: "signature", status: "active", since, updatedAt: 1 } }, Date.UTC(2027, 1, 1)), "2026", "before the anniversary it is still the first year");
-  assert.equal(benefits.membershipYearKey({ createdAt: 1, membership: { tier: "signature", status: "active", since, updatedAt: 1 } }, Date.UTC(2027, 2, 15)), "2027", "the anniversary starts the next year");
-  assert.equal(benefits.membershipYearKey({ createdAt: Date.UTC(2025, 11, 31), membership: { tier: "prestige", status: "active", updatedAt: 1 } }, Date.UTC(2026, 9, 18)), "2025", "no recorded date: counted from the account");
+  assert.equal(
+    benefits.membershipYearKey(
+      { createdAt: 1, membership: { tier: "signature", status: "active", since, updatedAt: 1 } },
+      Date.UTC(2026, 9, 18),
+    ),
+    "2026",
+  );
+  assert.equal(
+    benefits.membershipYearKey(
+      { createdAt: 1, membership: { tier: "signature", status: "active", since, updatedAt: 1 } },
+      Date.UTC(2027, 1, 1),
+    ),
+    "2026",
+    "before the anniversary it is still the first year",
+  );
+  assert.equal(
+    benefits.membershipYearKey(
+      { createdAt: 1, membership: { tier: "signature", status: "active", since, updatedAt: 1 } },
+      Date.UTC(2027, 2, 15),
+    ),
+    "2027",
+    "the anniversary starts the next year",
+  );
+  assert.equal(
+    benefits.membershipYearKey(
+      { createdAt: Date.UTC(2025, 11, 31), membership: { tier: "prestige", status: "active", updatedAt: 1 } },
+      Date.UTC(2026, 9, 18),
+    ),
+    "2025",
+    "no recorded date: counted from the account",
+  );
   assert.equal(benefits.membershipYearKey({ createdAt: Date.UTC(2025, 5, 1) }, Date.UTC(2026, 9, 18)), "2026");
-  assert.equal(benefits.membershipYearKey({ createdAt: 1, membership: { tier: "signature", status: "active", since: Date.UTC(2027, 0, 1), updatedAt: 1 } }, Date.UTC(2026, 9, 18)), "2027", "a future start is its own year");
-  assert.equal(benefits.membershipYearStart(Date.UTC(2024, 1, 29), Date.UTC(2026, 9, 18)), Date.UTC(2026, 2, 1), "February 29 falls on March 1");
+  assert.equal(
+    benefits.membershipYearKey(
+      { createdAt: 1, membership: { tier: "signature", status: "active", since: Date.UTC(2027, 0, 1), updatedAt: 1 } },
+      Date.UTC(2026, 9, 18),
+    ),
+    "2027",
+    "a future start is its own year",
+  );
+  assert.equal(
+    benefits.membershipYearStart(Date.UTC(2024, 1, 29), Date.UTC(2026, 9, 18)),
+    Date.UTC(2026, 2, 1),
+    "February 29 falls on March 1",
+  );
 });
 
 test("eligibility is read from the house's record only and explains every tier and state in the house's voice", async () => {
@@ -370,7 +491,11 @@ test("eligibility is read from the house's record only and explains every tier a
       assert.match(view.reason, /browsing and designing do not use it/);
     }
   }
-  const lapsed = await benefits.eligibilityFor(f.ctx, { ...client, membership: { tier: "prestige", status: "lapsed", updatedAt: 1 } }, NOW);
+  const lapsed = await benefits.eligibilityFor(
+    f.ctx,
+    { ...client, membership: { tier: "prestige", status: "lapsed", updatedAt: 1 } },
+    NOW,
+  );
   assert.equal(lapsed.included, false);
   assert.equal(lapsed.available, false);
   assert.match(lapsed.reason, /lapsed/);
@@ -395,9 +520,16 @@ test("finance reserves the suit against a quote; browsing reserved nothing; one 
   assert.match(q.benefit.description, /Signature membership includes one made-to-measure suit/);
   assert.ok(auditActions(f).includes("benefit.reserve"));
 
-  assert.equal(await benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId }, NOW + 1), redemptionId, "the same quote is the same reservation");
+  assert.equal(
+    await benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId }, NOW + 1),
+    redemptionId,
+    "the same quote is the same reservation",
+  );
   const otherQuoteId = await quotes.createQuote(f.ctx, finance, caseDoc, input(), NOW);
-  await assert.rejects(benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId: otherQuoteId }, NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId: otherQuoteId }, NOW),
+    isAppError("INVALID_STATE"),
+  );
   assert.equal(f.rowsOf("atelierBenefitRedemptions").length, 1);
 
   const view = await benefits.eligibilityFor(f.ctx, client, NOW);
@@ -410,18 +542,48 @@ test("reserve refuses a client account, a lapsed member and a quote for someone 
   const { f, client, finance, caseDoc } = await setup();
   const quoteId = await quotes.createQuote(f.ctx, finance, caseDoc, input(), NOW);
   const plainId = await f.ctx.db.insert("users", { clerkId: "c2", role: "user", name: "Plain Client", createdAt: 1 });
-  await assert.rejects(benefits.reserveBenefit(f.ctx, finance, { userId: plainId, quoteId }, NOW), isAppError("NOT_ELIGIBLE"));
-  const lapsedId = await f.ctx.db.insert("users", { clerkId: "c3", role: "user", name: "Lapsed", createdAt: 1, membership: { tier: "prestige", status: "lapsed", updatedAt: 1 } });
-  await assert.rejects(benefits.reserveBenefit(f.ctx, finance, { userId: lapsedId, quoteId }, NOW), isAppError("NOT_ELIGIBLE"));
-  const otherMemberId = await f.ctx.db.insert("users", { clerkId: "c4", role: "user", name: "Other Member", createdAt: 1, membership: { tier: "circle_elite", status: "active", updatedAt: 1 } });
-  await assert.rejects(benefits.reserveBenefit(f.ctx, finance, { userId: otherMemberId, quoteId }, NOW), isAppError("NOT_ELIGIBLE"), "the quote is not for their commission");
+  await assert.rejects(
+    benefits.reserveBenefit(f.ctx, finance, { userId: plainId, quoteId }, NOW),
+    isAppError("NOT_ELIGIBLE"),
+  );
+  const lapsedId = await f.ctx.db.insert("users", {
+    clerkId: "c3",
+    role: "user",
+    name: "Lapsed",
+    createdAt: 1,
+    membership: { tier: "prestige", status: "lapsed", updatedAt: 1 },
+  });
+  await assert.rejects(
+    benefits.reserveBenefit(f.ctx, finance, { userId: lapsedId, quoteId }, NOW),
+    isAppError("NOT_ELIGIBLE"),
+  );
+  const otherMemberId = await f.ctx.db.insert("users", {
+    clerkId: "c4",
+    role: "user",
+    name: "Other Member",
+    createdAt: 1,
+    membership: { tier: "circle_elite", status: "active", updatedAt: 1 },
+  });
+  await assert.rejects(
+    benefits.reserveBenefit(f.ctx, finance, { userId: otherMemberId, quoteId }, NOW),
+    isAppError("NOT_ELIGIBLE"),
+    "the quote is not for their commission",
+  );
   void client;
   assert.equal(f.rowsOf("atelierBenefitRedemptions").length, 0);
 });
 
 test("accepting a quote with a benefit redeems the reservation once; withdrawing or expiring releases it", async () => {
   const { f, client, finance, actor, caseDoc, quote } = await setup();
-  const quoteId = await quotes.createQuote(f.ctx, finance, caseDoc, input({ lines: [...LINES, { code: "BENEFIT", label: "Annual suit · Signature", amountUsd: -2400, kind: "benefit" }] }), NOW);
+  const quoteId = await quotes.createQuote(
+    f.ctx,
+    finance,
+    caseDoc,
+    input({
+      lines: [...LINES, { code: "BENEFIT", label: "Annual suit · Signature", amountUsd: -2400, kind: "benefit" }],
+    }),
+    NOW,
+  );
   const redemptionId = await benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId }, NOW);
   await quotes.offerQuote(f.ctx, finance, await quote(quoteId), NOW);
   assert.equal((await quote(quoteId)).totalUsd, 373.5);
@@ -433,8 +595,16 @@ test("accepting a quote with a benefit redeems the reservation once; withdrawing
   const view = await benefits.eligibilityFor(f.ctx, client, NOW + 2);
   assert.equal(view.available, false);
   assert.match(view.reason, /has been used on an accepted commission/);
-  await assert.rejects(benefits.releaseReservation(f.ctx, finance, redeemed, "oops", NOW + 3), isAppError("INVALID_STATE"), "a used benefit is not released here");
-  await assert.rejects(benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId }, NOW + 3), isAppError("INVALID_STATE"), "used this year");
+  await assert.rejects(
+    benefits.releaseReservation(f.ctx, finance, redeemed, "oops", NOW + 3),
+    isAppError("INVALID_STATE"),
+    "a used benefit is not released here",
+  );
+  await assert.rejects(
+    benefits.reserveBenefit(f.ctx, finance, { userId: client._id, quoteId }, NOW + 3),
+    isAppError("INVALID_STATE"),
+    "used this year",
+  );
 
   // A second member's quote: withdrawn → released, and the quote stops claiming the benefit.
   const { f: g, client: member2, finance: finance2, caseDoc: case2, quote: quote2 } = await setup();
@@ -444,21 +614,43 @@ test("accepting a quote with a benefit redeems the reservation once; withdrawing
   await quotes.withdrawQuote(g.ctx, finance2, await quote2(q2), "re-pricing", NOW + 1);
   assert.equal((await g.ctx.db.get(r2)).status, "released");
   assert.equal((await quote2(q2)).benefit.redemptionId, r2, "a withdrawn quote keeps what it carried as history");
-  assert.equal((await quotes.toQuoteView(g.ctx, await quote2(q2))).benefit.redemptionStatus, "released", "and says the reservation is gone");
+  assert.equal(
+    (await quotes.toQuoteView(g.ctx, await quote2(q2))).benefit.redemptionStatus,
+    "released",
+    "and says the reservation is gone",
+  );
   assert.equal((await benefits.eligibilityFor(g.ctx, member2, NOW + 2)).available, true, "the suit is available again");
 
   // Finance releasing a reservation on a live quote: the quote stops claiming the benefit, so it must be re-quoted.
   const q3 = await quotes.createQuote(g.ctx, finance2, case2, input(), NOW + 2);
   const r3 = await benefits.reserveBenefit(g.ctx, finance2, { userId: member2._id, quoteId: q3 }, NOW + 2);
   await quotes.offerQuote(g.ctx, finance2, await quote2(q3), NOW + 2);
-  await benefits.releaseReservation(g.ctx, finance2, await g.ctx.db.get(r3), "Member asked to keep the suit for later", NOW + 3);
+  await benefits.releaseReservation(
+    g.ctx,
+    finance2,
+    await g.ctx.db.get(r3),
+    "Member asked to keep the suit for later",
+    NOW + 3,
+  );
   assert.equal((await g.ctx.db.get(r3)).status, "released");
   assert.equal((await g.ctx.db.get(r3)).note, "Member asked to keep the suit for later");
   assert.equal((await quote2(q3)).benefit, undefined, "a live quote no longer claims a released benefit");
   assert.equal((await quote2(q3)).status, "offered", "the quote itself stands until finance withdraws or replaces it");
-  await assert.rejects(benefits.releaseReservation(g.ctx, finance2, await g.ctx.db.get(r3), "", NOW + 4), isAppError("INVALID_STATE"), "released twice is refused");
+  await assert.rejects(
+    benefits.releaseReservation(g.ctx, finance2, await g.ctx.db.get(r3), "", NOW + 4),
+    isAppError("INVALID_STATE"),
+    "released twice is refused",
+  );
   await quotes.withdrawQuote(g.ctx, finance2, await quote2(q3), undefined, NOW + 4);
-  const r4 = await benefits.reserveBenefit(g.ctx, finance2, { userId: member2._id, quoteId: await quotes.createQuote(g.ctx, finance2, case2, input({ expiresAt: NOW + DAY }), NOW + 5) }, NOW + 5);
+  const r4 = await benefits.reserveBenefit(
+    g.ctx,
+    finance2,
+    {
+      userId: member2._id,
+      quoteId: await quotes.createQuote(g.ctx, finance2, case2, input({ expiresAt: NOW + DAY }), NOW + 5),
+    },
+    NOW + 5,
+  );
   await quotes.offerQuote(g.ctx, finance2, await quote2((await g.ctx.db.get(r4)).quoteId), NOW + 5);
   await quotes.expireQuotes(g.ctx, NOW + DAY);
   assert.equal((await g.ctx.db.get(r4)).status, "released", "expiry frees the suit too");
@@ -478,8 +670,18 @@ test("superseding a quote carries its live reservation to the new version", asyn
   assert.equal(view.benefit.tierLabel, "Signature");
   assert.ok(!("redemptionId" in view.benefit), "no ids in the client's benefit view");
 
-  const draftId = await quotes.createQuote(f.ctx, finance, caseDoc, input({ benefitRedemptionId: redemptionId }), NOW + 2);
-  assert.equal((await quote(draftId)).benefit.redemptionId, redemptionId, "finance may carry a live reservation onto a new draft");
+  const draftId = await quotes.createQuote(
+    f.ctx,
+    finance,
+    caseDoc,
+    input({ benefitRedemptionId: redemptionId }),
+    NOW + 2,
+  );
+  assert.equal(
+    (await quote(draftId)).benefit.redemptionId,
+    redemptionId,
+    "finance may carry a live reservation onto a new draft",
+  );
   assert.equal((await f.ctx.db.get(redemptionId)).quoteId, draftId, "and the reservation follows it");
   const { f: g, finance: finance2, caseDoc: case2 } = await setup();
   const strangerRedemption = await g.ctx.db.insert("atelierBenefitRedemptions", {
@@ -489,7 +691,13 @@ test("superseding a quote carries its live reservation to the new version", asyn
     status: "reserved",
     reservedAt: NOW,
   });
-  await assert.rejects(quotes.createQuote(g.ctx, finance2, case2, input({ benefitRedemptionId: strangerRedemption }), NOW), isAppError("NOT_ELIGIBLE"));
+  await assert.rejects(
+    quotes.createQuote(g.ctx, finance2, case2, input({ benefitRedemptionId: strangerRedemption }), NOW),
+    isAppError("NOT_ELIGIBLE"),
+  );
   await g.ctx.db.patch(strangerRedemption, { userId: case2.userId, status: "released" });
-  await assert.rejects(quotes.createQuote(g.ctx, finance2, case2, input({ benefitRedemptionId: strangerRedemption }), NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    quotes.createQuote(g.ctx, finance2, case2, input({ benefitRedemptionId: strangerRedemption }), NOW),
+    isAppError("INVALID_STATE"),
+  );
 });

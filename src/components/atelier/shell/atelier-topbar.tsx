@@ -19,7 +19,8 @@ const NAV = [
 ] as const;
 
 function active(pathname: string, item: (typeof NAV)[number]): boolean {
-  if ("exact" in item && item.exact) return pathname === item.href || pathname.startsWith(`${routes.atelier.home}/design`);
+  if ("exact" in item && item.exact)
+    return pathname === item.href || pathname.startsWith(`${routes.atelier.home}/design`);
   return isActivePath(pathname, item.href);
 }
 
@@ -71,7 +72,11 @@ export function AtelierTopbar() {
               >
                 Members
               </Link>
-              <UserButton appearance={{ elements: { avatarBox: "size-8", userButtonTrigger: "size-11 justify-center sm:size-8" } }} />
+              <UserButton
+                appearance={{
+                  elements: { avatarBox: "size-8", userButtonTrigger: "size-11 justify-center sm:size-8" },
+                }}
+              />
             </Show>
           </div>
         </div>

@@ -8,7 +8,7 @@
 import { readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
-const [,, jsonPath, outDir] = process.argv;
+const [, , jsonPath, outDir] = process.argv;
 const { cloths } = JSON.parse(await readFile(jsonPath, "utf8"));
 await mkdir(outDir, { recursive: true });
 let saved = 0;

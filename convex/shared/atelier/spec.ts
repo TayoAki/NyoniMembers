@@ -17,16 +17,41 @@ export type Option<T extends string> = {
 };
 
 export const GARMENT_OPTIONS: readonly Option<Garment>[] = [
-  { code: "two_piece", label: "Two-piece", description: "Versatile tailoring for work and beyond.", productionId: "GARMENT_2PC" },
-  { code: "three_piece", label: "Three-piece", description: "Complete, considered elegance: jacket, waistcoat and trousers.", productionId: "GARMENT_3PC" },
-  { code: "tuxedo", label: "Tuxedo", description: "Timeless formalwear for occasions, with satin facings.", productionId: "GARMENT_TUX" },
+  {
+    code: "two_piece",
+    label: "Two-piece",
+    description: "Versatile tailoring for work and beyond.",
+    productionId: "GARMENT_2PC",
+  },
+  {
+    code: "three_piece",
+    label: "Three-piece",
+    description: "Complete, considered elegance: jacket, waistcoat and trousers.",
+    productionId: "GARMENT_3PC",
+  },
+  {
+    code: "tuxedo",
+    label: "Tuxedo",
+    description: "Timeless formalwear for occasions, with satin facings.",
+    productionId: "GARMENT_TUX",
+  },
 ];
 
 export const BREASTS = ["single", "double"] as const;
 export type Breast = (typeof BREASTS)[number];
 export const BREAST_OPTIONS: readonly Option<Breast>[] = [
-  { code: "single", label: "Single-breasted", description: "One row of buttons; the classic line.", productionId: "BREAST_SB" },
-  { code: "double", label: "Double-breasted", description: "Overlapping fronts with two rows of buttons; structured presence.", productionId: "BREAST_DB" },
+  {
+    code: "single",
+    label: "Single-breasted",
+    description: "One row of buttons; the classic line.",
+    productionId: "BREAST_SB",
+  },
+  {
+    code: "double",
+    label: "Double-breasted",
+    description: "Overlapping fronts with two rows of buttons; structured presence.",
+    productionId: "BREAST_DB",
+  },
 ];
 
 export const BUTTON_STANCES = ["one", "two", "three", "four_by_two", "six_by_two"] as const;
@@ -34,9 +59,24 @@ export type ButtonStance = (typeof BUTTON_STANCES)[number];
 export const BUTTON_STANCE_OPTIONS: readonly Option<ButtonStance>[] = [
   { code: "one", label: "One button", description: "The evening stance; a deep V.", productionId: "STANCE_1" },
   { code: "two", label: "Two buttons", description: "The modern standard.", productionId: "STANCE_2" },
-  { code: "three", label: "Three buttons", description: "A higher, more traditional stance.", productionId: "STANCE_3" },
-  { code: "four_by_two", label: "Four buttons, two to close", description: "A lower double-breasted front.", productionId: "STANCE_4X2" },
-  { code: "six_by_two", label: "Six buttons, two to close", description: "The classic double-breasted front.", productionId: "STANCE_6X2" },
+  {
+    code: "three",
+    label: "Three buttons",
+    description: "A higher, more traditional stance.",
+    productionId: "STANCE_3",
+  },
+  {
+    code: "four_by_two",
+    label: "Four buttons, two to close",
+    description: "A lower double-breasted front.",
+    productionId: "STANCE_4X2",
+  },
+  {
+    code: "six_by_two",
+    label: "Six buttons, two to close",
+    description: "The classic double-breasted front.",
+    productionId: "STANCE_6X2",
+  },
 ];
 export const SINGLE_STANCES: readonly ButtonStance[] = ["one", "two", "three"];
 export const DOUBLE_STANCES: readonly ButtonStance[] = ["four_by_two", "six_by_two"];
@@ -44,25 +84,55 @@ export const DOUBLE_STANCES: readonly ButtonStance[] = ["four_by_two", "six_by_t
 export const LAPELS = ["notch", "peak", "shawl"] as const;
 export type Lapel = (typeof LAPELS)[number];
 export const LAPEL_OPTIONS: readonly Option<Lapel>[] = [
-  { code: "notch", label: "Notch lapel", description: "The everyday lapel; a step cut where collar meets lapel.", productionId: "LAPEL_NOTCH" },
-  { code: "peak", label: "Peak lapel", description: "Points rising toward the shoulder; formal and assertive.", productionId: "LAPEL_PEAK" },
-  { code: "shawl", label: "Shawl lapel", description: "A continuous curve; the dinner-jacket lapel.", productionId: "LAPEL_SHAWL" },
+  {
+    code: "notch",
+    label: "Notch lapel",
+    description: "The everyday lapel; a step cut where collar meets lapel.",
+    productionId: "LAPEL_NOTCH",
+  },
+  {
+    code: "peak",
+    label: "Peak lapel",
+    description: "Points rising toward the shoulder; formal and assertive.",
+    productionId: "LAPEL_PEAK",
+  },
+  {
+    code: "shawl",
+    label: "Shawl lapel",
+    description: "A continuous curve; the dinner-jacket lapel.",
+    productionId: "LAPEL_SHAWL",
+  },
 ];
 
 export const LAPEL_WIDTHS = ["slim", "standard", "wide"] as const;
 export type LapelWidth = (typeof LAPEL_WIDTHS)[number];
 export const LAPEL_WIDTH_OPTIONS: readonly Option<LapelWidth>[] = [
   { code: "slim", label: "Slim", description: "About 7 cm at the widest point.", productionId: "LAPELW_SLIM" },
-  { code: "standard", label: "Standard", description: "About 9 cm; balanced for most frames.", productionId: "LAPELW_STD" },
+  {
+    code: "standard",
+    label: "Standard",
+    description: "About 9 cm; balanced for most frames.",
+    productionId: "LAPELW_STD",
+  },
   { code: "wide", label: "Wide", description: "About 11 cm; a classic, generous roll.", productionId: "LAPELW_WIDE" },
 ];
 
 export const VENTS = ["none", "single", "double"] as const;
 export type Vents = (typeof VENTS)[number];
 export const VENT_OPTIONS: readonly Option<Vents>[] = [
-  { code: "none", label: "No vent", description: "A clean back; traditional for a dinner jacket.", productionId: "VENT_NONE" },
+  {
+    code: "none",
+    label: "No vent",
+    description: "A clean back; traditional for a dinner jacket.",
+    productionId: "VENT_NONE",
+  },
   { code: "single", label: "Single vent", description: "One centre vent.", productionId: "VENT_SINGLE" },
-  { code: "double", label: "Double vents", description: "Two side vents; the jacket sits well when you put your hands in your pockets.", productionId: "VENT_DOUBLE" },
+  {
+    code: "double",
+    label: "Double vents",
+    description: "Two side vents; the jacket sits well when you put your hands in your pockets.",
+    productionId: "VENT_DOUBLE",
+  },
 ];
 
 export const POCKETS = ["flap", "jetted", "patch"] as const;
@@ -76,15 +146,35 @@ export const POCKET_OPTIONS: readonly Option<Pockets>[] = [
 export const CANVASES = ["half", "full"] as const;
 export type Canvas = (typeof CANVASES)[number];
 export const CANVAS_OPTIONS: readonly Option<Canvas>[] = [
-  { code: "half", label: "Half canvas", description: "Canvassed through the chest and lapel.", productionId: "CANVAS_HALF" },
-  { code: "full", label: "Full canvas", description: "Canvassed to the hem; shapes to you over time.", productionId: "CANVAS_FULL" },
+  {
+    code: "half",
+    label: "Half canvas",
+    description: "Canvassed through the chest and lapel.",
+    productionId: "CANVAS_HALF",
+  },
+  {
+    code: "full",
+    label: "Full canvas",
+    description: "Canvassed to the hem; shapes to you over time.",
+    productionId: "CANVAS_FULL",
+  },
 ];
 
 export const SHOULDERS = ["natural", "roped"] as const;
 export type Shoulder = (typeof SHOULDERS)[number];
 export const SHOULDER_OPTIONS: readonly Option<Shoulder>[] = [
-  { code: "natural", label: "Natural shoulder", description: "Soft, following your own line.", productionId: "SHLD_NATURAL" },
-  { code: "roped", label: "Roped shoulder", description: "A raised sleevehead; structured.", productionId: "SHLD_ROPED" },
+  {
+    code: "natural",
+    label: "Natural shoulder",
+    description: "Soft, following your own line.",
+    productionId: "SHLD_NATURAL",
+  },
+  {
+    code: "roped",
+    label: "Roped shoulder",
+    description: "A raised sleevehead; structured.",
+    productionId: "SHLD_ROPED",
+  },
 ];
 
 export const SLEEVE_BUTTONS = ["four", "five"] as const;
@@ -98,7 +188,12 @@ export const TROUSER_FITS = ["classic", "tailored", "slim"] as const;
 export type TrouserFit = (typeof TROUSER_FITS)[number];
 export const TROUSER_FIT_OPTIONS: readonly Option<TrouserFit>[] = [
   { code: "classic", label: "Classic", description: "A straight leg with room to move.", productionId: "TRS_CLASSIC" },
-  { code: "tailored", label: "Tailored", description: "Follows the leg without gripping it.", productionId: "TRS_TAILORED" },
+  {
+    code: "tailored",
+    label: "Tailored",
+    description: "Follows the leg without gripping it.",
+    productionId: "TRS_TAILORED",
+  },
   { code: "slim", label: "Slim", description: "A narrow leg and a clean break.", productionId: "TRS_SLIM" },
 ];
 
@@ -106,15 +201,30 @@ export const PLEATS = ["flat", "single", "double"] as const;
 export type Pleats = (typeof PLEATS)[number];
 export const PLEAT_OPTIONS: readonly Option<Pleats>[] = [
   { code: "flat", label: "Flat front", description: "No pleats; the modern standard.", productionId: "PLEAT_FLAT" },
-  { code: "single", label: "Single pleat", description: "One forward pleat for ease when seated.", productionId: "PLEAT_SINGLE" },
-  { code: "double", label: "Double pleats", description: "Two pleats; classic and generous.", productionId: "PLEAT_DOUBLE" },
+  {
+    code: "single",
+    label: "Single pleat",
+    description: "One forward pleat for ease when seated.",
+    productionId: "PLEAT_SINGLE",
+  },
+  {
+    code: "double",
+    label: "Double pleats",
+    description: "Two pleats; classic and generous.",
+    productionId: "PLEAT_DOUBLE",
+  },
 ];
 
 export const RISES = ["mid", "high"] as const;
 export type Rise = (typeof RISES)[number];
 export const RISE_OPTIONS: readonly Option<Rise>[] = [
   { code: "mid", label: "Mid rise", description: "Sits at the hip.", productionId: "RISE_MID" },
-  { code: "high", label: "High rise", description: "Sits at the natural waist; lengthens the leg.", productionId: "RISE_HIGH" },
+  {
+    code: "high",
+    label: "High rise",
+    description: "Sits at the natural waist; lengthens the leg.",
+    productionId: "RISE_HIGH",
+  },
 ];
 
 export const HEMS = ["plain", "cuffed"] as const;
@@ -128,14 +238,29 @@ export const WAISTBANDS = ["belt_loops", "side_adjusters"] as const;
 export type Waistband = (typeof WAISTBANDS)[number];
 export const WAISTBAND_OPTIONS: readonly Option<Waistband>[] = [
   { code: "belt_loops", label: "Belt loops", description: "For a belt.", productionId: "WB_LOOPS" },
-  { code: "side_adjusters", label: "Side adjusters", description: "A clean waist without a belt.", productionId: "WB_ADJUSTERS" },
+  {
+    code: "side_adjusters",
+    label: "Side adjusters",
+    description: "A clean waist without a belt.",
+    productionId: "WB_ADJUSTERS",
+  },
 ];
 
 export const WAISTCOAT_STYLES = ["single_five", "single_six", "double"] as const;
 export type WaistcoatStyle = (typeof WAISTCOAT_STYLES)[number];
 export const WAISTCOAT_STYLE_OPTIONS: readonly Option<WaistcoatStyle>[] = [
-  { code: "single_five", label: "Single-breasted, five buttons", description: "The standard waistcoat.", productionId: "WC_SB5" },
-  { code: "single_six", label: "Single-breasted, six buttons", description: "A slightly higher front.", productionId: "WC_SB6" },
+  {
+    code: "single_five",
+    label: "Single-breasted, five buttons",
+    description: "The standard waistcoat.",
+    productionId: "WC_SB5",
+  },
+  {
+    code: "single_six",
+    label: "Single-breasted, six buttons",
+    description: "A slightly higher front.",
+    productionId: "WC_SB6",
+  },
   { code: "double", label: "Double-breasted", description: "A statement under the jacket.", productionId: "WC_DB" },
 ];
 export const WAISTCOAT_LAPELS = ["none", "shawl"] as const;
@@ -147,15 +272,35 @@ export const WAISTCOAT_LAPEL_OPTIONS: readonly Option<WaistcoatLapel>[] = [
 export const WAISTCOAT_BACKS = ["cloth", "lining"] as const;
 export type WaistcoatBack = (typeof WAISTCOAT_BACKS)[number];
 export const WAISTCOAT_BACK_OPTIONS: readonly Option<WaistcoatBack>[] = [
-  { code: "cloth", label: "Cloth back", description: "The suit cloth continues round; wearable without the jacket.", productionId: "WCB_CLOTH" },
-  { code: "lining", label: "Lining back", description: "Traditional; lighter under the jacket.", productionId: "WCB_LINING" },
+  {
+    code: "cloth",
+    label: "Cloth back",
+    description: "The suit cloth continues round; wearable without the jacket.",
+    productionId: "WCB_CLOTH",
+  },
+  {
+    code: "lining",
+    label: "Lining back",
+    description: "Traditional; lighter under the jacket.",
+    productionId: "WCB_LINING",
+  },
 ];
 
 export const MONOGRAM_PLACEMENTS = ["inside_pocket", "inside_chest", "cuff"] as const;
 export type MonogramPlacement = (typeof MONOGRAM_PLACEMENTS)[number];
 export const MONOGRAM_PLACEMENT_OPTIONS: readonly Option<MonogramPlacement>[] = [
-  { code: "inside_pocket", label: "Inside pocket", description: "Above the inside breast pocket.", productionId: "MONO_POCKET" },
-  { code: "inside_chest", label: "Inside chest", description: "On the lining, below the collar.", productionId: "MONO_CHEST" },
+  {
+    code: "inside_pocket",
+    label: "Inside pocket",
+    description: "Above the inside breast pocket.",
+    productionId: "MONO_POCKET",
+  },
+  {
+    code: "inside_chest",
+    label: "Inside chest",
+    description: "On the lining, below the collar.",
+    productionId: "MONO_CHEST",
+  },
   { code: "cuff", label: "Cuff", description: "Inside the left cuff.", productionId: "MONO_CUFF" },
 ];
 export const MONOGRAM_THREADS = ["gold", "ivory", "navy", "tonal"] as const;
@@ -279,7 +424,8 @@ function mergePatch(spec: SuitSpec, patch: SpecPatch): SuitSpec {
   if (patch.liningCode !== undefined) next.liningCode = patch.liningCode;
   if (patch.monogram !== undefined) next.monogram = patch.monogram;
   if (patch.waistcoat === null) next.waistcoat = null;
-  else if (patch.waistcoat !== undefined) next.waistcoat = { ...(spec.waistcoat ?? DEFAULT_WAISTCOAT), ...patch.waistcoat };
+  else if (patch.waistcoat !== undefined)
+    next.waistcoat = { ...(spec.waistcoat ?? DEFAULT_WAISTCOAT), ...patch.waistcoat };
   return next;
 }
 
@@ -352,7 +498,13 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
     }
     // Rule 5: no cuffs on tuxedo trousers.
     if (next.trousers.hem === "cuffed") {
-      conflicts.push({ field: "trousers.hem", label: "Trouser hem", from: "cuffed", to: "plain", reason: "Tuxedo trousers are finished with a plain hem." });
+      conflicts.push({
+        field: "trousers.hem",
+        label: "Trouser hem",
+        from: "cuffed",
+        to: "plain",
+        reason: "Tuxedo trousers are finished with a plain hem.",
+      });
       next.trousers.hem = "plain";
     }
   } else if (next.jacket.pockets === "patch" && next.jacket.ticketPocket) {
@@ -361,11 +513,23 @@ export function applyChange(spec: SuitSpec, patch: SpecPatch): ApplyResult {
 
   // Rule 4: the waistcoat exists only on a three-piece.
   if (next.garment === "three_piece" && next.waistcoat === null) {
-    conflicts.push({ field: "waistcoat", label: "Waistcoat", from: "none", to: labelOf(WAISTCOAT_STYLE_OPTIONS, DEFAULT_WAISTCOAT.style), reason: "A three-piece includes a waistcoat." });
+    conflicts.push({
+      field: "waistcoat",
+      label: "Waistcoat",
+      from: "none",
+      to: labelOf(WAISTCOAT_STYLE_OPTIONS, DEFAULT_WAISTCOAT.style),
+      reason: "A three-piece includes a waistcoat.",
+    });
     next.waistcoat = { ...DEFAULT_WAISTCOAT };
   }
   if (next.garment !== "three_piece" && next.waistcoat !== null) {
-    conflicts.push({ field: "waistcoat", label: "Waistcoat", from: labelOf(WAISTCOAT_STYLE_OPTIONS, next.waistcoat.style), to: "none", reason: `A ${labelOf(GARMENT_OPTIONS, next.garment).toLowerCase()} has no waistcoat.` });
+    conflicts.push({
+      field: "waistcoat",
+      label: "Waistcoat",
+      from: labelOf(WAISTCOAT_STYLE_OPTIONS, next.waistcoat.style),
+      to: "none",
+      reason: `A ${labelOf(GARMENT_OPTIONS, next.garment).toLowerCase()} has no waistcoat.`,
+    });
     next.waistcoat = null;
   }
 
@@ -420,8 +584,10 @@ export function validateSpec(spec: SuitSpec): string[] {
   }
   if (spec.garment === "three_piece" && !spec.waistcoat) errors.push("A three-piece includes a waistcoat.");
   if (spec.garment !== "three_piece" && spec.waistcoat) errors.push("Only a three-piece has a waistcoat.");
-  if (spec.jacket.breast === "double" && !DOUBLE_STANCES.includes(spec.jacket.buttons)) errors.push("Double-breasted stance is not valid.");
-  if (spec.jacket.breast === "single" && !SINGLE_STANCES.includes(spec.jacket.buttons)) errors.push("Single-breasted stance is not valid.");
+  if (spec.jacket.breast === "double" && !DOUBLE_STANCES.includes(spec.jacket.buttons))
+    errors.push("Double-breasted stance is not valid.");
+  if (spec.jacket.breast === "single" && !SINGLE_STANCES.includes(spec.jacket.buttons))
+    errors.push("Single-breasted stance is not valid.");
   return errors;
 }
 
@@ -454,7 +620,12 @@ export function specHash(spec: SuitSpec): string {
   return h1.toString(16).padStart(8, "0") + h2.toString(16).padStart(8, "0");
 }
 
-export type DescribedLine = { section: "Garment" | "Cloth" | "Jacket" | "Trousers" | "Waistcoat" | "Details"; label: string; value: string; productionId?: string };
+export type DescribedLine = {
+  section: "Garment" | "Cloth" | "Jacket" | "Trousers" | "Waistcoat" | "Details";
+  label: string;
+  value: string;
+  productionId?: string;
+};
 
 export type SpecNames = {
   cloth?: { name: string; mill?: string; code: string } | null;
@@ -473,7 +644,11 @@ export function describeSpec(spec: SuitSpec, names: SpecNames = {}): DescribedLi
   lines.push({
     section: "Cloth",
     label: "Cloth",
-    value: names.cloth ? `${names.cloth.name}${names.cloth.mill ? ` · ${names.cloth.mill}` : ""}` : spec.clothCode ? spec.clothCode : "Not yet chosen",
+    value: names.cloth
+      ? `${names.cloth.name}${names.cloth.mill ? ` · ${names.cloth.mill}` : ""}`
+      : spec.clothCode
+        ? spec.clothCode
+        : "Not yet chosen",
     productionId: names.cloth?.code ?? spec.clothCode ?? undefined,
   });
   const j = spec.jacket;
@@ -483,11 +658,21 @@ export function describeSpec(spec: SuitSpec, names: SpecNames = {}): DescribedLi
   lines.push({ section: "Jacket", label: "Lapel width", ...pick(LAPEL_WIDTH_OPTIONS, j.lapelWidth) });
   lines.push({ section: "Jacket", label: "Vents", ...pick(VENT_OPTIONS, j.vents) });
   lines.push({ section: "Jacket", label: "Pockets", ...pick(POCKET_OPTIONS, j.pockets) });
-  lines.push({ section: "Jacket", label: "Ticket pocket", value: j.ticketPocket ? "Yes" : "No", productionId: j.ticketPocket ? "TKT_YES" : "TKT_NO" });
+  lines.push({
+    section: "Jacket",
+    label: "Ticket pocket",
+    value: j.ticketPocket ? "Yes" : "No",
+    productionId: j.ticketPocket ? "TKT_YES" : "TKT_NO",
+  });
   lines.push({ section: "Jacket", label: "Construction", ...pick(CANVAS_OPTIONS, j.canvas) });
   lines.push({ section: "Jacket", label: "Shoulder", ...pick(SHOULDER_OPTIONS, j.shoulder) });
   lines.push({ section: "Jacket", label: "Sleeve buttons", ...pick(SLEEVE_BUTTON_OPTIONS, j.sleeveButtons) });
-  lines.push({ section: "Jacket", label: "Working cuffs", value: j.workingCuffs ? "Yes" : "No", productionId: j.workingCuffs ? "CUFF_WORKING" : "CUFF_FIXED" });
+  lines.push({
+    section: "Jacket",
+    label: "Working cuffs",
+    value: j.workingCuffs ? "Yes" : "No",
+    productionId: j.workingCuffs ? "CUFF_WORKING" : "CUFF_FIXED",
+  });
   const t = spec.trousers;
   lines.push({ section: "Trousers", label: "Fit", ...pick(TROUSER_FIT_OPTIONS, t.fit) });
   lines.push({ section: "Trousers", label: "Front", ...pick(PLEAT_OPTIONS, t.pleats) });
@@ -499,13 +684,28 @@ export function describeSpec(spec: SuitSpec, names: SpecNames = {}): DescribedLi
     lines.push({ section: "Waistcoat", label: "Lapel", ...pick(WAISTCOAT_LAPEL_OPTIONS, spec.waistcoat.lapel) });
     lines.push({ section: "Waistcoat", label: "Back", ...pick(WAISTCOAT_BACK_OPTIONS, spec.waistcoat.back) });
   }
-  lines.push({ section: "Details", label: "Buttons", value: names.button?.name ?? (spec.buttonCode ?? "House choice at fitting"), productionId: names.button?.code ?? spec.buttonCode ?? undefined });
-  lines.push({ section: "Details", label: "Lining", value: names.lining?.name ?? (spec.liningCode ?? "House choice at fitting"), productionId: names.lining?.code ?? spec.liningCode ?? undefined });
+  lines.push({
+    section: "Details",
+    label: "Buttons",
+    value: names.button?.name ?? spec.buttonCode ?? "House choice at fitting",
+    productionId: names.button?.code ?? spec.buttonCode ?? undefined,
+  });
+  lines.push({
+    section: "Details",
+    label: "Lining",
+    value: names.lining?.name ?? spec.liningCode ?? "House choice at fitting",
+    productionId: names.lining?.code ?? spec.liningCode ?? undefined,
+  });
   if (spec.monogram) {
     const placement = pick(MONOGRAM_PLACEMENT_OPTIONS, spec.monogram.placement);
     const thread = pick(MONOGRAM_THREAD_OPTIONS, spec.monogram.thread);
     const font = pick(MONOGRAM_FONT_OPTIONS, spec.monogram.font);
-    lines.push({ section: "Details", label: "Monogram", value: `${spec.monogram.text} · ${placement.value} · ${thread.value} · ${font.value}`, productionId: `${placement.productionId}+${thread.productionId}+${font.productionId}` });
+    lines.push({
+      section: "Details",
+      label: "Monogram",
+      value: `${spec.monogram.text} · ${placement.value} · ${thread.value} · ${font.value}`,
+      productionId: `${placement.productionId}+${thread.productionId}+${font.productionId}`,
+    });
   } else {
     lines.push({ section: "Details", label: "Monogram", value: "None", productionId: "MONO_NONE" });
   }
@@ -517,11 +717,16 @@ export function specSummary(spec: SuitSpec, clothName?: string | null): string {
   const garment = GARMENT_OPTIONS.find((o) => o.code === spec.garment)?.label ?? spec.garment;
   const breast = spec.jacket.breast === "double" ? "double-breasted" : null;
   const lapel = `${LAPEL_OPTIONS.find((o) => o.code === spec.jacket.lapel)?.label.toLowerCase() ?? spec.jacket.lapel}`;
-  return [garment, breast, lapel, clothName ?? (spec.clothCode ? spec.clothCode : "no cloth yet")].filter(Boolean).join(" · ");
+  return [garment, breast, lapel, clothName ?? (spec.clothCode ? spec.clothCode : "no cloth yet")]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** Which of the seven studio steps are satisfied by the spec and draft facts. */
-export function completedStepsFor(spec: SuitSpec, facts: { occasionSet: boolean; previewDone: boolean; fitRouteSet: boolean }): string[] {
+export function completedStepsFor(
+  spec: SuitSpec,
+  facts: { occasionSet: boolean; previewDone: boolean; fitRouteSet: boolean },
+): string[] {
   const done: string[] = [];
   if (facts.occasionSet) done.push("occasion");
   if (spec.clothCode) done.push("cloth");

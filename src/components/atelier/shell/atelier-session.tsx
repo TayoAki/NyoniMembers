@@ -2,7 +2,14 @@
 
 import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { LocalDraftEntry } from "@/lib/atelier/local-drafts";
-import { forgetDraft, getServerSnapshot, getSnapshot, initialize, rememberDraft, subscribe } from "@/lib/atelier/session-store";
+import {
+  forgetDraft,
+  getServerSnapshot,
+  getSnapshot,
+  initialize,
+  rememberDraft,
+  subscribe,
+} from "@/lib/atelier/session-store";
 
 export type AtelierSession = {
   /** The bearer key this browser uses for guest-owned rows; null until mounted. */

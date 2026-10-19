@@ -14,14 +14,19 @@ type Ctx = QueryCtx | MutationCtx;
  * `convex/atelier/catalogue.ts`.
  */
 
-export const CLOTH_PROVENANCE = "WooCommerce Store API export of nyonicouture.com, 21 September 2026; curated 18 October 2026.";
+export const CLOTH_PROVENANCE =
+  "WooCommerce Store API export of nyonicouture.com, 21 September 2026; curated 18 October 2026.";
 
 export async function currentCatalogueVersion(ctx: Ctx): Promise<number> {
   const latest = await ctx.db.query("atelierCatalogueVersions").withIndex("by_version").order("desc").first();
   return latest?.version ?? 0;
 }
 
-export async function getEntry(ctx: Ctx, kind: CatalogueKind, code: string): Promise<Doc<"atelierCatalogueEntries"> | null> {
+export async function getEntry(
+  ctx: Ctx,
+  kind: CatalogueKind,
+  code: string,
+): Promise<Doc<"atelierCatalogueEntries"> | null> {
   return ctx.db
     .query("atelierCatalogueEntries")
     .withIndex("by_kind_code", (q) => q.eq("kind", kind).eq("code", code))
@@ -167,8 +172,10 @@ export async function ensureCatalogueSeeded(ctx: MutationCtx, now: number = Date
       updatedAt: now,
     });
   }
-  for (const button of BUTTON_SEED) await ctx.db.insert("atelierCatalogueEntries", materialRow("button", button, version, now));
-  for (const lining of LINING_SEED) await ctx.db.insert("atelierCatalogueEntries", materialRow("lining", lining, version, now));
+  for (const button of BUTTON_SEED)
+    await ctx.db.insert("atelierCatalogueEntries", materialRow("button", button, version, now));
+  for (const lining of LINING_SEED)
+    await ctx.db.insert("atelierCatalogueEntries", materialRow("lining", lining, version, now));
   return version;
 }
 

@@ -147,7 +147,8 @@ function apply(spec, patch) {
   const touched = touchedFields(patch);
   for (const conflict of result.conflicts) {
     // A conflict on a field the patch set means the engine refused the requested value: it is reported, not silent.
-    if (touched.has(conflict.field)) assert.notEqual(conflict.from, conflict.to, `${conflict.field} reported without a change`);
+    if (touched.has(conflict.field))
+      assert.notEqual(conflict.from, conflict.to, `${conflict.field} reported without a change`);
   }
   return result;
 }

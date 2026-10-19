@@ -13,7 +13,9 @@ async function setup() {
   let created = 0;
   const insertUser = async (doc) => {
     created += 1;
-    return f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${created}`, role: "user", createdAt: created, ...doc }));
+    return f.ctx.db.get(
+      await f.ctx.db.insert("users", { clerkId: `clerk_${created}`, role: "user", createdAt: created, ...doc }),
+    );
   };
   const admin = await insertUser({ name: "Nyoni House", email: "house@example.com", role: "admin" });
   const concierge = await insertUser({ name: "Adaeze Nwosu", email: "adaeze@example.com", staffRoles: ["concierge"] });
@@ -41,12 +43,21 @@ test("me(): an admin is staff with every door open; a role holder is staff; a cl
 test("setRoles replaces the roles, refuses unknown ones, audits the change and clears an empty list", async () => {
   const { f, admin, concierge, client, nameless } = await setup();
 
-  await assert.rejects(staff.setStaffRoles(f.ctx, admin, client._id, ["concierge", "owner"], NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    staff.setStaffRoles(f.ctx, admin, client._id, ["concierge", "owner"], NOW),
+    isAppError("INVALID_INPUT"),
+  );
   assert.equal((await f.ctx.db.get(client._id)).staffRoles, undefined, "nothing changes when any role is unknown");
   assert.equal(f.rowsOf("atelierAuditLog").length, 0);
 
   const granted = await staff.setStaffRoles(f.ctx, admin, client._id, ["fitter", "concierge", "fitter"], NOW);
-  assert.deepEqual(granted, { userId: client._id, name: "Kwame Mensah", email: "kwame@example.com", roles: ["concierge", "fitter"], isAdmin: false });
+  assert.deepEqual(granted, {
+    userId: client._id,
+    name: "Kwame Mensah",
+    email: "kwame@example.com",
+    roles: ["concierge", "fitter"],
+    isAdmin: false,
+  });
   assert.deepEqual((await f.ctx.db.get(client._id)).staffRoles, ["concierge", "fitter"]);
   const [entry] = f.rowsOf("atelierAuditLog");
   assert.equal(entry.action, "staff.setRoles");
@@ -81,7 +92,10 @@ test("list() names admins and role holders and nobody else", async () => {
   );
   await staff.setStaffRoles(f.ctx, admin, nameless._id, ["privacy"], NOW);
   const after = await staff.listStaff(f.ctx);
-  assert.deepEqual(after.map((member) => member.userId), [admin._id, concierge._id, nameless._id]);
+  assert.deepEqual(
+    after.map((member) => member.userId),
+    [admin._id, concierge._id, nameless._id],
+  );
   assert.ok(!after.some((member) => member.userId === client._id));
   assert.ok(staff.isStaffMember(admin) && staff.isStaffMember(concierge) && !staff.isStaffMember(client));
 });
@@ -96,17 +110,48 @@ test("auditLog: bounded, newest first, narrowed by target, actors by first name 
   assert.equal(staff.clampAuditLimit(Number.NaN), staff.AUDIT_LIMIT_DEFAULT);
 
   for (let i = 0; i < 5; i += 1) {
-    await audit(f.ctx, { actor: concierge, action: `case.step${i}`, targetTable: "atelierCases", targetId: "atelierCases|1" }, NOW + i);
+    await audit(
+      f.ctx,
+      { actor: concierge, action: `case.step${i}`, targetTable: "atelierCases", targetId: "atelierCases|1" },
+      NOW + i,
+    );
   }
-  await audit(f.ctx, { actor: { user: client, guestKey: null }, action: "share.create", targetTable: "atelierShares", targetId: "atelierShares|1", meta: { days: 7 } }, NOW + 10);
-  await audit(f.ctx, { actor: null, action: "previews.expire", targetTable: "atelierPreviewJobs", targetId: "atelierPreviewJobs|1" }, NOW + 11);
+  await audit(
+    f.ctx,
+    {
+      actor: { user: client, guestKey: null },
+      action: "share.create",
+      targetTable: "atelierShares",
+      targetId: "atelierShares|1",
+      meta: { days: 7 },
+    },
+    NOW + 10,
+  );
+  await audit(
+    f.ctx,
+    { actor: null, action: "previews.expire", targetTable: "atelierPreviewJobs", targetId: "atelierPreviewJobs|1" },
+    NOW + 11,
+  );
   // A guest acts as a client; the groups model says so explicitly because `audit` alone cannot tell a guest from the system.
-  await audit(f.ctx, { actor: { user: null, guestKey: "c".repeat(32) }, actorKind: "client", action: "group.join", targetTable: "atelierGroupParticipants", targetId: "p|1" }, NOW + 12);
+  await audit(
+    f.ctx,
+    {
+      actor: { user: null, guestKey: "c".repeat(32) },
+      actorKind: "client",
+      action: "group.join",
+      targetTable: "atelierGroupParticipants",
+      targetId: "p|1",
+    },
+    NOW + 12,
+  );
   await staff.setStaffRoles(f.ctx, admin, client._id, ["finance"], NOW + 20);
 
   const all = await staff.listAudit(f.ctx, {});
   assert.equal(all.length, 9);
-  assert.deepEqual(all.map((entry) => entry.at), [NOW + 20, NOW + 12, NOW + 11, NOW + 10, NOW + 4, NOW + 3, NOW + 2, NOW + 1, NOW]);
+  assert.deepEqual(
+    all.map((entry) => entry.at),
+    [NOW + 20, NOW + 12, NOW + 11, NOW + 10, NOW + 4, NOW + 3, NOW + 2, NOW + 1, NOW],
+  );
   assert.deepEqual(
     all.slice(0, 4).map((entry) => [entry.action, entry.actorKind, entry.actorName]),
     [
@@ -120,13 +165,29 @@ test("auditLog: bounded, newest first, narrowed by target, actors by first name 
   assert.deepEqual(all[3].meta, { days: 7 });
   const serialized = JSON.stringify(all);
   assert.ok(!serialized.includes("example.com") && !serialized.includes("c".repeat(32)), "no email, no guest key");
-  assert.deepEqual(Object.keys(all[0]).sort(), ["_id", "action", "actorKind", "actorName", "actorUserId", "at", "meta", "targetId", "targetTable"]);
+  assert.deepEqual(Object.keys(all[0]).sort(), [
+    "_id",
+    "action",
+    "actorKind",
+    "actorName",
+    "actorUserId",
+    "at",
+    "meta",
+    "targetId",
+    "targetTable",
+  ]);
 
   assert.equal((await staff.listAudit(f.ctx, { limit: 3 })).length, 3);
   const oneRecord = await staff.listAudit(f.ctx, { targetTable: "atelierCases", targetId: "atelierCases|1" });
-  assert.deepEqual(oneRecord.map((entry) => entry.action), ["case.step4", "case.step3", "case.step2", "case.step1", "case.step0"]);
+  assert.deepEqual(
+    oneRecord.map((entry) => entry.action),
+    ["case.step4", "case.step3", "case.step2", "case.step1", "case.step0"],
+  );
   const oneTable = await staff.listAudit(f.ctx, { targetTable: "users", limit: 200 });
-  assert.deepEqual(oneTable.map((entry) => entry.action), ["staff.setRoles"]);
+  assert.deepEqual(
+    oneTable.map((entry) => entry.action),
+    ["staff.setRoles"],
+  );
   assert.deepEqual(await staff.listAudit(f.ctx, { targetTable: "atelierCases", targetId: "atelierCases|2" }), []);
   await assert.rejects(staff.listAudit(f.ctx, { targetId: "atelierCases|1" }), isAppError("INVALID_INPUT"));
 });

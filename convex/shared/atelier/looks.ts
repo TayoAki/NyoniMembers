@@ -15,7 +15,10 @@ export type Look = {
   spec: SuitSpec;
 };
 
-type LookInput = Omit<Partial<SuitSpec>, "jacket" | "trousers"> & { jacket?: Partial<JacketSpec>; trousers?: Partial<TrouserSpec> };
+type LookInput = Omit<Partial<SuitSpec>, "jacket" | "trousers"> & {
+  jacket?: Partial<JacketSpec>;
+  trousers?: Partial<TrouserSpec>;
+};
 
 function look(spec: LookInput): SuitSpec {
   return {
@@ -52,7 +55,16 @@ export const LOOKS: readonly Look[] = [
     spec: look({
       garment: "tuxedo",
       clothCode: "jorgecarli-a1-super-140s",
-      jacket: { breast: "single", buttons: "one", lapel: "shawl", lapelWidth: "standard", vents: "none", pockets: "jetted", ticketPocket: false, canvas: "full" },
+      jacket: {
+        breast: "single",
+        buttons: "one",
+        lapel: "shawl",
+        lapelWidth: "standard",
+        vents: "none",
+        pockets: "jetted",
+        ticketPocket: false,
+        canvas: "full",
+      },
       trousers: { fit: "tailored", pleats: "single", rise: "high", hem: "plain", waistband: "side_adjusters" },
       buttonCode: "btn-satin-covered",
       liningCode: "lin-paisley-black",
@@ -82,7 +94,16 @@ export const LOOKS: readonly Look[] = [
     spec: look({
       garment: "three_piece",
       clothCode: "i-preziosi-15-milmil-15-zegna-247",
-      jacket: { breast: "double", buttons: "six_by_two", lapel: "peak", lapelWidth: "wide", vents: "double", pockets: "jetted", canvas: "full", shoulder: "roped" },
+      jacket: {
+        breast: "double",
+        buttons: "six_by_two",
+        lapel: "peak",
+        lapelWidth: "wide",
+        vents: "double",
+        pockets: "jetted",
+        canvas: "full",
+        shoulder: "roped",
+      },
       trousers: { fit: "classic", pleats: "single", rise: "high", hem: "cuffed", waistband: "side_adjusters" },
       waistcoat: { ...DEFAULT_WAISTCOAT, style: "double", lapel: "shawl", back: "cloth" },
       buttonCode: "btn-horn-dark",
@@ -98,7 +119,15 @@ export const LOOKS: readonly Look[] = [
     spec: look({
       garment: "two_piece",
       clothCode: "nyoni-odm001-irish-linen",
-      jacket: { lapel: "notch", lapelWidth: "slim", vents: "double", pockets: "patch", buttons: "two", canvas: "half", shoulder: "natural" },
+      jacket: {
+        lapel: "notch",
+        lapelWidth: "slim",
+        vents: "double",
+        pockets: "patch",
+        buttons: "two",
+        canvas: "half",
+        shoulder: "natural",
+      },
       trousers: { fit: "tailored", pleats: "single", rise: "mid", hem: "cuffed", waistband: "side_adjusters" },
       buttonCode: "btn-mop",
       liningCode: "lin-bemberg-ivory",

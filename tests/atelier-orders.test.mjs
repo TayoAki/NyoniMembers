@@ -25,7 +25,8 @@ const LINES = [
 async function setup({ fitRoute = "atelier", eventDate = NOW + 120 * DAY, fitProfile = null } = {}) {
   const f = fakeCtx();
   await catalogue.ensureCatalogueSeeded(f.ctx, NOW);
-  const insertUser = async (doc) => f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
+  const insertUser = async (doc) =>
+    f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
   const client = await insertUser({ name: "Nia Okafor" });
   const finance = await insertUser({ name: "Ada Mensah", staffRoles: ["finance"] });
   const operations = await insertUser({ name: "Kofi Boateng", staffRoles: ["operations"] });
@@ -79,16 +80,48 @@ async function setup({ fitRoute = "atelier", eventDate = NOW + 120 * DAY, fitPro
     NOW - DAY,
   );
   const caseDoc = await f.ctx.db.get(caseId);
-  const quoteId = await quotes.createQuote(f.ctx, finance, caseDoc, { lines: LINES, terms: "Final sale.", expiresAt: NOW + 14 * DAY }, NOW);
+  const quoteId = await quotes.createQuote(
+    f.ctx,
+    finance,
+    caseDoc,
+    { lines: LINES, terms: "Final sale.", expiresAt: NOW + 14 * DAY },
+    NOW,
+  );
   await quotes.offerQuote(f.ctx, finance, await f.ctx.db.get(quoteId), NOW);
   const { orderId } = await quotes.acceptQuote(f.ctx, actor, await f.ctx.db.get(quoteId), NOW);
   const order = async () => f.ctx.db.get(orderId);
   const milestones = () => f.rowsOf("atelierOrderMilestones").filter((row) => row.orderId === orderId);
-  const messages = () => f.rowsOf("atelierCaseMessages").filter((row) => row.caseId === caseId).map((row) => row.body);
+  const messages = () =>
+    f
+      .rowsOf("atelierCaseMessages")
+      .filter((row) => row.caseId === caseId)
+      .map((row) => row.body);
   const pay = async (state = "confirmed", reference = "sq_1", at = NOW + 1) =>
-    orders.recordPayment(f.ctx, operations, await order(), { state, amountUsd: 2580, reference, provider: "Square" }, at);
+    orders.recordPayment(
+      f.ctx,
+      operations,
+      await order(),
+      { state, amountUsd: 2580, reference, provider: "Square" },
+      at,
+    );
   const release = async (at = NOW + 2) => orders.releaseOrder(f.ctx, operations, await order(), "CLT-2026-0301", at);
-  return { f, client, finance, operations, actor, draft, revision, caseDoc, quoteId, orderId, order, milestones, messages, pay, release };
+  return {
+    f,
+    client,
+    finance,
+    operations,
+    actor,
+    draft,
+    revision,
+    caseDoc,
+    quoteId,
+    orderId,
+    order,
+    milestones,
+    messages,
+    pay,
+    release,
+  };
 }
 
 const auditActions = (f) => f.rowsOf("atelierAuditLog").map((row) => row.action);
@@ -101,8 +134,14 @@ test("preflight names payment, fit and event blockers as facts; each clears when
   const { f, operations, order, pay } = await setup({ fitRoute: "undecided", eventDate: NOW + 20 * DAY });
   let blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
   assert.ok(blockers.includes("Payment not recorded."), blockers.join(" | "));
-  assert.ok(blockers.some((line) => line.startsWith("No fit route recorded")), blockers.join(" | "));
-  assert.ok(blockers.some((line) => /inside the house's making time/.test(line)), blockers.join(" | "));
+  assert.ok(
+    blockers.some((line) => line.startsWith("No fit route recorded")),
+    blockers.join(" | "),
+  );
+  assert.ok(
+    blockers.some((line) => /inside the house's making time/.test(line)),
+    blockers.join(" | "),
+  );
   assert.equal(blockers.length, 3);
 
   await pay("pending", "sq_pending");
@@ -113,7 +152,13 @@ test("preflight names payment, fit and event blockers as facts; each clears when
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
   assert.ok(!blockers.some((line) => /fit/i.test(line)), "measured at the fitting");
 
-  await orders.setRisk(f.ctx, operations, await order(), { riskNote: "Client knows the date is tight; rush agreed.", estimatedReadyAt: NOW + 18 * DAY }, NOW);
+  await orders.setRisk(
+    f.ctx,
+    operations,
+    await order(),
+    { riskNote: "Client knows the date is tight; rush agreed.", estimatedReadyAt: NOW + 18 * DAY },
+    NOW,
+  );
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
   assert.deepEqual(blockers, [], "a recorded, acknowledged risk clears the event blocker");
   const risk = await order();
@@ -126,35 +171,55 @@ test("preflight blocks on a fit profile that is not approved, a quote that is no
   const { f, order, quoteId, revision, pay } = await setup({ fitRoute: "remote", fitProfile: "provisional" });
   await pay();
   let blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
-  assert.deepEqual(blockers, ["Fit profile version 1 is submitted · awaiting review by a fitter; a fitter must approve it, or record a showroom fitting."]);
+  assert.deepEqual(blockers, [
+    "Fit profile version 1 is submitted · awaiting review by a fitter; a fitter must approve it, or record a showroom fitting.",
+  ]);
   await f.ctx.db.patch((await order()).fitProfileId, { status: "approved" });
   assert.deepEqual(await orders.preflightBlockers(f.ctx, await order(), NOW), []);
 
   await f.ctx.db.patch(quoteId, { status: "withdrawn" });
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
-  assert.ok(blockers.some((line) => /not accepted/.test(line)), blockers.join(" | "));
+  assert.ok(
+    blockers.some((line) => /not accepted/.test(line)),
+    blockers.join(" | "),
+  );
   await f.ctx.db.patch(quoteId, { status: "accepted", acceptedSpecHash: "0000000000000000" });
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
-  assert.ok(blockers.some((line) => /different design/.test(line)), blockers.join(" | "));
+  assert.ok(
+    blockers.some((line) => /different design/.test(line)),
+    blockers.join(" | "),
+  );
   await f.ctx.db.patch(quoteId, { acceptedSpecHash: revision.specHash });
 
   await f.ctx.db.patch(revision._id, { specHash: "ffffffffffffffff" });
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
-  assert.ok(blockers.some((line) => /does not match the commission's specification/.test(line)), blockers.join(" | "));
+  assert.ok(
+    blockers.some((line) => /does not match the commission's specification/.test(line)),
+    blockers.join(" | "),
+  );
   await f.ctx.db.patch(revision._id, { specHash: revision.specHash });
 
   const entry = await catalogue.getEntry(f.ctx, "cloth", CLOTH);
   await f.ctx.db.patch(entry._id, { status: "withdrawn" });
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
-  assert.ok(blockers.some((line) => /no longer approved/.test(line)), blockers.join(" | "));
+  assert.ok(
+    blockers.some((line) => /no longer approved/.test(line)),
+    blockers.join(" | "),
+  );
   await f.ctx.db.patch(entry._id, { status: "approved", inStock: false });
   blockers = await orders.preflightBlockers(f.ctx, await order(), NOW);
-  assert.ok(blockers.some((line) => /out of stock/.test(line)), blockers.join(" | "));
+  assert.ok(
+    blockers.some((line) => /out of stock/.test(line)),
+    blockers.join(" | "),
+  );
 });
 
 test("release fails with the blockers, then releases once with a maker reference, a milestone and a message", async () => {
   const { f, operations, order, milestones, messages, pay, release } = await setup();
-  await assert.rejects(release(), (error) => isAppError("RELEASE_BLOCKED")(error) && error.data.details.blockers.includes("Payment not recorded."));
+  await assert.rejects(
+    release(),
+    (error) => isAppError("RELEASE_BLOCKED")(error) && error.data.details.blockers.includes("Payment not recorded."),
+  );
   assert.equal((await order()).status, "preflight");
   await pay();
   await assert.rejects(orders.releaseOrder(f.ctx, operations, await order(), "  ", NOW), isAppError("INVALID_INPUT"));
@@ -171,7 +236,10 @@ test("release fails with the blockers, then releases once with a maker reference
   assert.equal(last.estimated, false);
   assert.ok(messages().at(-1).startsWith("Your commission has been released to the cutter."));
   assert.ok(auditActions(f).includes("order.release"));
-  await assert.rejects(release(NOW + 3), (error) => isAppError("INVALID_STATE")(error) && /new proposal on the case/.test(error.data.message));
+  await assert.rejects(
+    release(NOW + 3),
+    (error) => isAppError("INVALID_STATE")(error) && /new proposal on the case/.test(error.data.message),
+  );
   assert.equal(released.specHash, (await order()).specHash, "nothing here moves a released specification");
 });
 
@@ -199,10 +267,20 @@ test("payment is idempotent on the provider reference and only moves along the a
   assert.equal(paymentMilestones().at(-1).label, PAYMENT_STATE_LABELS.confirmed);
   assert.ok(messages().at(-1).startsWith("Payment confirmed · $2,580.00"));
 
-  await assert.rejects(pay("pending", "sq_2", NOW + 4), isAppError("INVALID_STATE"), "confirmed does not go back to pending");
+  await assert.rejects(
+    pay("pending", "sq_2", NOW + 4),
+    isAppError("INVALID_STATE"),
+    "confirmed does not go back to pending",
+  );
   await assert.rejects(pay("none", "sq_2", NOW + 4), isAppError("INVALID_INPUT"));
   await assert.rejects(
-    orders.recordPayment(f.ctx, operations, await order(), { state: "confirmed", amountUsd: 10, reference: " ", provider: "Square" }, NOW),
+    orders.recordPayment(
+      f.ctx,
+      operations,
+      await order(),
+      { state: "confirmed", amountUsd: 10, reference: " ", provider: "Square" },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
   await pay("refunded_partial", "rf_1", NOW + 5);
@@ -233,23 +311,57 @@ test("a failed payment can be retried and says nothing was charged twice", async
 test("milestones move the line forward only as facts; estimates never do; production needs release first", async () => {
   const { f, operations, order, milestones, pay, release } = await setup();
   const making = { kind: "making", label: "Cutting and making", at: NOW + 3, source: "maker", estimated: false };
-  await assert.rejects(orders.addMilestone(f.ctx, operations, await order(), making, NOW + 3), (error) => isAppError("INVALID_STATE")(error) && /Release the commission/.test(error.data.message));
+  await assert.rejects(
+    orders.addMilestone(f.ctx, operations, await order(), making, NOW + 3),
+    (error) => isAppError("INVALID_STATE")(error) && /Release the commission/.test(error.data.message),
+  );
   await pay();
   await release();
 
-  await orders.addMilestone(f.ctx, operations, await order(), { kind: "quality_review", label: "Quality review", at: NOW + 30 * DAY, source: "maker", estimated: true }, NOW + 3);
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "quality_review", label: "Quality review", at: NOW + 30 * DAY, source: "maker", estimated: true },
+    NOW + 3,
+  );
   assert.equal((await order()).status, "released", "an estimate moves nothing");
   assert.equal(milestones().at(-1).estimated, true);
 
   await orders.addMilestone(f.ctx, operations, await order(), making, NOW + 4);
   assert.equal((await order()).status, "making");
-  await orders.addMilestone(f.ctx, operations, await order(), { kind: "note", label: "Lining arrived", at: NOW + 5, source: "staff", estimated: false, note: "  Bemberg, navy  " }, NOW + 5);
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    {
+      kind: "note",
+      label: "Lining arrived",
+      at: NOW + 5,
+      source: "staff",
+      estimated: false,
+      note: "  Bemberg, navy  ",
+    },
+    NOW + 5,
+  );
   assert.equal((await order()).status, "making", "a note moves nothing");
   assert.equal(milestones().at(-1).note, "Bemberg, navy");
-  await orders.addMilestone(f.ctx, operations, await order(), { kind: "quality_review", label: "Quality review", at: NOW + 6, source: "maker", estimated: false }, NOW + 6);
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "quality_review", label: "Quality review", at: NOW + 6, source: "maker", estimated: false },
+    NOW + 6,
+  );
   assert.equal((await order()).status, "quality_review");
-  await assert.rejects(orders.addMilestone(f.ctx, operations, await order(), making, NOW + 7), (error) => isAppError("INVALID_STATE")(error) && /cannot go back/.test(error.data.message));
-  await assert.rejects(orders.addMilestone(f.ctx, operations, await order(), { ...making, label: " " }, NOW + 7), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    orders.addMilestone(f.ctx, operations, await order(), making, NOW + 7),
+    (error) => isAppError("INVALID_STATE")(error) && /cannot go back/.test(error.data.message),
+  );
+  await assert.rejects(
+    orders.addMilestone(f.ctx, operations, await order(), { ...making, label: " " }, NOW + 7),
+    isAppError("INVALID_INPUT"),
+  );
   for (const row of milestones()) {
     assert.ok(typeof row.at === "number" && row.source, "every milestone has a source and a time");
   }
@@ -258,10 +370,17 @@ test("milestones move the line forward only as facts; estimates never do; produc
 test("shipped is a carrier fact that opens no fit review; delivered opens it and never closes it", async () => {
   const { f, operations, order, milestones, messages, pay, release } = await setup();
   const shipment = { carrier: "UPS", trackingRef: "1Z999AA10123456784", at: NOW + 10 };
-  await assert.rejects(orders.markShipped(f.ctx, operations, await order(), shipment, NOW), isAppError("INVALID_STATE"), "not before release");
+  await assert.rejects(
+    orders.markShipped(f.ctx, operations, await order(), shipment, NOW),
+    isAppError("INVALID_STATE"),
+    "not before release",
+  );
   await pay();
   await release();
-  await assert.rejects(orders.markDelivered(f.ctx, operations, await order(), NOW + 11, NOW), (error) => isAppError("INVALID_STATE")(error) && /Record shipping before delivery/.test(error.data.message));
+  await assert.rejects(
+    orders.markDelivered(f.ctx, operations, await order(), NOW + 11, NOW),
+    (error) => isAppError("INVALID_STATE")(error) && /Record shipping before delivery/.test(error.data.message),
+  );
   await orders.markShipped(f.ctx, operations, await order(), shipment, NOW + 10);
   const shipped = await order();
   assert.equal(shipped.status, "shipped");
@@ -279,7 +398,10 @@ test("shipped is a carrier fact that opens no fit review; delivered opens it and
   const count = milestones().length;
   await orders.markShipped(f.ctx, operations, await order(), shipment, NOW + 12);
   assert.equal(milestones().length, count, "the same shipment twice is one milestone");
-  await assert.rejects(orders.markShipped(f.ctx, operations, await order(), { ...shipment, trackingRef: "other" }, NOW + 12), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    orders.markShipped(f.ctx, operations, await order(), { ...shipment, trackingRef: "other" }, NOW + 12),
+    isAppError("INVALID_STATE"),
+  );
 
   await orders.markDelivered(f.ctx, operations, await order(), NOW + 15, NOW + 15);
   const delivered = await order();
@@ -303,10 +425,22 @@ test("an open correction stops the house marking the suit shipped or recording p
     (error) => isAppError("INVALID_STATE")(error) && /correction is open/.test(error.data.message),
   );
   await assert.rejects(
-    orders.addMilestone(f.ctx, operations, await order(), { kind: "making", label: "Making", at: NOW, source: "maker", estimated: false }, NOW),
+    orders.addMilestone(
+      f.ctx,
+      operations,
+      await order(),
+      { kind: "making", label: "Making", at: NOW, source: "maker", estimated: false },
+      NOW,
+    ),
     isAppError("INVALID_STATE"),
   );
-  await orders.addMilestone(f.ctx, operations, await order(), { kind: "note", label: "Spoke with the client", at: NOW, source: "staff", estimated: false }, NOW);
+  await orders.addMilestone(
+    f.ctx,
+    operations,
+    await order(),
+    { kind: "note", label: "Spoke with the client", at: NOW, source: "staff", estimated: false },
+    NOW,
+  );
   assert.equal((await order()).status, "correction_open", "a note is still allowed and moves nothing");
 });
 
@@ -316,15 +450,31 @@ test("an open correction stops the house marking the suit shipped or recording p
 
 test("the checklist opens the fit review, refuses unknown regions, and an issue blocks acceptance until it is cleared", async () => {
   const { f, operations, actor, order, milestones, messages, pay, release } = await setup();
-  await assert.rejects(orders.setFirstFitChecklist(f.ctx, actor, await order(), { jacket_shoulders: "ok" }, NOW), isAppError("INVALID_STATE"), "not before the suit is in hand");
+  await assert.rejects(
+    orders.setFirstFitChecklist(f.ctx, actor, await order(), { jacket_shoulders: "ok" }, NOW),
+    isAppError("INVALID_STATE"),
+    "not before the suit is in hand",
+  );
   await pay();
   await release();
-  await orders.markShipped(f.ctx, operations, await order(), { carrier: "UPS", trackingRef: "1Z", at: NOW + 10 }, NOW + 10);
+  await orders.markShipped(
+    f.ctx,
+    operations,
+    await order(),
+    { carrier: "UPS", trackingRef: "1Z", at: NOW + 10 },
+    NOW + 10,
+  );
   await assert.rejects(
     orders.setFirstFitChecklist(f.ctx, actor, await order(), { hat: "ok" }, NOW + 11),
     (error) => isAppError("INVALID_INPUT")(error) && error.data.details.unknownKeys[0] === "hat",
   );
-  await orders.setFirstFitChecklist(f.ctx, actor, await order(), { jacket_shoulders: "ok", trouser_length: "issue" }, NOW + 11);
+  await orders.setFirstFitChecklist(
+    f.ctx,
+    actor,
+    await order(),
+    { jacket_shoulders: "ok", trouser_length: "issue" },
+    NOW + 11,
+  );
   let current = await order();
   assert.equal(current.status, "fit_review", "the client has the suit in hand, so the review opens");
   assert.deepEqual(current.firstFitChecklist, { jacket_shoulders: "ok", trouser_length: "issue" });
@@ -333,7 +483,10 @@ test("the checklist opens the fit review, refuses unknown regions, and an issue 
 
   await assert.rejects(
     orders.acceptFit(f.ctx, actor, await order(), NOW + 12),
-    (error) => isAppError("INVALID_STATE")(error) && /trouser length/.test(error.data.message) && error.data.details.regions[0] === "trouser_length",
+    (error) =>
+      isAppError("INVALID_STATE")(error) &&
+      /trouser length/.test(error.data.message) &&
+      error.data.details.regions[0] === "trouser_length",
   );
   await orders.setFirstFitChecklist(f.ctx, actor, await order(), { trouser_length: "ok" }, NOW + 13);
   current = await order();
@@ -355,16 +508,25 @@ test("the checklist opens the fit review, refuses unknown regions, and an issue 
   const count = milestones().length;
   await orders.acceptFit(f.ctx, actor, await order(), NOW + 15);
   assert.equal(milestones().length, count, "accepting twice is one acceptance");
-  await assert.rejects(orders.setFirstFitChecklist(f.ctx, actor, await order(), { jacket_chest: "issue" }, NOW + 16), (error) => isAppError("INVALID_STATE")(error) && /alteration/.test(error.data.message));
+  await assert.rejects(
+    orders.setFirstFitChecklist(f.ctx, actor, await order(), { jacket_chest: "issue" }, NOW + 16),
+    (error) => isAppError("INVALID_STATE")(error) && /alteration/.test(error.data.message),
+  );
 });
 
 test("acceptFit is refused before the suit arrives and while a correction is open", async () => {
   const { f, actor, order, pay, release } = await setup();
-  await assert.rejects(orders.acceptFit(f.ctx, actor, await order(), NOW), (error) => isAppError("INVALID_STATE")(error) && /not arrived/.test(error.data.message));
+  await assert.rejects(
+    orders.acceptFit(f.ctx, actor, await order(), NOW),
+    (error) => isAppError("INVALID_STATE")(error) && /not arrived/.test(error.data.message),
+  );
   await pay();
   await release();
   await f.ctx.db.patch((await order())._id, { status: "correction_open" });
-  await assert.rejects(orders.acceptFit(f.ctx, actor, await order(), NOW), (error) => isAppError("INVALID_STATE")(error) && /correction is open/.test(error.data.message));
+  await assert.rejects(
+    orders.acceptFit(f.ctx, actor, await order(), NOW),
+    (error) => isAppError("INVALID_STATE")(error) && /correction is open/.test(error.data.message),
+  );
 });
 
 // ------------------------------------------------------------------------------------------------
@@ -390,7 +552,13 @@ test("the client's view labels every state, every milestone source and the estim
   const { f, operations, actor, client, order, pay, release, revision } = await setup({ eventDate: NOW + 100 * DAY });
   await pay();
   await release();
-  await orders.setRisk(f.ctx, operations, await order(), { riskNote: "Mill delivery slipped a week.", estimatedReadyAt: NOW + 50 * DAY }, NOW + 3);
+  await orders.setRisk(
+    f.ctx,
+    operations,
+    await order(),
+    { riskNote: "Mill delivery slipped a week.", estimatedReadyAt: NOW + 50 * DAY },
+    NOW + 3,
+  );
   const view = await orders.toOrderView(f.ctx, await order(), NOW + 4);
   assert.equal(view.status, "released");
   assert.equal(view.statusLabel, ORDER_STATUS_LABELS.released);
@@ -402,7 +570,10 @@ test("the client's view labels every state, every milestone source and the estim
   assert.equal(view.totalUsd, 2580);
   assert.deepEqual(view.spec, revision.spec);
   assert.equal(view.specHash, revision.specHash);
-  assert.ok(view.lines.some((line) => line.label === "Cloth" && line.productionId === CLOTH), "the order-book lines carry production ids");
+  assert.ok(
+    view.lines.some((line) => line.label === "Cloth" && line.productionId === CLOTH),
+    "the order-book lines carry production ids",
+  );
   assert.equal(view.cloth.code, CLOTH);
   assert.ok(view.summary.includes(view.cloth.name));
   assert.deepEqual(
@@ -429,7 +600,9 @@ test("the client's view labels every state, every milestone source and the estim
   assert.ok(!("guestKey" in view) && !("userId" in view));
   for (const key of Object.keys(view)) assert.notEqual(view[key], undefined, `${key} is never undefined`);
 
-  const summaries = await Promise.all((await orders.listForActor(f.ctx, actor)).map((row) => orders.toOrderSummary(f.ctx, row)));
+  const summaries = await Promise.all(
+    (await orders.listForActor(f.ctx, actor)).map((row) => orders.toOrderSummary(f.ctx, row)),
+  );
   assert.equal(summaries[0].statusLabel, ORDER_STATUS_LABELS.released);
   assert.equal(summaries[0].paymentStateLabel, PAYMENT_STATE_LABELS.confirmed);
   assert.equal(summaries[0].clothName, view.cloth.name);

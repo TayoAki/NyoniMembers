@@ -24,13 +24,22 @@ export function AtelierSection({
 }) {
   const Heading = level === 2 ? "h2" : "h3";
   return (
-    <section id={id} aria-labelledby={id ? `${id}-title` : undefined} className={cn("scroll-mt-24 border-t border-foreground/15 py-6 first:border-t-0 first:pt-0", className)}>
+    <section
+      id={id}
+      aria-labelledby={id ? `${id}-title` : undefined}
+      className={cn("scroll-mt-24 border-t border-foreground/15 py-6 first:border-t-0 first:pt-0", className)}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1.5">
-          <Heading id={id ? `${id}-title` : undefined} className={cn("font-medium tracking-tight text-balance", level === 2 ? "text-xl sm:text-2xl" : "text-base")}>
+          <Heading
+            id={id ? `${id}-title` : undefined}
+            className={cn("font-medium tracking-tight text-balance", level === 2 ? "text-xl sm:text-2xl" : "text-base")}
+          >
             {title}
           </Heading>
-          {description ? <p className="max-w-xl text-sm leading-relaxed text-pretty text-muted-foreground">{description}</p> : null}
+          {description ? (
+            <p className="max-w-xl text-sm leading-relaxed text-pretty text-muted-foreground">{description}</p>
+          ) : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
@@ -40,9 +49,22 @@ export function AtelierSection({
 }
 
 /** The one display line a screen gets: Bodoni Moda, balanced, never more than two lines. */
-export function DisplayLine({ children, className, as: Tag = "h1" }: { children: ReactNode; className?: string; as?: "h1" | "h2" | "p" }) {
+export function DisplayLine({
+  children,
+  className,
+  as: Tag = "h1",
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: "h1" | "h2" | "p";
+}) {
   return (
-    <Tag className={cn("font-display text-[34px] leading-[1.02] font-medium tracking-[-0.01em] text-balance sm:text-[48px] lg:text-[56px]", className)}>
+    <Tag
+      className={cn(
+        "font-display text-[34px] leading-[1.02] font-medium tracking-[-0.01em] text-balance sm:text-[48px] lg:text-[56px]",
+        className,
+      )}
+    >
       {children}
     </Tag>
   );

@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountActor, accountUser, fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
+import {
+  accountActor,
+  accountUser,
+  fakeCtx,
+  GUEST_KEY,
+  guestActor,
+  isAppError,
+  otherGuestActor,
+  strangerActor,
+} from "./atelier-fake-ctx.mjs";
 
 const cases = await import("../convex/model/atelier/cases.ts");
 const drafts = await import("../convex/model/atelier/drafts.ts");
-const { ATELIER_LIMITS, CASE_STATUS_LABELS, CASE_STATUSES, SAMPLE_STATES } = await import("../convex/shared/atelier/enums.ts");
+const { ATELIER_LIMITS, CASE_STATUS_LABELS, CASE_STATUSES, SAMPLE_STATES } =
+  await import("../convex/shared/atelier/enums.ts");
 const { specHash } = await import("../convex/shared/atelier/spec.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
@@ -28,13 +38,20 @@ function withRanges(db) {
         predicates.push((row) => op(row[field], value));
         return q;
       };
-      const q = { eq: compare((a, b) => a === b), lt: compare((a, b) => a < b), lte: compare((a, b) => a <= b), gt: compare((a, b) => a > b), gte: compare((a, b) => a >= b) };
+      const q = {
+        eq: compare((a, b) => a === b),
+        lt: compare((a, b) => a < b),
+        lte: compare((a, b) => a <= b),
+        gt: compare((a, b) => a > b),
+        gte: compare((a, b) => a >= b),
+      };
       build(q);
       for (const predicate of predicates) plainFilter(() => predicate);
       return builder;
     };
     builder.filter = (build) => {
-      const resolve = (operand, row) => (operand && typeof operand === "object" && "__field" in operand ? row[operand.__field] : operand);
+      const resolve = (operand, row) =>
+        operand && typeof operand === "object" && "__field" in operand ? row[operand.__field] : operand;
       const cmp = (op) => (a, b) => (row) => op(resolve(a, row), resolve(b, row));
       const q = {
         field: (name) => ({ __field: name }),
@@ -55,7 +72,8 @@ function withRanges(db) {
 async function setup() {
   const f = fakeCtx();
   withRanges(f.ctx.db);
-  const insertUser = async (doc) => f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
+  const insertUser = async (doc) =>
+    f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
   const concierge = await insertUser({ name: "Adaeze Nwosu", staffRoles: ["concierge"] });
   const secondConcierge = await insertUser({ name: "Marcus Bell", staffRoles: ["concierge"] });
   const fitter = await insertUser({ name: "Tunde Ade", staffRoles: ["fitter"] });
@@ -69,7 +87,12 @@ async function draftFor(f, actor = guestActor, input = { lookKey: "armada" }) {
 
 async function submitted(f, actor = guestActor, kind = "quote", key = "key-1") {
   const draft = await draftFor(f, actor);
-  const result = await cases.submitCase(f.ctx, actor, { kind, draftId: draft._id, contact: CONTACT, message: "As designed, please.", submissionKey: key }, NOW);
+  const result = await cases.submitCase(
+    f.ctx,
+    actor,
+    { kind, draftId: draft._id, contact: CONTACT, message: "As designed, please.", submissionKey: key },
+    NOW,
+  );
   return { draft, ...result, row: await f.ctx.db.get(result.caseId) };
 }
 
@@ -126,7 +149,12 @@ test("the same submission key returns the first receipt and writes nothing", asy
   assert.equal(f.rowsOf("atelierCases").length, 1, "every acknowledged request appears once");
 
   const other = await draftFor(f, otherGuestActor);
-  const foreign = await cases.submitCase(f.ctx, otherGuestActor, { kind: "design_review", draftId: other._id, contact: CONTACT, submissionKey: "retry-me" }, NOW);
+  const foreign = await cases.submitCase(
+    f.ctx,
+    otherGuestActor,
+    { kind: "design_review", draftId: other._id, contact: CONTACT, submissionKey: "retry-me" },
+    NOW,
+  );
   assert.equal(foreign.duplicate, false);
   assert.notEqual(foreign.caseId, first.caseId, "another browser's key never reveals this case");
 });
@@ -135,25 +163,53 @@ test("a design review needs a complete design, an owned draft and an actor", asy
   const { f } = await setup();
   const empty = await draftFor(f, guestActor, {});
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "design_review", draftId: empty._id, contact: CONTACT, submissionKey: "k1" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      { kind: "design_review", draftId: empty._id, contact: CONTACT, submissionKey: "k1" },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
-  await assert.rejects(cases.submitCase(f.ctx, guestActor, { kind: "quote", contact: CONTACT, submissionKey: "k2" }, NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    cases.submitCase(f.ctx, guestActor, { kind: "quote", contact: CONTACT, submissionKey: "k2" }, NOW),
+    isAppError("INVALID_INPUT"),
+  );
   const mine = await draftFor(f, guestActor);
   await assert.rejects(
-    cases.submitCase(f.ctx, otherGuestActor, { kind: "quote", draftId: mine._id, contact: CONTACT, submissionKey: "k3" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      otherGuestActor,
+      { kind: "quote", draftId: mine._id, contact: CONTACT, submissionKey: "k3" },
+      NOW,
+    ),
     isAppError("NOT_FOUND"),
   );
   await assert.rejects(
-    cases.submitCase(f.ctx, { user: null, guestKey: null }, { kind: "support", contact: CONTACT, message: "Hello", submissionKey: "k4" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      { user: null, guestKey: null },
+      { kind: "support", contact: CONTACT, message: "Hello", submissionKey: "k4" },
+      NOW,
+    ),
     isAppError("UNAUTHENTICATED"),
   );
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "quote", draftId: mine._id, contact: { ...CONTACT, email: "not-an-email" }, submissionKey: "k5" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      { kind: "quote", draftId: mine._id, contact: { ...CONTACT, email: "not-an-email" }, submissionKey: "k5" },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: "   ", submissionKey: "k6" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      { kind: "support", contact: CONTACT, message: "   ", submissionKey: "k6" },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
     "a question needs words",
   );
@@ -171,16 +227,41 @@ test("a sample names a cloth the house can send and where; its state is requeste
     isAppError("INVALID_INPUT"),
   );
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "sample", contact: CONTACT, sample: { clothCode: "no-such-cloth", address: ADDRESS }, submissionKey: "s1" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      {
+        kind: "sample",
+        contact: CONTACT,
+        sample: { clothCode: "no-such-cloth", address: ADDRESS },
+        submissionKey: "s1",
+      },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "sample", contact: CONTACT, sample: { clothCode: cloth.code, address: { ...ADDRESS, city: " " } }, submissionKey: "s2" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      {
+        kind: "sample",
+        contact: CONTACT,
+        sample: { clothCode: cloth.code, address: { ...ADDRESS, city: " " } },
+        submissionKey: "s2",
+      },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
   f.row(cloth._id).sampleAvailable = false;
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "sample", contact: CONTACT, sample: { clothCode: cloth.code, address: ADDRESS }, submissionKey: "s3" }, NOW),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      { kind: "sample", contact: CONTACT, sample: { clothCode: cloth.code, address: ADDRESS }, submissionKey: "s3" },
+      NOW,
+    ),
     isAppError("INVALID_INPUT"),
   );
   f.row(cloth._id).sampleAvailable = true;
@@ -188,7 +269,12 @@ test("a sample names a cloth the house can send and where; its state is requeste
   const { caseId } = await cases.submitCase(
     f.ctx,
     guestActor,
-    { kind: "sample", contact: CONTACT, sample: { clothCode: cloth.code, address: { ...ADDRESS, line2: "  " } }, submissionKey: "s4" },
+    {
+      kind: "sample",
+      contact: CONTACT,
+      sample: { clothCode: cloth.code, address: { ...ADDRESS, line2: "  " } },
+      submissionKey: "s4",
+    },
     NOW,
   );
   const row = await f.ctx.db.get(caseId);
@@ -198,7 +284,11 @@ test("a sample names a cloth the house can send and where; its state is requeste
   assert.equal(view.sample.stateLabel, cases.SAMPLE_STATE_LABELS.requested);
   assert.equal(view.sample.clothName, cloth.name);
 
-  await assert.rejects(cases.markSample(f.ctx, concierge, caseId, "shipped", NOW), isAppError("INVALID_STATE"), "received is not shipped");
+  await assert.rejects(
+    cases.markSample(f.ctx, concierge, caseId, "shipped", NOW),
+    isAppError("INVALID_STATE"),
+    "received is not shipped",
+  );
   await cases.markSample(f.ctx, concierge, caseId, "accepted", NOW + HOUR);
   assert.equal((await f.ctx.db.get(caseId)).sample.state, "accepted");
   await cases.markSample(f.ctx, concierge, caseId, "shipped", NOW + DAY);
@@ -210,25 +300,58 @@ test("a sample names a cloth the house can send and where; its state is requeste
   assert.ok(words.some((body) => /has shipped to Charlotte/.test(body)));
   assert.equal(auditsOf(f, "case.sample").length, 2);
 
-  const question = await cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: "Hello", submissionKey: "s5" }, NOW);
-  await assert.rejects(cases.markSample(f.ctx, concierge, question.caseId, "accepted", NOW), isAppError("INVALID_STATE"));
+  const question = await cases.submitCase(
+    f.ctx,
+    guestActor,
+    { kind: "support", contact: CONTACT, message: "Hello", submissionKey: "s5" },
+    NOW,
+  );
+  await assert.rejects(
+    cases.markSample(f.ctx, concierge, question.caseId, "accepted", NOW),
+    isAppError("INVALID_STATE"),
+  );
   for (const from of SAMPLE_STATES) assert.ok(Array.isArray(cases.SAMPLE_TRANSITIONS[from]));
 });
 
 test("an owner may send casesPerDay requests a day; the budget is per owner and resets with the UTC day", async () => {
   const { f } = await setup();
   for (let i = 0; i < ATELIER_LIMITS.casesPerDay; i += 1) {
-    await cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: `Question ${i}`, submissionKey: `q-${i}` }, NOW + i);
+    await cases.submitCase(
+      f.ctx,
+      guestActor,
+      { kind: "support", contact: CONTACT, message: `Question ${i}`, submissionKey: `q-${i}` },
+      NOW + i,
+    );
   }
   await assert.rejects(
-    cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: "One more", submissionKey: "q-more" }, NOW + HOUR),
+    cases.submitCase(
+      f.ctx,
+      guestActor,
+      { kind: "support", contact: CONTACT, message: "One more", submissionKey: "q-more" },
+      NOW + HOUR,
+    ),
     isAppError("RATE_LIMITED"),
   );
-  const dup = await cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: "Question 0", submissionKey: "q-0" }, NOW + HOUR);
+  const dup = await cases.submitCase(
+    f.ctx,
+    guestActor,
+    { kind: "support", contact: CONTACT, message: "Question 0", submissionKey: "q-0" },
+    NOW + HOUR,
+  );
   assert.equal(dup.duplicate, true, "a retry is never counted against the budget");
-  const other = await cases.submitCase(f.ctx, otherGuestActor, { kind: "support", contact: CONTACT, message: "Hi", submissionKey: "other" }, NOW + HOUR);
+  const other = await cases.submitCase(
+    f.ctx,
+    otherGuestActor,
+    { kind: "support", contact: CONTACT, message: "Hi", submissionKey: "other" },
+    NOW + HOUR,
+  );
   assert.equal(other.duplicate, false);
-  const tomorrow = await cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: "Next day", submissionKey: "q-next" }, NOW + DAY);
+  const tomorrow = await cases.submitCase(
+    f.ctx,
+    guestActor,
+    { kind: "support", contact: CONTACT, message: "Next day", submissionKey: "q-next" },
+    NOW + DAY,
+  );
   assert.equal(tomorrow.duplicate, false);
 });
 
@@ -293,13 +416,20 @@ test("messages move the clock: a client reply is with the house, a concierge rep
   assert.equal(row.status, "received", "an unassigned request stays received: the words say awaiting a concierge");
   assert.equal(row.lastActivityAt, NOW + 1);
   await assert.rejects(cases.sendClientMessage(f.ctx, guestActor, row, "   ", NOW + 2), isAppError("INVALID_INPUT"));
-  await assert.rejects(cases.sendClientMessage(f.ctx, otherGuestActor, row, "Not mine.", NOW + 2), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    cases.sendClientMessage(f.ctx, otherGuestActor, row, "Not mine.", NOW + 2),
+    isAppError("NOT_FOUND"),
+  );
 
   await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW + 2);
   await cases.staffReply(f.ctx, concierge, caseId, "Happy to. Two questions for you.", NOW + 3);
   row = await f.ctx.db.get(caseId);
   assert.equal(row.status, "awaiting_client");
-  assert.equal(f.rowsOf("atelierNotifications").filter((n) => n.caseId === caseId).length, 3, "receipt, assignment and reply were each queued");
+  assert.equal(
+    f.rowsOf("atelierNotifications").filter((n) => n.caseId === caseId).length,
+    3,
+    "receipt, assignment and reply were each queued",
+  );
   assert.equal(auditsOf(f, "case.reply").length, 1);
 
   await cases.sendClientMessage(f.ctx, guestActor, row, "Answers below.", NOW + 4);
@@ -339,7 +469,10 @@ test("assign needs a concierge, names them to the client once and leaves the una
   assert.equal(row.ownerStaffId, concierge._id);
   assert.equal(row.assignedAt, NOW + 1);
   assert.equal(messagesOf(f, caseId).at(-1).body, "Adaeze has your request.");
-  const notification = f.rowsOf("atelierNotifications").filter((n) => n.caseId === caseId).at(-1);
+  const notification = f
+    .rowsOf("atelierNotifications")
+    .filter((n) => n.caseId === caseId)
+    .at(-1);
   assert.equal(notification.status, "queued");
   assert.match(notification.subject, /concierge/);
   assert.equal(auditsOf(f, "case.assign").length, 1);
@@ -348,7 +481,11 @@ test("assign needs a concierge, names them to the client once and leaves the una
   const writes = f.log.patches.length;
   await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW + 2);
   assert.equal(f.log.patches.length, writes, "assigning to the same owner twice changes nothing");
-  await assert.rejects(cases.assign(f.ctx, concierge, caseId, secondConcierge._id, NOW + 2), isAppError("INVALID_STATE"), "an owned case is transferred, not re-assigned");
+  await assert.rejects(
+    cases.assign(f.ctx, concierge, caseId, secondConcierge._id, NOW + 2),
+    isAppError("INVALID_STATE"),
+    "an owned case is transferred, not re-assigned",
+  );
   assert.equal((await cases.queue(f.ctx, concierge, "unassigned", NOW)).length, 0);
   assert.equal((await cases.queue(f.ctx, concierge, "mine", NOW)).length, 1);
   assert.equal((await cases.queue(f.ctx, secondConcierge, "mine", NOW)).length, 0);
@@ -360,8 +497,14 @@ test("transfer keeps the conversation and revisions, records the handover and mo
   await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW + 1);
   await cases.staffReply(f.ctx, concierge, caseId, "Let us begin.", NOW + 2);
   const beforeCount = messagesOf(f, caseId).length;
-  await assert.rejects(cases.transfer(f.ctx, concierge, caseId, concierge._id, "n/a", NOW + 3), isAppError("INVALID_INPUT"));
-  await assert.rejects(cases.transfer(f.ctx, concierge, caseId, secondConcierge._id, "  ", NOW + 3), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    cases.transfer(f.ctx, concierge, caseId, concierge._id, "n/a", NOW + 3),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    cases.transfer(f.ctx, concierge, caseId, secondConcierge._id, "  ", NOW + 3),
+    isAppError("INVALID_INPUT"),
+  );
   await cases.transfer(f.ctx, concierge, caseId, secondConcierge._id, "Adaeze is away this week.", NOW + 3);
   const row = await f.ctx.db.get(caseId);
   assert.equal(row.ownerStaffId, secondConcierge._id);
@@ -392,14 +535,21 @@ test("status moves only along the service state machine, and 'assigned' needs an
   await assert.rejects(cases.setStatus(f.ctx, concierge, caseId, "assigned", NOW), isAppError("INVALID_STATE"));
   await cases.setStatus(f.ctx, concierge, caseId, "awaiting_client", NOW + 1);
   await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW + 2);
-  assert.equal((await f.ctx.db.get(caseId)).status, "awaiting_client", "assigning a case waiting on the client keeps that truth");
+  assert.equal(
+    (await f.ctx.db.get(caseId)).status,
+    "awaiting_client",
+    "assigning a case waiting on the client keeps that truth",
+  );
   await cases.setStatus(f.ctx, concierge, caseId, "assigned", NOW + 3);
   await cases.setStatus(f.ctx, concierge, caseId, "completed", NOW + 4);
   const row = await f.ctx.db.get(caseId);
   assert.equal(row.status, "completed");
   assert.equal(row.closedAt, NOW + 4);
   assert.match(messagesOf(f, caseId).at(-1).body, /complete/);
-  await assert.rejects(cases.setStatus(f.ctx, concierge, caseId, "awaiting_staff", NOW + 5), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    cases.setStatus(f.ctx, concierge, caseId, "awaiting_staff", NOW + 5),
+    isAppError("INVALID_STATE"),
+  );
   await assert.rejects(cases.setStatus(f.ctx, concierge, caseId, "cancelled", NOW + 5), isAppError("INVALID_STATE"));
   assert.equal(auditsOf(f, "case.status").length, 3);
 });
@@ -407,7 +557,10 @@ test("status moves only along the service state machine, and 'assigned' needs an
 test("the next action is named before it is dated, and clearing it clears the date", async () => {
   const { f, concierge } = await setup();
   const { caseId } = await submitted(f);
-  await assert.rejects(cases.setNextAction(f.ctx, concierge, caseId, "  ", NOW + DAY, NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    cases.setNextAction(f.ctx, concierge, caseId, "  ", NOW + DAY, NOW),
+    isAppError("INVALID_INPUT"),
+  );
   await cases.setNextAction(f.ctx, concierge, caseId, " Call about the cloth ", NOW + DAY, NOW);
   let row = await f.ctx.db.get(caseId);
   assert.equal(row.nextAction, "Call about the cloth");
@@ -444,16 +597,38 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
 
   const afterSpec = { ...draft.spec, jacket: { ...draft.spec.jacket, vents: "single" } };
   await assert.rejects(
-    cases.propose(f.ctx, concierge, caseId, { afterSpec: draft.spec, rationale: "Same thing", commercialImpact: "none" }, NOW + 3),
+    cases.propose(
+      f.ctx,
+      concierge,
+      caseId,
+      { afterSpec: draft.spec, rationale: "Same thing", commercialImpact: "none" },
+      NOW + 3,
+    ),
     isAppError("INVALID_INPUT"),
     "a proposal must change something",
   );
   await assert.rejects(
-    cases.propose(f.ctx, concierge, caseId, { afterSpec: { ...afterSpec, clothCode: null }, rationale: "No cloth", commercialImpact: "none" }, NOW + 3),
+    cases.propose(
+      f.ctx,
+      concierge,
+      caseId,
+      { afterSpec: { ...afterSpec, clothCode: null }, rationale: "No cloth", commercialImpact: "none" },
+      NOW + 3,
+    ),
     isAppError("INVALID_INPUT"),
   );
   await assert.rejects(
-    cases.propose(f.ctx, concierge, caseId, { afterSpec: { ...afterSpec, jacket: { ...afterSpec.jacket, breast: "double" } }, rationale: "DB", commercialImpact: "none" }, NOW + 3),
+    cases.propose(
+      f.ctx,
+      concierge,
+      caseId,
+      {
+        afterSpec: { ...afterSpec, jacket: { ...afterSpec.jacket, breast: "double" } },
+        rationale: "DB",
+        commercialImpact: "none",
+      },
+      NOW + 3,
+    ),
     isAppError("INVALID_INPUT"),
     "a double-breasted front with a two-button stance is a conflict",
   );
@@ -462,7 +637,13 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
     isAppError("INVALID_INPUT"),
   );
 
-  const proposalId = await cases.propose(f.ctx, concierge, caseId, { afterSpec, rationale: "A single vent sits cleaner on your frame.", commercialImpact: "new_quote" }, NOW + 3);
+  const proposalId = await cases.propose(
+    f.ctx,
+    concierge,
+    caseId,
+    { afterSpec, rationale: "A single vent sits cleaner on your frame.", commercialImpact: "new_quote" },
+    NOW + 3,
+  );
   const proposal = await f.ctx.db.get(proposalId);
   assert.equal(proposal.status, "proposed");
   assert.equal(proposal.baseRevision, draft.revision);
@@ -474,7 +655,11 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
   assert.match(carrying.body, /Adaeze proposed a change/);
   assert.match(carrying.body, /new quote will follow/);
   assert.equal(auditsOf(f, "proposal.create").length, 1);
-  assert.deepEqual(await f.ctx.db.get(draft._id).then((d) => d.spec), draft.spec, "nothing changes through a proposal alone");
+  assert.deepEqual(
+    await f.ctx.db.get(draft._id).then((d) => d.spec),
+    draft.spec,
+    "nothing changes through a proposal alone",
+  );
 
   const view = await cases.toProposalView(f.ctx, proposal, draft.revision);
   assert.equal(view.stale, false);
@@ -484,7 +669,10 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
     [["Jacket", "Vents", "Double vents", "Single vent", "VENT_DOUBLE", "VENT_SINGLE"]],
   );
 
-  await assert.rejects(cases.respondToProposal(f.ctx, otherGuestActor, proposalId, true, NOW + 4), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    cases.respondToProposal(f.ctx, otherGuestActor, proposalId, true, NOW + 4),
+    isAppError("NOT_FOUND"),
+  );
   const result = await cases.respondToProposal(f.ctx, guestActor, proposalId, true, NOW + 4);
   assert.equal(result.status, "accepted");
   assert.equal(result.revision, draft.revision + 1);
@@ -505,14 +693,23 @@ test("a proposal is pinned to the draft's revision; accepting writes a new revis
   assert.match(messagesOf(f, caseId).at(-1).body, /revision 2/);
   assert.match(messagesOf(f, caseId).at(-1).body, /set aside/);
   assert.equal(auditsOf(f, "proposal.accept").length, 1);
-  await assert.rejects(cases.respondToProposal(f.ctx, guestActor, proposalId, false, NOW + 5), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    cases.respondToProposal(f.ctx, guestActor, proposalId, false, NOW + 5),
+    isAppError("INVALID_STATE"),
+  );
 });
 
 test("a proposal against an older revision is refused; declining and withdrawing leave the design alone", async () => {
   const { f, concierge } = await setup();
   const { draft, caseId } = await submitted(f);
   const afterSpec = { ...draft.spec, trousers: { ...draft.spec.trousers, pleats: "single" } };
-  const stale = await cases.propose(f.ctx, concierge, caseId, { afterSpec, rationale: "Ease when seated.", commercialImpact: "none" }, NOW + 1);
+  const stale = await cases.propose(
+    f.ctx,
+    concierge,
+    caseId,
+    { afterSpec, rationale: "Ease when seated.", commercialImpact: "none" },
+    NOW + 1,
+  );
   await f.ctx.db.patch(draft._id, { revision: draft.revision + 1 });
   await assert.rejects(cases.respondToProposal(f.ctx, guestActor, stale, true, NOW + 2), isAppError("STALE_REVISION"));
   assert.equal((await f.ctx.db.get(stale)).status, "proposed", "the proposal is untouched");
@@ -527,16 +724,33 @@ test("a proposal against an older revision is refused; declining and withdrawing
   assert.match(messagesOf(f, caseId).at(-1).body, /declined/);
   assert.equal(auditsOf(f, "proposal.reject").length, 1);
 
-  const second = await cases.propose(f.ctx, concierge, caseId, { afterSpec, rationale: "Once more.", commercialImpact: "none" }, NOW + 4);
+  const second = await cases.propose(
+    f.ctx,
+    concierge,
+    caseId,
+    { afterSpec, rationale: "Once more.", commercialImpact: "none" },
+    NOW + 4,
+  );
   await cases.withdrawProposal(f.ctx, concierge, second, NOW + 5);
   assert.equal((await f.ctx.db.get(second)).status, "withdrawn");
   await assert.rejects(cases.withdrawProposal(f.ctx, concierge, second, NOW + 6), isAppError("INVALID_STATE"));
   await assert.rejects(cases.respondToProposal(f.ctx, guestActor, second, true, NOW + 6), isAppError("INVALID_STATE"));
   assert.match(messagesOf(f, caseId).at(-1).body, /withdrew/);
 
-  const question = await cases.submitCase(f.ctx, guestActor, { kind: "support", contact: CONTACT, message: "Hi", submissionKey: "q" }, NOW);
+  const question = await cases.submitCase(
+    f.ctx,
+    guestActor,
+    { kind: "support", contact: CONTACT, message: "Hi", submissionKey: "q" },
+    NOW,
+  );
   await assert.rejects(
-    cases.propose(f.ctx, concierge, question.caseId, { afterSpec, rationale: "No design here.", commercialImpact: "none" }, NOW),
+    cases.propose(
+      f.ctx,
+      concierge,
+      question.caseId,
+      { afterSpec, rationale: "No design here.", commercialImpact: "none" },
+      NOW,
+    ),
     isAppError("INVALID_STATE"),
   );
 });
@@ -554,19 +768,36 @@ test("the queue filters read as named and the cron escalates once per rule", asy
   const mine = await submitted(f, accountActor, "quote", "mine");
   await cases.assign(f.ctx, concierge, mine.caseId, concierge._id, NOW);
   await cases.setNextAction(f.ctx, concierge, mine.caseId, "Price the cloth", NOW + HOUR, NOW);
-  const waiting = await cases.submitCase(f.ctx, accountActor, { kind: "support", contact: CONTACT, message: "Hi", submissionKey: "waiting" }, NOW);
+  const waiting = await cases.submitCase(
+    f.ctx,
+    accountActor,
+    { kind: "support", contact: CONTACT, message: "Hi", submissionKey: "waiting" },
+    NOW,
+  );
   await cases.assign(f.ctx, secondConcierge, waiting.caseId, secondConcierge._id, NOW);
   await cases.staffReply(f.ctx, secondConcierge, waiting.caseId, "Which showroom suits you?", NOW);
-  const closed = await cases.submitCase(f.ctx, accountActor, { kind: "support", contact: CONTACT, message: "Bye", submissionKey: "closed" }, NOW);
+  const closed = await cases.submitCase(
+    f.ctx,
+    accountActor,
+    { kind: "support", contact: CONTACT, message: "Bye", submissionKey: "closed" },
+    NOW,
+  );
   await cases.setStatus(f.ctx, concierge, closed.caseId, "cancelled", NOW);
 
   const ids = (rows) => rows.map((r) => r._id);
-  assert.deepEqual(ids(await cases.queue(f.ctx, concierge, "unassigned", NOW)), [old.caseId, fresh.caseId], "longest waiting first");
+  assert.deepEqual(
+    ids(await cases.queue(f.ctx, concierge, "unassigned", NOW)),
+    [old.caseId, fresh.caseId],
+    "longest waiting first",
+  );
   assert.deepEqual(ids(await cases.queue(f.ctx, concierge, "mine", NOW)), [mine.caseId]);
   assert.deepEqual(ids(await cases.queue(f.ctx, secondConcierge, "mine", NOW)), [waiting.caseId]);
   assert.deepEqual(ids(await cases.queue(f.ctx, concierge, "awaiting_client", NOW)), [waiting.caseId]);
   assert.deepEqual(ids(await cases.queue(f.ctx, concierge, "overdue", NOW)), [old.caseId]);
-  assert.deepEqual(ids(await cases.queue(f.ctx, concierge, "overdue", NOW + 2 * HOUR)).sort(), [old.caseId, mine.caseId].sort());
+  assert.deepEqual(
+    ids(await cases.queue(f.ctx, concierge, "overdue", NOW + 2 * HOUR)).sort(),
+    [old.caseId, mine.caseId].sort(),
+  );
   const all = await cases.queue(f.ctx, concierge, "all", NOW);
   assert.equal(all.length, 5, "'all' includes closed requests");
   const rowFor = all.find((r) => r._id === mine.caseId);
@@ -627,10 +858,27 @@ test("diffLines names only what differs and shows a side that lacks a line as a 
     { section: "Waistcoat", label: "Style", value: "Single-breasted, five buttons", productionId: "WC_SB5" },
   ];
   assert.deepEqual(cases.diffLines(before, after), [
-    { section: "Jacket", label: "Lapel", from: "Notch lapel", to: "Peak lapel", fromProductionId: "LAPEL_NOTCH", toProductionId: "LAPEL_PEAK" },
-    { section: "Waistcoat", label: "Style", from: "—", to: "Single-breasted, five buttons", fromProductionId: null, toProductionId: "WC_SB5" },
+    {
+      section: "Jacket",
+      label: "Lapel",
+      from: "Notch lapel",
+      to: "Peak lapel",
+      fromProductionId: "LAPEL_NOTCH",
+      toProductionId: "LAPEL_PEAK",
+    },
+    {
+      section: "Waistcoat",
+      label: "Style",
+      from: "—",
+      to: "Single-breasted, five buttons",
+      fromProductionId: null,
+      toProductionId: "WC_SB5",
+    },
   ]);
-  assert.deepEqual(cases.diffLines(after, before).map((c) => c.to), ["Notch lapel", "—"]);
+  assert.deepEqual(
+    cases.diffLines(after, before).map((c) => c.to),
+    ["Notch lapel", "—"],
+  );
 });
 
 test("normalizeContact trims, lowercases the email and insists on a phone for texts", () => {
@@ -639,7 +887,22 @@ test("normalizeContact trims, lowercases the email and insists on a phone for te
     email: "nia@example.com",
     channel: "either",
   });
-  assert.throws(() => cases.normalizeContact({ name: "", email: "a@b.co", channel: "email" }), isAppError("INVALID_INPUT"));
-  assert.throws(() => cases.normalizeContact({ name: "Nia", email: "a@b.co", channel: "sms" }), isAppError("INVALID_INPUT"));
-  assert.equal(cases.normalizeContact({ name: "Nia", email: "a@b.co", phone: " 980 ", channel: "sms", preferredShowroom: "atlanta" }).phone, "980");
+  assert.throws(
+    () => cases.normalizeContact({ name: "", email: "a@b.co", channel: "email" }),
+    isAppError("INVALID_INPUT"),
+  );
+  assert.throws(
+    () => cases.normalizeContact({ name: "Nia", email: "a@b.co", channel: "sms" }),
+    isAppError("INVALID_INPUT"),
+  );
+  assert.equal(
+    cases.normalizeContact({
+      name: "Nia",
+      email: "a@b.co",
+      phone: " 980 ",
+      channel: "sms",
+      preferredShowroom: "atlanta",
+    }).phone,
+    "980",
+  );
 });

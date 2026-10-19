@@ -76,8 +76,17 @@ export const PRIVACY_STEP_LABELS: Record<PrivacyStepKey, string> = {
 };
 
 export const EXPORT_STEPS: readonly PrivacyStepKey[] = ["collect_designs", "collect_cases_orders", "write_export"];
-export const PHOTO_STEPS: readonly PrivacyStepKey[] = ["revoke_preview_links", "cancel_preview_jobs", "delete_photos", "notify_provider"];
-export const DESIGN_STEPS: readonly PrivacyStepKey[] = ["revoke_shares", "archive_drafts", "delete_unreferenced_drafts"];
+export const PHOTO_STEPS: readonly PrivacyStepKey[] = [
+  "revoke_preview_links",
+  "cancel_preview_jobs",
+  "delete_photos",
+  "notify_provider",
+];
+export const DESIGN_STEPS: readonly PrivacyStepKey[] = [
+  "revoke_shares",
+  "archive_drafts",
+  "delete_unreferenced_drafts",
+];
 
 export const PRIVACY_STEPS_BY_KIND: Record<PrivacyKind, readonly PrivacyStepKey[]> = {
   export: EXPORT_STEPS,
@@ -91,13 +100,19 @@ const REVOCATION_KEYS: readonly PrivacyStepKey[] = ["revoke_shares", "revoke_pre
 /** Steps whose completion means primary copies are gone from the house's systems. */
 const DELETION_KEYS: readonly PrivacyStepKey[] = ["delete_photos", "delete_unreferenced_drafts"];
 
-export const OPEN_PRIVACY_STATUSES: readonly PrivacyStatus[] = ["requested", "access_revoked", "primary_deleted", "downstream_pending"];
+export const OPEN_PRIVACY_STATUSES: readonly PrivacyStatus[] = [
+  "requested",
+  "access_revoked",
+  "primary_deleted",
+  "downstream_pending",
+];
 export const SETTLED_STEP_STATUSES: readonly Step["status"][] = ["done", "exception"];
 
 export const PROVIDER_RETENTION_EXCEPTION = `The preview provider (${PROVIDER_DISCLOSURE_VERSION}) holds its own copy under its retention terms. The house has recorded your deletion with it but cannot confirm the provider's deletion from here.`;
 export const ACCESS_REVOCATION_EXCEPTION =
   "Sign-in is managed by the house's identity provider. A privacy staff member removes the account there and records it when they complete this request.";
-export const RECORDS_EXCEPTION = "Your requests to the house and the record of this privacy request are kept as service and audit records.";
+export const RECORDS_EXCEPTION =
+  "Your requests to the house and the record of this privacy request are kept as service and audit records.";
 
 const OWNER_SCAN = 200;
 const PHOTOS_SCAN = 100;
@@ -111,7 +126,11 @@ export const AUDIT_LIMIT_MAX = 200;
 const EXPORT_IN_FLIGHT_MS = 10 * 60_000;
 
 export function planSteps(kind: PrivacyKind): Step[] {
-  return PRIVACY_STEPS_BY_KIND[kind].map((key) => ({ key, label: PRIVACY_STEP_LABELS[key], status: "pending" as const }));
+  return PRIVACY_STEPS_BY_KIND[kind].map((key) => ({
+    key,
+    label: PRIVACY_STEP_LABELS[key],
+    status: "pending" as const,
+  }));
 }
 
 export function isSettled(step: Pick<Step, "status">): boolean {
@@ -139,7 +158,11 @@ export function submissionKeyFor(requestId: Id<"atelierPrivacyRequests">): strin
 }
 
 function ownerOf(doc: Owned): Owned {
-  return doc.userId !== undefined ? { userId: doc.userId } : doc.guestKey !== undefined ? { guestKey: doc.guestKey } : {};
+  return doc.userId !== undefined
+    ? { userId: doc.userId }
+    : doc.guestKey !== undefined
+      ? { guestKey: doc.guestKey }
+      : {};
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -149,11 +172,19 @@ function ownerOf(doc: Owned): Owned {
 async function ownerDrafts(ctx: Ctx, owner: Owned): Promise<Draft[]> {
   if (owner.userId !== undefined) {
     const userId = owner.userId;
-    return ctx.db.query("atelierDrafts").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierDrafts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   if (owner.guestKey !== undefined) {
     const guestKey = owner.guestKey;
-    return ctx.db.query("atelierDrafts").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierDrafts")
+      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   return [];
 }
@@ -161,11 +192,19 @@ async function ownerDrafts(ctx: Ctx, owner: Owned): Promise<Draft[]> {
 async function ownerOrders(ctx: Ctx, owner: Owned): Promise<Doc<"atelierOrders">[]> {
   if (owner.userId !== undefined) {
     const userId = owner.userId;
-    return ctx.db.query("atelierOrders").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierOrders")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   if (owner.guestKey !== undefined) {
     const guestKey = owner.guestKey;
-    return ctx.db.query("atelierOrders").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierOrders")
+      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   return [];
 }
@@ -173,11 +212,19 @@ async function ownerOrders(ctx: Ctx, owner: Owned): Promise<Doc<"atelierOrders">
 async function ownerCases(ctx: Ctx, owner: Owned): Promise<Doc<"atelierCases">[]> {
   if (owner.userId !== undefined) {
     const userId = owner.userId;
-    return ctx.db.query("atelierCases").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierCases")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   if (owner.guestKey !== undefined) {
     const guestKey = owner.guestKey;
-    return ctx.db.query("atelierCases").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierCases")
+      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   return [];
 }
@@ -185,11 +232,19 @@ async function ownerCases(ctx: Ctx, owner: Owned): Promise<Doc<"atelierCases">[]
 async function ownerJobs(ctx: Ctx, owner: Owned): Promise<Job[]> {
   if (owner.userId !== undefined) {
     const userId = owner.userId;
-    return ctx.db.query("atelierPreviewJobs").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierPreviewJobs")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   if (owner.guestKey !== undefined) {
     const guestKey = owner.guestKey;
-    return ctx.db.query("atelierPreviewJobs").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierPreviewJobs")
+      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   return [];
 }
@@ -197,11 +252,19 @@ async function ownerJobs(ctx: Ctx, owner: Owned): Promise<Job[]> {
 async function ownerPhotos(ctx: Ctx, owner: Owned): Promise<Doc<"atelierPersonPhotos">[]> {
   if (owner.userId !== undefined) {
     const userId = owner.userId;
-    return ctx.db.query("atelierPersonPhotos").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").take(PHOTOS_SCAN);
+    return ctx.db
+      .query("atelierPersonPhotos")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(PHOTOS_SCAN);
   }
   if (owner.guestKey !== undefined) {
     const guestKey = owner.guestKey;
-    return ctx.db.query("atelierPersonPhotos").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey)).order("desc").take(PHOTOS_SCAN);
+    return ctx.db
+      .query("atelierPersonPhotos")
+      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+      .order("desc")
+      .take(PHOTOS_SCAN);
   }
   return [];
 }
@@ -209,11 +272,19 @@ async function ownerPhotos(ctx: Ctx, owner: Owned): Promise<Doc<"atelierPersonPh
 async function ownerRequests(ctx: Ctx, owner: Owned): Promise<Request[]> {
   if (owner.userId !== undefined) {
     const userId = owner.userId;
-    return ctx.db.query("atelierPrivacyRequests").withIndex("by_user", (q) => q.eq("userId", userId)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierPrivacyRequests")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   if (owner.guestKey !== undefined) {
     const guestKey = owner.guestKey;
-    return ctx.db.query("atelierPrivacyRequests").withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey)).order("desc").take(OWNER_SCAN);
+    return ctx.db
+      .query("atelierPrivacyRequests")
+      .withIndex("by_guestKey", (q) => q.eq("guestKey", guestKey))
+      .order("desc")
+      .take(OWNER_SCAN);
   }
   return [];
 }
@@ -221,11 +292,18 @@ async function ownerRequests(ctx: Ctx, owner: Owned): Promise<Request[]> {
 async function ownerProfiles(ctx: Ctx, owner: Owned): Promise<Doc<"atelierFitProfiles">[]> {
   if (owner.userId === undefined) return [];
   const userId = owner.userId;
-  return ctx.db.query("atelierFitProfiles").withIndex("by_user_version", (q) => q.eq("userId", userId)).order("desc").take(PROFILES_MAX);
+  return ctx.db
+    .query("atelierFitProfiles")
+    .withIndex("by_user_version", (q) => q.eq("userId", userId))
+    .order("desc")
+    .take(PROFILES_MAX);
 }
 
 async function sharesForDraft(ctx: Ctx, draftId: Id<"atelierDrafts">): Promise<Doc<"atelierShares">[]> {
-  return ctx.db.query("atelierShares").withIndex("by_draft", (q) => q.eq("draftId", draftId)).take(SHARES_PER_DRAFT);
+  return ctx.db
+    .query("atelierShares")
+    .withIndex("by_draft", (q) => q.eq("draftId", draftId))
+    .take(SHARES_PER_DRAFT);
 }
 
 /** Deletes a stored file if it is still there; a file already gone is not an error. */
@@ -264,9 +342,15 @@ export async function retentionExceptions(ctx: Ctx, owner: Owned, kind: PrivacyK
         `Your commission "${specSummary(order.spec, cloth?.name)}" (${ORDER_STATUS_LABELS[order.status].toLowerCase()}) keeps its specification and fit profile so the house can make and service the suit.`,
       );
     }
-    if (orders.length > 5) lines.push(`${plural(orders.length - 5, "further commission")} keep their specification and fit profile for the same reason.`);
+    if (orders.length > 5)
+      lines.push(
+        `${plural(orders.length - 5, "further commission")} keep their specification and fit profile for the same reason.`,
+      );
     const requested = (await ownerCases(ctx, owner)).filter((c) => c.draftId !== undefined);
-    if (requested.length > 0) lines.push(`${plural(requested.length, "design")} you sent the house stay with that request's record; their shared links are revoked.`);
+    if (requested.length > 0)
+      lines.push(
+        `${plural(requested.length, "design")} you sent the house stay with that request's record; their shared links are revoked.`,
+      );
   }
   if (kind === "close_account") lines.push(RECORDS_EXCEPTION);
   return lines;
@@ -282,7 +366,11 @@ export async function requireRequest(ctx: Ctx, requestId: Id<"atelierPrivacyRequ
   return request;
 }
 
-export async function requireOwnedRequest(ctx: Ctx, requestId: Id<"atelierPrivacyRequests">, actor: Actor): Promise<Request> {
+export async function requireOwnedRequest(
+  ctx: Ctx,
+  requestId: Id<"atelierPrivacyRequests">,
+  actor: Actor,
+): Promise<Request> {
   return requireOwned(await ctx.db.get(requestId), actor, "privacy request");
 }
 
@@ -297,7 +385,10 @@ export async function caseFor(ctx: Ctx, request: Request): Promise<Doc<"atelierC
 
 /** "Completed with exceptions" is said when it is true; every other word comes from the label map. */
 export function statusLabelFor(request: Pick<Request, "status" | "exceptions" | "steps">): string {
-  if (request.status === "completed" && (request.exceptions.length > 0 || request.steps.some((step) => step.status === "exception"))) {
+  if (
+    request.status === "completed" &&
+    (request.exceptions.length > 0 || request.steps.some((step) => step.status === "exception"))
+  ) {
     return "Completed with exceptions";
   }
   return PRIVACY_STATUS_LABELS[request.status];
@@ -325,7 +416,9 @@ export async function toRequestView(ctx: Ctx, request: Request): Promise<Privacy
     completedAt: request.completedAt ?? null,
     caseId: caseDoc?._id ?? null,
     hasFailedStep: request.steps.some((step) => step.status === "failed"),
-    completedWithExceptions: request.status === "completed" && (request.exceptions.length > 0 || request.steps.some((step) => step.status === "exception")),
+    completedWithExceptions:
+      request.status === "completed" &&
+      (request.exceptions.length > 0 || request.steps.some((step) => step.status === "exception")),
   };
 }
 
@@ -361,7 +454,11 @@ export async function toStaffRow(ctx: Ctx, request: Request): Promise<StaffPriva
 export async function queue(ctx: Ctx): Promise<Request[]> {
   const pages = await Promise.all(
     OPEN_PRIVACY_STATUSES.map((status) =>
-      ctx.db.query("atelierPrivacyRequests").withIndex("by_status", (q) => q.eq("status", status)).order("asc").take(QUEUE_MAX),
+      ctx.db
+        .query("atelierPrivacyRequests")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .order("asc")
+        .take(QUEUE_MAX),
     ),
   );
   return pages.flat().sort((a, b) => a.requestedAt - b.requestedAt);
@@ -378,12 +475,23 @@ export type RequestPrivacyResult = { requestId: Id<"atelierPrivacyRequests">; du
  * another (scenario 8). The plan, its exceptions and a privacy case are written, then the first step is
  * scheduled; nothing is deleted inside this transaction.
  */
-export async function requestPrivacy(ctx: MutationCtx, actor: Actor, kind: PrivacyKind, now: number = Date.now()): Promise<RequestPrivacyResult> {
+export async function requestPrivacy(
+  ctx: MutationCtx,
+  actor: Actor,
+  kind: PrivacyKind,
+  now: number = Date.now(),
+): Promise<RequestPrivacyResult> {
   if (kind === "close_account" && !actor.user) {
-    throw appError("INVALID_INPUT", "There is no account to close in this browser. You can remove the designs and photographs this browser holds instead.", { kind });
+    throw appError(
+      "INVALID_INPUT",
+      "There is no account to close in this browser. You can remove the designs and photographs this browser holds instead.",
+      { kind },
+    );
   }
   const owner = ownerFieldsFor(actor);
-  const existing = (await ownerRequests(ctx, owner)).find((request) => request.kind === kind && OPEN_PRIVACY_STATUSES.includes(request.status));
+  const existing = (await ownerRequests(ctx, owner)).find(
+    (request) => request.kind === kind && OPEN_PRIVACY_STATUSES.includes(request.status),
+  );
   if (existing) return { requestId: existing._id, duplicate: true };
 
   const exceptions = await retentionExceptions(ctx, owner, kind);
@@ -415,7 +523,18 @@ export async function requestPrivacy(ctx: MutationCtx, actor: Actor, kind: Priva
     },
     now,
   );
-  await audit(ctx, { actor, actorKind: "client", action: "privacy.request", targetTable: "atelierPrivacyRequests", targetId: requestId, meta: { kind, steps: PRIVACY_STEPS_BY_KIND[kind].length } }, now);
+  await audit(
+    ctx,
+    {
+      actor,
+      actorKind: "client",
+      action: "privacy.request",
+      targetTable: "atelierPrivacyRequests",
+      targetId: requestId,
+      meta: { kind, steps: PRIVACY_STEPS_BY_KIND[kind].length },
+    },
+    now,
+  );
   await ctx.scheduler.runAfter(0, internal.atelier.privacy.advance, { requestId });
   return { requestId, duplicate: false };
 }
@@ -450,10 +569,16 @@ async function cancelJob(ctx: MutationCtx, job: Job, now: number): Promise<void>
 
 /** Removes a design nothing else refers to: its snapshots, links and preview jobs go with it. */
 async function purgeDraft(ctx: MutationCtx, draft: Draft, now: number): Promise<void> {
-  const revisions = await ctx.db.query("atelierRevisions").withIndex("by_draft_revision", (q) => q.eq("draftId", draft._id)).take(REVISIONS_PER_DRAFT);
+  const revisions = await ctx.db
+    .query("atelierRevisions")
+    .withIndex("by_draft_revision", (q) => q.eq("draftId", draft._id))
+    .take(REVISIONS_PER_DRAFT);
   for (const revision of revisions) await ctx.db.delete(revision._id);
   for (const share of await sharesForDraft(ctx, draft._id)) await ctx.db.delete(share._id);
-  const jobs = await ctx.db.query("atelierPreviewJobs").withIndex("by_draft", (q) => q.eq("draftId", draft._id)).take(JOBS_PER_DRAFT);
+  const jobs = await ctx.db
+    .query("atelierPreviewJobs")
+    .withIndex("by_draft", (q) => q.eq("draftId", draft._id))
+    .take(JOBS_PER_DRAFT);
   for (const job of jobs) {
     if (job.resultStorageId) await deleteFile(ctx, job.resultStorageId);
     await ctx.db.delete(job._id);
@@ -509,7 +634,8 @@ async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, 
         deleted += 1;
       }
       for (const draft of await ownerDrafts(ctx, owner)) {
-        if (draft.personPhotoId !== undefined && removedIds.has(draft.personPhotoId)) await ctx.db.patch(draft._id, { personPhotoId: undefined });
+        if (draft.personPhotoId !== undefined && removedIds.has(draft.personPhotoId))
+          await ctx.db.patch(draft._id, { personPhotoId: undefined });
       }
       return { status: "done", note: `${plural(deleted, "photograph")} deleted` };
     }
@@ -543,7 +669,10 @@ async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, 
         await ctx.db.patch(draft._id, { status: "archived", updatedAt: now });
         archived += 1;
       }
-      const note = kept > 0 ? `${plural(archived, "draft")} archived · ${kept} kept with a commission or a request` : `${plural(archived, "draft")} archived`;
+      const note =
+        kept > 0
+          ? `${plural(archived, "draft")} archived · ${kept} kept with a commission or a request`
+          : `${plural(archived, "draft")} archived`;
       return { status: "done", note };
     }
     case "delete_unreferenced_drafts": {
@@ -560,7 +689,11 @@ async function runStep(ctx: MutationCtx, request: Request, key: PrivacyStepKey, 
       }
       if (kept === 0) return { status: "done", note: `${plural(deleted, "design")} deleted` };
       const exception = `${plural(kept, "design")} stay with a commission or a request to the house; they are archived and no longer shared.`;
-      return { status: "exception", note: `${plural(deleted, "design")} deleted · ${kept} kept`, exceptions: [exception] };
+      return {
+        status: "exception",
+        note: `${plural(deleted, "design")} deleted · ${kept} kept`,
+        exceptions: [exception],
+      };
     }
     case "revoke_access": {
       const revoked = await revokeShares(ctx, owner, now);
@@ -611,7 +744,12 @@ async function recordStep(
     const caseDoc = await caseFor(ctx, request);
     if (caseDoc) {
       const label = statusLabelFor(updated);
-      await appendMessage(ctx, caseDoc._id, { author: "system", body: `${label}. ${step.label}: ${step.note ?? step.status}.` }, now);
+      await appendMessage(
+        ctx,
+        caseDoc._id,
+        { author: "system", body: `${label}. ${step.label}: ${step.note ?? step.status}.` },
+        now,
+      );
       if (status === "completed") await touchCase(ctx, caseDoc._id, { status: "completed", closedAt: now }, now);
     }
   }
@@ -630,9 +768,15 @@ export type AdvanceResult = { ran: string | null; status: PrivacyStatus; schedul
  * step, which waits for staff (`manual: true` re-runs it). The export step is handed to the `writeExport`
  * action, since only an action can store a file; it reports back through `recordExport`.
  */
-export async function advance(ctx: MutationCtx, requestId: Id<"atelierPrivacyRequests">, options: AdvanceOptions = {}, now: number = Date.now()): Promise<AdvanceResult> {
+export async function advance(
+  ctx: MutationCtx,
+  requestId: Id<"atelierPrivacyRequests">,
+  options: AdvanceOptions = {},
+  now: number = Date.now(),
+): Promise<AdvanceResult> {
   const request = await requireRequest(ctx, requestId);
-  if (request.status === "completed" || request.status === "rejected") return { ran: null, status: request.status, scheduled: false };
+  if (request.status === "completed" || request.status === "rejected")
+    return { ran: null, status: request.status, scheduled: false };
   const index = nextUnsettled(request.steps);
   if (index < 0) {
     const status = deriveStatus(request.steps, request.status);
@@ -646,7 +790,9 @@ export async function advance(ctx: MutationCtx, requestId: Id<"atelierPrivacyReq
   if (key === "write_export") {
     const inFlight = step.status === "pending" && step.at !== undefined && now - step.at < EXPORT_IN_FLIGHT_MS;
     if (inFlight && !options.manual) return { ran: null, status: request.status, scheduled: false };
-    await ctx.db.patch(request._id, { steps: withStep(request, index, { status: "pending", at: now, note: "Writing your export" }) });
+    await ctx.db.patch(request._id, {
+      steps: withStep(request, index, { status: "pending", at: now, note: "Writing your export" }),
+    });
     await ctx.scheduler.runAfter(0, internal.atelier.privacy.writeExport, { requestId });
     return { ran: key, status: request.status, scheduled: true };
   }
@@ -659,7 +805,15 @@ export async function advance(ctx: MutationCtx, requestId: Id<"atelierPrivacyReq
     await recordStep(ctx, request, index, { status: "failed", at: now, note }, [], options.actor ?? null, now);
     return { ran: key, status: request.status, scheduled: false };
   }
-  const updated = await recordStep(ctx, request, index, { status: outcome.status, at: now, note: outcome.note }, outcome.exceptions ?? [], options.actor ?? null, now);
+  const updated = await recordStep(
+    ctx,
+    request,
+    index,
+    { status: outcome.status, at: now, note: outcome.note },
+    outcome.exceptions ?? [],
+    options.actor ?? null,
+    now,
+  );
   const next = nextUnsettled(updated.steps);
   const scheduled = next >= 0 && updated.steps[next].status === "pending" && updated.status !== "completed";
   if (scheduled) await ctx.scheduler.runAfter(0, internal.atelier.privacy.advance, { requestId });
@@ -667,14 +821,20 @@ export async function advance(ctx: MutationCtx, requestId: Id<"atelierPrivacyReq
 }
 
 /** The export action reports its file here; a late or repeated report deletes its own file rather than overwriting. */
-export async function recordExport(ctx: MutationCtx, requestId: Id<"atelierPrivacyRequests">, storageId: Id<"_storage">, now: number = Date.now()): Promise<boolean> {
+export async function recordExport(
+  ctx: MutationCtx,
+  requestId: Id<"atelierPrivacyRequests">,
+  storageId: Id<"_storage">,
+  now: number = Date.now(),
+): Promise<boolean> {
   const request = await ctx.db.get(requestId);
   const index = request?.steps.findIndex((step) => step.key === "write_export") ?? -1;
   if (!request || index < 0 || request.steps[index].status === "done" || request.status === "rejected") {
     await deleteFile(ctx, storageId);
     return false;
   }
-  if (request.exportStorageId !== undefined && request.exportStorageId !== storageId) await deleteFile(ctx, request.exportStorageId);
+  if (request.exportStorageId !== undefined && request.exportStorageId !== storageId)
+    await deleteFile(ctx, request.exportStorageId);
   await ctx.db.patch(request._id, { exportStorageId: storageId });
   const updated = await recordStep(
     ctx,
@@ -692,7 +852,13 @@ export async function recordExport(ctx: MutationCtx, requestId: Id<"atelierPriva
   return true;
 }
 
-export async function markStepFailed(ctx: MutationCtx, requestId: Id<"atelierPrivacyRequests">, key: PrivacyStepKey, note: string, now: number = Date.now()): Promise<void> {
+export async function markStepFailed(
+  ctx: MutationCtx,
+  requestId: Id<"atelierPrivacyRequests">,
+  key: PrivacyStepKey,
+  note: string,
+  now: number = Date.now(),
+): Promise<void> {
   const request = await requireRequest(ctx, requestId);
   const index = request.steps.findIndex((step) => step.key === key);
   if (index < 0 || isSettled(request.steps[index])) return;
@@ -704,7 +870,11 @@ export async function markStepFailed(ctx: MutationCtx, requestId: Id<"atelierPri
 // ------------------------------------------------------------------------------------------------
 
 /** Only the owner's rows, through the owner indexes: another client's data is never in reach of this read. */
-export async function exportPayload(ctx: Ctx, requestId: Id<"atelierPrivacyRequests">, now: number = Date.now()): Promise<ExportPayload | null> {
+export async function exportPayload(
+  ctx: Ctx,
+  requestId: Id<"atelierPrivacyRequests">,
+  now: number = Date.now(),
+): Promise<ExportPayload | null> {
   const request = await ctx.db.get(requestId);
   if (!request) return null;
   const owner = ownerOf(request);
@@ -731,7 +901,11 @@ export async function exportPayload(ctx: Ctx, requestId: Id<"atelierPrivacyReque
   );
   const commissions = await Promise.all(
     orders.map(async (order) => {
-      const milestones = await ctx.db.query("atelierOrderMilestones").withIndex("by_order", (q) => q.eq("orderId", order._id)).order("asc").take(OWNER_SCAN);
+      const milestones = await ctx.db
+        .query("atelierOrderMilestones")
+        .withIndex("by_order", (q) => q.eq("orderId", order._id))
+        .order("asc")
+        .take(OWNER_SCAN);
       return {
         id: order._id,
         status: order.status,
@@ -744,7 +918,13 @@ export async function exportPayload(ctx: Ctx, requestId: Id<"atelierPrivacyReque
           amountUsd: order.payment.amountUsd ?? null,
           confirmedAt: order.payment.confirmedAt ?? null,
         },
-        milestones: milestones.map((m) => ({ kind: m.kind, label: m.label, at: m.at, source: m.source, estimated: m.estimated })),
+        milestones: milestones.map((m) => ({
+          kind: m.kind,
+          label: m.label,
+          at: m.at,
+          source: m.source,
+          estimated: m.estimated,
+        })),
         createdAt: order.createdAt,
       };
     }),
@@ -783,40 +963,87 @@ export async function exportPayload(ctx: Ctx, requestId: Id<"atelierPrivacyReque
 // ------------------------------------------------------------------------------------------------
 
 /** Closes a request whose steps have all run; the note documents what the staff member did or reviewed. */
-export async function complete(ctx: MutationCtx, staff: User, request: Request, note: string, now: number = Date.now()): Promise<void> {
+export async function complete(
+  ctx: MutationCtx,
+  staff: User,
+  request: Request,
+  note: string,
+  now: number = Date.now(),
+): Promise<void> {
   const body = note.trim();
   if (!body) throw appError("INVALID_INPUT", "A note on what was reviewed or done is needed.");
-  if (request.status === "rejected") throw appError("INVALID_STATE", "This request was rejected; it cannot be completed.", { status: request.status });
+  if (request.status === "rejected")
+    throw appError("INVALID_STATE", "This request was rejected; it cannot be completed.", { status: request.status });
   const unsettled = request.steps.filter((step) => !isSettled(step));
   if (unsettled.length > 0) {
-    throw appError("INVALID_STATE", `${plural(unsettled.length, "step")} still pending or failed: ${unsettled.map((step) => step.label).join(", ")}. Run them first.`, {
-      steps: unsettled.map((step) => step.key),
-    });
+    throw appError(
+      "INVALID_STATE",
+      `${plural(unsettled.length, "step")} still pending or failed: ${unsettled.map((step) => step.label).join(", ")}. Run them first.`,
+      {
+        steps: unsettled.map((step) => step.key),
+      },
+    );
   }
   if (request.status !== "completed" || request.handledByStaffId !== staff._id) {
-    await ctx.db.patch(request._id, { status: "completed", completedAt: request.completedAt ?? now, handledByStaffId: staff._id });
+    await ctx.db.patch(request._id, {
+      status: "completed",
+      completedAt: request.completedAt ?? now,
+      handledByStaffId: staff._id,
+    });
   }
   const caseDoc = await caseFor(ctx, request);
   if (caseDoc) {
     await appendMessage(ctx, caseDoc._id, { author: "staff", authorUserId: staff._id, body }, now);
     await touchCase(ctx, caseDoc._id, { status: "completed", closedAt: caseDoc.closedAt ?? now }, now);
   }
-  await audit(ctx, { actor: staff, action: "privacy.complete", targetTable: "atelierPrivacyRequests", targetId: request._id, meta: { note: body } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      action: "privacy.complete",
+      targetTable: "atelierPrivacyRequests",
+      targetId: request._id,
+      meta: { note: body },
+    },
+    now,
+  );
 }
 
 /** A documented refusal (identity not verified, a legal hold): the client reads "Could not be completed" and why. */
-export async function reject(ctx: MutationCtx, staff: User, request: Request, note: string, now: number = Date.now()): Promise<void> {
+export async function reject(
+  ctx: MutationCtx,
+  staff: User,
+  request: Request,
+  note: string,
+  now: number = Date.now(),
+): Promise<void> {
   const body = note.trim();
   if (!body) throw appError("INVALID_INPUT", "A note the client can read is needed.");
-  if (request.status === "completed") throw appError("INVALID_STATE", "This request has completed; it cannot be rejected.", { status: request.status });
+  if (request.status === "completed")
+    throw appError("INVALID_STATE", "This request has completed; it cannot be rejected.", { status: request.status });
   if (request.status === "rejected") return;
   await ctx.db.patch(request._id, { status: "rejected", completedAt: now, handledByStaffId: staff._id });
   const caseDoc = await caseFor(ctx, request);
   if (caseDoc) {
-    await appendMessage(ctx, caseDoc._id, { author: "staff", authorUserId: staff._id, body: `${PRIVACY_STATUS_LABELS.rejected}. ${body}` }, now);
+    await appendMessage(
+      ctx,
+      caseDoc._id,
+      { author: "staff", authorUserId: staff._id, body: `${PRIVACY_STATUS_LABELS.rejected}. ${body}` },
+      now,
+    );
     await touchCase(ctx, caseDoc._id, { status: "completed", closedAt: now }, now);
   }
-  await audit(ctx, { actor: staff, action: "privacy.reject", targetTable: "atelierPrivacyRequests", targetId: request._id, meta: { note: body } }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      action: "privacy.reject",
+      targetTable: "atelierPrivacyRequests",
+      targetId: request._id,
+      meta: { note: body },
+    },
+    now,
+  );
 }
 
 export type AuditFilter = { targetTable?: string; targetId?: string; limit?: number };

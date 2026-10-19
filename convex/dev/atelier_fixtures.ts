@@ -35,7 +35,13 @@ import {
 import { LOOKS, type Look } from "../shared/atelier/looks";
 import { HOUSE_POLICY } from "../shared/atelier/policy";
 import { CANVAS_OPTIONS, completedStepsFor, specHash, type SuitSpec } from "../shared/atelier/spec";
-import type { vContact, vParticipantConsent, vPreferredWindow, vPrivacyStep, vQuoteLine } from "../shared/atelier/validators";
+import type {
+  vContact,
+  vParticipantConsent,
+  vPreferredWindow,
+  vPrivacyStep,
+  vQuoteLine,
+} from "../shared/atelier/validators";
 
 /**
  * Dev-only fixtures for reviewing the Atelier's screens before a real client exists:
@@ -76,7 +82,14 @@ type PrivacyStep = Infer<typeof vPrivacyStep>;
 type PreferredWindow = Infer<typeof vPreferredWindow>;
 type ParticipantConsent = Infer<typeof vParticipantConsent>;
 
-export type PlannedMilestone = { kind: string; label: string; at: number; source: MilestoneSource; estimated: boolean; note?: string };
+export type PlannedMilestone = {
+  kind: string;
+  label: string;
+  at: number;
+  source: MilestoneSource;
+  estimated: boolean;
+  note?: string;
+};
 export type PlannedMessage = { author: MessageAuthor; body: string; at: number; carriesProposal?: boolean };
 export type PlannedQuote = {
   version: number;
@@ -91,7 +104,13 @@ export type PlannedQuote = {
   expiresAt: number;
   acceptedAt?: number;
 };
-export type PlannedParticipant = { name: string; email: string; status: ParticipantStatus; consent: ParticipantConsent; joinedAt?: number };
+export type PlannedParticipant = {
+  name: string;
+  email: string;
+  status: ParticipantStatus;
+  consent: ParticipantConsent;
+  joinedAt?: number;
+};
 
 export type ScenarioPlan = {
   now: number;
@@ -134,7 +153,14 @@ export type ScenarioPlan = {
     submittedAt: number;
     caseStatus: CaseStatus;
     quote: PlannedQuote;
-    order: { status: OrderStatus; createdAt: number; paymentConfirmedAt: number; releasedAt: number; estimatedReadyAt: number; makerRef: string };
+    order: {
+      status: OrderStatus;
+      createdAt: number;
+      paymentConfirmedAt: number;
+      releasedAt: number;
+      estimatedReadyAt: number;
+      makerRef: string;
+    };
     milestones: PlannedMilestone[];
   };
   delivered: {
@@ -169,7 +195,14 @@ export type ScenarioPlan = {
     };
   };
   appointments: {
-    fitting: { service: AppointmentService; showroomId: "charlotte"; windows: PreferredWindow[]; timeZone: string; requestedAt: number; notes: string };
+    fitting: {
+      service: AppointmentService;
+      showroomId: "charlotte";
+      windows: PreferredWindow[];
+      timeZone: string;
+      requestedAt: number;
+      notes: string;
+    };
     consultation: {
       service: AppointmentService;
       showroomId: "atlanta";
@@ -181,7 +214,13 @@ export type ScenarioPlan = {
       window: PreferredWindow;
     };
   };
-  privacy: { kind: PrivacyKind; status: PrivacyStatus; requestedAt: number; steps: PrivacyStep[]; exceptions: string[] };
+  privacy: {
+    kind: PrivacyKind;
+    status: PrivacyStatus;
+    requestedAt: number;
+    steps: PrivacyStep[];
+    exceptions: string[];
+  };
   group: {
     name: string;
     occasion: Occasion;
@@ -231,7 +270,9 @@ export function newYorkInstant(dayUtcNoon: number, hour: number): number {
 }
 
 export function quoteTotals(lines: readonly QuoteLine[]): { subtotalUsd: number; totalUsd: number } {
-  const subtotalUsd = lines.filter((line) => line.kind !== "tax" && line.kind !== "shipping").reduce((sum, line) => sum + line.amountUsd, 0);
+  const subtotalUsd = lines
+    .filter((line) => line.kind !== "tax" && line.kind !== "shipping")
+    .reduce((sum, line) => sum + line.amountUsd, 0);
   const totalUsd = lines.reduce((sum, line) => sum + line.amountUsd, 0);
   return { subtotalUsd, totalUsd };
 }
@@ -248,12 +289,23 @@ function clothName(code: string | null): string {
 
 const FULL_CANVAS = CANVAS_OPTIONS.find((option) => option.code === "full");
 
-function quoteFor(spec: SuitSpec, commissionUsd: number, at: { createdAt: number; offeredAt: number; expiresAt: number; acceptedAt?: number }, withFullCanvas: boolean): PlannedQuote {
+function quoteFor(
+  spec: SuitSpec,
+  commissionUsd: number,
+  at: { createdAt: number; offeredAt: number; expiresAt: number; acceptedAt?: number },
+  withFullCanvas: boolean,
+): PlannedQuote {
   const lines: QuoteLine[] = [
     { code: "COMMISSION", label: "Made-to-measure commission", amountUsd: commissionUsd, kind: "commission" },
     { code: spec.clothCode ?? "CLOTH", label: `${clothName(spec.clothCode)} · included`, amountUsd: 0, kind: "cloth" },
   ];
-  if (withFullCanvas) lines.push({ code: FULL_CANVAS?.productionId ?? "CANVAS_FULL", label: FULL_CANVAS?.label ?? "Full canvas", amountUsd: 180, kind: "option" });
+  if (withFullCanvas)
+    lines.push({
+      code: FULL_CANVAS?.productionId ?? "CANVAS_FULL",
+      label: FULL_CANVAS?.label ?? "Full canvas",
+      amountUsd: 180,
+      kind: "option",
+    });
   return {
     version: 1,
     lines,
@@ -266,7 +318,10 @@ function quoteFor(spec: SuitSpec, commissionUsd: number, at: { createdAt: number
 }
 
 function checklistWithIssue(region: FitRegion): Record<FitRegion, ChecklistState> {
-  return Object.fromEntries(FIT_REGIONS.map((key) => [key, key === region ? "issue" : "ok"])) as Record<FitRegion, ChecklistState>;
+  return Object.fromEntries(FIT_REGIONS.map((key) => [key, key === region ? "issue" : "ok"])) as Record<
+    FitRegion,
+    ChecklistState
+  >;
 }
 
 export function scenarioPlan(now: number): ScenarioPlan {
@@ -277,7 +332,12 @@ export function scenarioPlan(now: number): ScenarioPlan {
   const monday = nextWeekMonday(now);
   const tuesday = monday + DAY_MS;
   const wednesday = monday + 2 * DAY_MS;
-  const client: Contact = { name: "Marcus Thompson", email: "marcus@example.test", channel: "email", preferredShowroom: "atlanta" };
+  const client: Contact = {
+    name: "Marcus Thompson",
+    email: "marcus@example.test",
+    channel: "email",
+    preferredShowroom: "atlanta",
+  };
 
   const submittedAtB = now - 3 * DAY_MS;
   const quoteOfferedAtB = now - 20 * HOUR_MS;
@@ -300,13 +360,22 @@ export function scenarioPlan(now: number): ScenarioPlan {
 
   return {
     now,
-    staff: { clerkId: DEV_STAFF_CLERK_ID, name: "Adaeze Nwosu", email: "staff@nyonicouture.test", staffRoles: STAFF_ROLES },
+    staff: {
+      clerkId: DEV_STAFF_CLERK_ID,
+      name: "Adaeze Nwosu",
+      email: "staff@nyonicouture.test",
+      staffRoles: STAFF_ROLES,
+    },
     client,
     inProgress: {
       look: armada,
       occasion: "wedding",
       eventDate: now + 90 * DAY_MS,
-      shortlist: [armada.spec.clothCode ?? "taveller-4-seasons", "loro-piana-365-s-130s-wool", "vitale-barberis-perennial"],
+      shortlist: [
+        armada.spec.clothCode ?? "taveller-4-seasons",
+        "loro-piana-365-s-130s-wool",
+        "vitale-barberis-perennial",
+      ],
       stage: "style",
       completedSteps: ["occasion", "cloth", "style"],
       revision: 3,
@@ -319,21 +388,33 @@ export function scenarioPlan(now: number): ScenarioPlan {
       occasion: "black_tie",
       eventDate: now + 60 * DAY_MS,
       revision: 5,
-      completedSteps: completedStepsFor(dominico.spec, { occasionSet: true, previewDone: false, fitRouteSet: true }) as StudioStep[],
+      completedSteps: completedStepsFor(dominico.spec, {
+        occasionSet: true,
+        previewDone: false,
+        fitRouteSet: true,
+      }) as StudioStep[],
       createdAt: now - 10 * DAY_MS,
       submittedAt: submittedAtB,
       assignedAt: submittedAtB + 2 * HOUR_MS,
       nextAction: "Prepare quote",
       caseStatus: "assigned",
       messages: [
-        { author: "system", body: `${CASE_KIND_LABELS.quote} received. A concierge will take it up and you will see their name here.`, at: submittedAtB },
+        {
+          author: "system",
+          body: `${CASE_KIND_LABELS.quote} received. A concierge will take it up and you will see their name here.`,
+          at: submittedAtB,
+        },
         {
           author: "staff",
           body: "Marcus, I have your design in front of me. The Zegna 15 Milmil 15 drapes beautifully, and on a double-breasted jacket I would close the back: no vents keeps the line clean when you button it. I have attached the change for you to accept or decline, and your quote follows.",
           at: now - 2 * DAY_MS,
           carriesProposal: true,
         },
-        { author: "client", body: "Thank you. That makes sense to me; I will look at the quote tonight.", at: now - DAY_MS },
+        {
+          author: "client",
+          body: "Thank you. That makes sense to me; I will look at the quote tonight.",
+          at: now - DAY_MS,
+        },
       ],
       proposal: {
         afterSpec: proposalSpec,
@@ -341,7 +422,12 @@ export function scenarioPlan(now: number): ScenarioPlan {
           "The 15 Milmil 15 is a light, fluid cloth. On a double-breasted jacket, side vents in a cloth with this drape tend to flare when you sit; a ventless back holds the line and suits the formality of the evening.",
         createdAt: now - 2 * DAY_MS,
       },
-      quote: quoteFor(dominico.spec, 2850, { createdAt: quoteOfferedAtB - HOUR_MS, offeredAt: quoteOfferedAtB, expiresAt: now + 14 * DAY_MS }, true),
+      quote: quoteFor(
+        dominico.spec,
+        2850,
+        { createdAt: quoteOfferedAtB - HOUR_MS, offeredAt: quoteOfferedAtB, expiresAt: now + 14 * DAY_MS },
+        true,
+      ),
       lastActivityAt: quoteOfferedAtB,
     },
     ordered: {
@@ -355,7 +441,12 @@ export function scenarioPlan(now: number): ScenarioPlan {
       quote: quoteFor(
         leonardo.spec,
         clothSeedByCode(leonardo.spec.clothCode ?? "")?.priceUsd ?? 1875,
-        { createdAt: now - 33 * DAY_MS, offeredAt: now - 33 * DAY_MS, expiresAt: now - 19 * DAY_MS, acceptedAt: acceptedAtC },
+        {
+          createdAt: now - 33 * DAY_MS,
+          offeredAt: now - 33 * DAY_MS,
+          expiresAt: now - 19 * DAY_MS,
+          acceptedAt: acceptedAtC,
+        },
         false,
       ),
       order: {
@@ -368,7 +459,13 @@ export function scenarioPlan(now: number): ScenarioPlan {
       },
       milestones: [
         { kind: "quote_accepted", label: "Quote accepted", at: acceptedAtC, source: "client", estimated: false },
-        { kind: "payment_confirmed", label: PAYMENT_STATE_LABELS.confirmed, at: now - 29 * DAY_MS, source: "staff", estimated: false },
+        {
+          kind: "payment_confirmed",
+          label: PAYMENT_STATE_LABELS.confirmed,
+          at: now - 29 * DAY_MS,
+          source: "staff",
+          estimated: false,
+        },
         { kind: "released", label: ORDER_STATUS_LABELS.released, at: releasedAtC, source: "staff", estimated: false },
         { kind: "cloth_cut", label: "Cloth cut", at: now - 21 * DAY_MS, source: "maker", estimated: false },
         { kind: "estimated_ready", label: "Estimated ready", at: estimatedReadyAtC, source: "system", estimated: true },
@@ -384,7 +481,12 @@ export function scenarioPlan(now: number): ScenarioPlan {
       quote: quoteFor(
         giorgio.spec,
         clothSeedByCode(giorgio.spec.clothCode ?? "")?.priceUsd ?? 1695,
-        { createdAt: now - 108 * DAY_MS, offeredAt: now - 108 * DAY_MS, expiresAt: now - 94 * DAY_MS, acceptedAt: acceptedAtD },
+        {
+          createdAt: now - 108 * DAY_MS,
+          offeredAt: now - 108 * DAY_MS,
+          expiresAt: now - 94 * DAY_MS,
+          acceptedAt: acceptedAtD,
+        },
         false,
       ),
       order: {
@@ -400,11 +502,30 @@ export function scenarioPlan(now: number): ScenarioPlan {
       },
       milestones: [
         { kind: "quote_accepted", label: "Quote accepted", at: acceptedAtD, source: "client", estimated: false },
-        { kind: "payment_confirmed", label: PAYMENT_STATE_LABELS.confirmed, at: now - 99 * DAY_MS, source: "staff", estimated: false },
+        {
+          kind: "payment_confirmed",
+          label: PAYMENT_STATE_LABELS.confirmed,
+          at: now - 99 * DAY_MS,
+          source: "staff",
+          estimated: false,
+        },
         { kind: "released", label: ORDER_STATUS_LABELS.released, at: releasedAtD, source: "staff", estimated: false },
-        { kind: "shipped", label: ORDER_STATUS_LABELS.shipped, at: shippedAtD, source: "carrier", estimated: false, note: "UPS 1Z999AA10123456784" },
+        {
+          kind: "shipped",
+          label: ORDER_STATUS_LABELS.shipped,
+          at: shippedAtD,
+          source: "carrier",
+          estimated: false,
+          note: "UPS 1Z999AA10123456784",
+        },
         { kind: "delivered", label: "Delivered", at: deliveredAtD, source: "carrier", estimated: false },
-        { kind: "correction_opened", label: ORDER_STATUS_LABELS.correction_open, at: correctionRequestedAtD, source: "client", estimated: false },
+        {
+          kind: "correction_opened",
+          label: ORDER_STATUS_LABELS.correction_open,
+          at: correctionRequestedAtD,
+          source: "client",
+          estimated: false,
+        },
       ],
       correction: {
         kind: "alteration",
@@ -420,7 +541,11 @@ export function scenarioPlan(now: number): ScenarioPlan {
           deadline: now + 14 * DAY_MS,
         },
         messages: [
-          { author: "system", body: `${CASE_KIND_LABELS.aftercare} received. A concierge will take it up and you will see their name here.`, at: correctionRequestedAtD },
+          {
+            author: "system",
+            body: `${CASE_KIND_LABELS.aftercare} received. A concierge will take it up and you will see their name here.`,
+            at: correctionRequestedAtD,
+          },
           {
             author: "staff",
             body: "Marcus, thank you for the photographs. A 1.5 cm sleeve adjustment is a straightforward alteration and is included in your commission. Bring the jacket to Charlotte when it suits you, or tell me and I will send a prepaid label.",
@@ -457,9 +582,24 @@ export function scenarioPlan(now: number): ScenarioPlan {
       status: "downstream_pending",
       requestedAt: privacyRequestedAt,
       steps: [
-        { key: "access_revoked", label: PRIVACY_STATUS_LABELS.access_revoked, status: "done", at: privacyRequestedAt + 60_000 },
-        { key: "previews_deleted", label: "Previews deleted from the house's systems", status: "done", at: privacyRequestedAt + 5 * 60_000 },
-        { key: "photo_deleted", label: "Photograph deleted from the house's systems", status: "done", at: privacyRequestedAt + 6 * 60_000 },
+        {
+          key: "access_revoked",
+          label: PRIVACY_STATUS_LABELS.access_revoked,
+          status: "done",
+          at: privacyRequestedAt + 60_000,
+        },
+        {
+          key: "previews_deleted",
+          label: "Previews deleted from the house's systems",
+          status: "done",
+          at: privacyRequestedAt + 5 * 60_000,
+        },
+        {
+          key: "photo_deleted",
+          label: "Photograph deleted from the house's systems",
+          status: "done",
+          at: privacyRequestedAt + 6 * 60_000,
+        },
         { key: "provider_deletion", label: "Waiting on provider deletion", status: "pending" },
       ],
       exceptions: ["Your released order keeps its specification and fit profile."],
@@ -468,21 +608,46 @@ export function scenarioPlan(now: number): ScenarioPlan {
       name: "Okafor wedding party",
       occasion: "wedding",
       eventDate: now + 120 * DAY_MS,
-      brief: "Navy two-piece with a peak lapel for the groomsmen. Everyone matches on cloth, lapel and buttons; vents, hem and monogram are your own.",
+      brief:
+        "Navy two-piece with a peak lapel for the groomsmen. Everyone matches on cloth, lapel and buttons; vents, hem and monogram are your own.",
       sharedSpec: armada.spec,
       permittedIndividual: ["jacket.vents", "trousers.hem", "monogram"],
       status: "inviting",
       createdAt: now - 6 * DAY_MS,
       updatedAt: now - DAY_MS,
       participants: [
-        { name: "Emeka Okafor", email: "emeka@example.test", status: "joined", consent: { shareStyleStatus: true, shareFitStatus: false }, joinedAt: now - 4 * DAY_MS },
-        { name: "Tunde Adeyemi", email: "tunde@example.test", status: "invited", consent: { shareStyleStatus: false, shareFitStatus: false } },
-        { name: "Daniel Reyes", email: "daniel@example.test", status: "invited", consent: { shareStyleStatus: false, shareFitStatus: false } },
+        {
+          name: "Emeka Okafor",
+          email: "emeka@example.test",
+          status: "joined",
+          consent: { shareStyleStatus: true, shareFitStatus: false },
+          joinedAt: now - 4 * DAY_MS,
+        },
+        {
+          name: "Tunde Adeyemi",
+          email: "tunde@example.test",
+          status: "invited",
+          consent: { shareStyleStatus: false, shareFitStatus: false },
+        },
+        {
+          name: "Daniel Reyes",
+          email: "daniel@example.test",
+          status: "invited",
+          consent: { shareStyleStatus: false, shareFitStatus: false },
+        },
       ],
     },
     notifications: [
-      { subject: `Nyoni Couture · ${CASE_KIND_LABELS.quote} received`, body: "We have your quote request. Your concierge will be in touch within one business day.", at: submittedAtB },
-      { subject: "Nyoni Couture · Your quote is ready", body: "Adaeze has prepared your quote. Open your request to review and approve it.", at: quoteOfferedAtB },
+      {
+        subject: `Nyoni Couture · ${CASE_KIND_LABELS.quote} received`,
+        body: "We have your quote request. Your concierge will be in touch within one business day.",
+        at: submittedAtB,
+      },
+      {
+        subject: "Nyoni Couture · Your quote is ready",
+        body: "Adaeze has prepared your quote. Open your request to review and approve it.",
+        at: quoteOfferedAtB,
+      },
     ],
   };
 }
@@ -538,7 +703,11 @@ const vSeedResult = v.object({
     ordered: v.id("atelierDrafts"),
     delivered: v.id("atelierDrafts"),
   }),
-  revisionIds: v.object({ submitted: v.id("atelierRevisions"), ordered: v.id("atelierRevisions"), delivered: v.id("atelierRevisions") }),
+  revisionIds: v.object({
+    submitted: v.id("atelierRevisions"),
+    ordered: v.id("atelierRevisions"),
+    delivered: v.id("atelierRevisions"),
+  }),
   caseIds: v.object({
     quote: v.id("atelierCases"),
     orderedQuote: v.id("atelierCases"),
@@ -548,7 +717,11 @@ const vSeedResult = v.object({
   }),
   messageIds: v.array(v.id("atelierCaseMessages")),
   proposalId: v.id("atelierProposals"),
-  quoteIds: v.object({ offered: v.id("atelierQuotes"), accepted: v.id("atelierQuotes"), delivered: v.id("atelierQuotes") }),
+  quoteIds: v.object({
+    offered: v.id("atelierQuotes"),
+    accepted: v.id("atelierQuotes"),
+    delivered: v.id("atelierQuotes"),
+  }),
   orderIds: v.object({ making: v.id("atelierOrders"), correctionOpen: v.id("atelierOrders") }),
   milestoneIds: v.array(v.id("atelierOrderMilestones")),
   correctionId: v.id("atelierCorrections"),
@@ -582,7 +755,13 @@ export const seedScenario = internalMutation({
     const notificationIds: Id<"atelierNotifications">[] = [];
     const auditIds: Id<"atelierAuditLog">[] = [];
 
-    const audit = async (action: string, targetTable: string, targetId: string, at: number, meta?: Record<string, unknown>) => {
+    const audit = async (
+      action: string,
+      targetTable: string,
+      targetId: string,
+      at: number,
+      meta?: Record<string, unknown>,
+    ) => {
       auditIds.push(
         await ctx.db.insert("atelierAuditLog", {
           actorUserId: staffId,
@@ -596,7 +775,11 @@ export const seedScenario = internalMutation({
       );
     };
 
-    const message = async (caseId: Id<"atelierCases">, planned: PlannedMessage, proposalId?: Id<"atelierProposals">) => {
+    const message = async (
+      caseId: Id<"atelierCases">,
+      planned: PlannedMessage,
+      proposalId?: Id<"atelierProposals">,
+    ) => {
       const id = await ctx.db.insert("atelierCaseMessages", {
         caseId,
         author: planned.author,
@@ -739,12 +922,23 @@ export const seedScenario = internalMutation({
       );
     }
     await audit("case.assign", "atelierCases", quoteCase, b.assignedAt, { ownerStaffId: staffId });
-    await audit("proposal.create", "atelierProposals", proposalId, b.proposal.createdAt, { caseId: quoteCase, baseRevision: b.revision });
-    await audit("quote.offer", "atelierQuotes", quoteOffered, b.quote.offeredAt, { caseId: quoteCase, totalUsd: b.quote.totalUsd });
+    await audit("proposal.create", "atelierProposals", proposalId, b.proposal.createdAt, {
+      caseId: quoteCase,
+      baseRevision: b.revision,
+    });
+    await audit("quote.offer", "atelierQuotes", quoteOffered, b.quote.offeredAt, {
+      caseId: quoteCase,
+      totalUsd: b.quote.totalUsd,
+    });
 
     // 4. Draft C: ordered, in the making.
     const c = plan.ordered;
-    const { draftId: draftC, revisionId: revisionC, caseId: orderedQuoteCase, quoteId: quoteAccepted } = await submittedWithAcceptedQuote(ctx, {
+    const {
+      draftId: draftC,
+      revisionId: revisionC,
+      caseId: orderedQuoteCase,
+      quoteId: quoteAccepted,
+    } = await submittedWithAcceptedQuote(ctx, {
       owner,
       staffId,
       catalogueVersion,
@@ -786,13 +980,23 @@ export const seedScenario = internalMutation({
     });
     await ctx.db.patch(orderedQuoteCase, { orderId: orderMaking });
     await milestones(orderMaking, c.milestones);
-    await audit("quote.accept.record", "atelierQuotes", quoteAccepted, c.quote.acceptedAt ?? c.order.createdAt, { caseId: orderedQuoteCase });
-    await audit("payment.confirm", "atelierOrders", orderMaking, c.order.paymentConfirmedAt, { provider: "Square", amountUsd: c.quote.totalUsd });
+    await audit("quote.accept.record", "atelierQuotes", quoteAccepted, c.quote.acceptedAt ?? c.order.createdAt, {
+      caseId: orderedQuoteCase,
+    });
+    await audit("payment.confirm", "atelierOrders", orderMaking, c.order.paymentConfirmedAt, {
+      provider: "Square",
+      amountUsd: c.quote.totalUsd,
+    });
     await audit("order.release", "atelierOrders", orderMaking, c.order.releasedAt, { makerRef: c.order.makerRef });
 
     // 5. Draft D: delivered, with a correction open.
     const d = plan.delivered;
-    const { draftId: draftD, revisionId: revisionD, caseId: deliveredQuoteCase, quoteId: quoteDelivered } = await submittedWithAcceptedQuote(ctx, {
+    const {
+      draftId: draftD,
+      revisionId: revisionD,
+      caseId: deliveredQuoteCase,
+      quoteId: quoteDelivered,
+    } = await submittedWithAcceptedQuote(ctx, {
       owner,
       staffId,
       catalogueVersion,
@@ -870,11 +1074,22 @@ export const seedScenario = internalMutation({
     });
     await ctx.db.patch(aftercareCase, { correctionId });
     for (const planned of d.correction.messages) await message(aftercareCase, planned);
-    await audit("payment.confirm", "atelierOrders", orderCorrection, d.order.paymentConfirmedAt, { provider: "Square", amountUsd: d.quote.totalUsd });
+    await audit("payment.confirm", "atelierOrders", orderCorrection, d.order.paymentConfirmedAt, {
+      provider: "Square",
+      amountUsd: d.quote.totalUsd,
+    });
     await audit("order.release", "atelierOrders", orderCorrection, d.order.releasedAt, { makerRef: "CLT-2026-0288" });
-    await audit("order.ship", "atelierOrders", orderCorrection, d.order.shippedAt, { carrier: d.order.carrier, trackingRef: d.order.trackingRef });
-    await audit("correction.triage", "atelierCorrections", correctionId, d.correction.requestedAt + DAY_MS, { region: d.correction.region });
-    await audit("correction.remedy.propose", "atelierCorrections", correctionId, d.correction.updatedAt, { kind: d.correction.remedy.kind, coverage: d.correction.remedy.coverage });
+    await audit("order.ship", "atelierOrders", orderCorrection, d.order.shippedAt, {
+      carrier: d.order.carrier,
+      trackingRef: d.order.trackingRef,
+    });
+    await audit("correction.triage", "atelierCorrections", correctionId, d.correction.requestedAt + DAY_MS, {
+      region: d.correction.region,
+    });
+    await audit("correction.remedy.propose", "atelierCorrections", correctionId, d.correction.updatedAt, {
+      kind: d.correction.remedy.kind,
+      coverage: d.correction.remedy.coverage,
+    });
 
     // 6. Appointments.
     const fitting = plan.appointments.fitting;
@@ -926,7 +1141,13 @@ export const seedScenario = internalMutation({
       calendarRef: `SQ-APT-${randomToken().slice(0, 10).toUpperCase()}`,
       history: [
         { at: consultation.requestedAt, from: "requested", to: "requested", by: "client" },
-        { at: consultation.confirmedAt, from: "requested", to: "confirmed", by: "staff", note: "Confirmed with Adaeze at the Atlanta showroom." },
+        {
+          at: consultation.confirmedAt,
+          from: "requested",
+          to: "confirmed",
+          by: "staff",
+          note: "Confirmed with Adaeze at the Atlanta showroom.",
+        },
       ],
       eventDate: a.eventDate,
       createdAt: consultation.requestedAt,
@@ -958,7 +1179,9 @@ export const seedScenario = internalMutation({
       requestedAt: plan.privacy.requestedAt,
       handledByStaffId: staffId,
     });
-    await audit("privacy.handle", "atelierPrivacyRequests", privacyRequestId, plan.privacy.requestedAt + 6 * 60_000, { status: plan.privacy.status });
+    await audit("privacy.handle", "atelierPrivacyRequests", privacyRequestId, plan.privacy.requestedAt + 6 * 60_000, {
+      status: plan.privacy.status,
+    });
 
     // 9. A wedding party, organised by the stand-in staff member.
     const g = plan.group;
@@ -1017,7 +1240,13 @@ export const seedScenario = internalMutation({
       catalogueVersion,
       draftIds: { inProgress: draftA, submitted: draftB, ordered: draftC, delivered: draftD },
       revisionIds: { submitted: revisionB, ordered: revisionC, delivered: revisionD },
-      caseIds: { quote: quoteCase, orderedQuote: orderedQuoteCase, deliveredQuote: deliveredQuoteCase, aftercare: aftercareCase, fitting: fittingCase },
+      caseIds: {
+        quote: quoteCase,
+        orderedQuote: orderedQuoteCase,
+        deliveredQuote: deliveredQuoteCase,
+        aftercare: aftercareCase,
+        fitting: fittingCase,
+      },
       messageIds,
       proposalId,
       quoteIds: { offered: quoteOffered, accepted: quoteAccepted, delivered: quoteDelivered },
@@ -1039,14 +1268,23 @@ export const seedScenario = internalMutation({
 });
 
 /** The stand-in concierge every staff field points at: found by `staffClerkId`, else "dev-staff", created once. */
-async function ensureStaff(ctx: MutationCtx, plan: ScenarioPlan, staffClerkId: string | undefined, now: number): Promise<Doc<"users">> {
+async function ensureStaff(
+  ctx: MutationCtx,
+  plan: ScenarioPlan,
+  staffClerkId: string | undefined,
+  now: number,
+): Promise<Doc<"users">> {
   const clerkId = staffClerkId ?? plan.staff.clerkId;
   const existing = await ctx.db
     .query("users")
     .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
     .unique();
   if (existing) return existing;
-  if (staffClerkId) throw appError("NOT_FOUND", `No user with clerkId "${staffClerkId}". Sign in once, or omit staffClerkId to use the stand-in.`);
+  if (staffClerkId)
+    throw appError(
+      "NOT_FOUND",
+      `No user with clerkId "${staffClerkId}". Sign in once, or omit staffClerkId to use the stand-in.`,
+    );
   const id = await ctx.db.insert("users", {
     clerkId,
     role: "admin",
@@ -1087,7 +1325,12 @@ type SubmittedInput = {
 async function submittedWithAcceptedQuote(
   ctx: MutationCtx,
   input: SubmittedInput,
-): Promise<{ draftId: Id<"atelierDrafts">; revisionId: Id<"atelierRevisions">; caseId: Id<"atelierCases">; quoteId: Id<"atelierQuotes"> }> {
+): Promise<{
+  draftId: Id<"atelierDrafts">;
+  revisionId: Id<"atelierRevisions">;
+  caseId: Id<"atelierCases">;
+  quoteId: Id<"atelierQuotes">;
+}> {
   const { look, quote } = input;
   const acceptedAt = quote.acceptedAt ?? quote.offeredAt;
   const draftId = await ctx.db.insert("atelierDrafts", {
@@ -1099,7 +1342,11 @@ async function submittedWithAcceptedQuote(
     shortlist: look.spec.clothCode ? [look.spec.clothCode] : [],
     fitRoute: "atelier",
     stage: "review",
-    completedSteps: completedStepsFor(look.spec, { occasionSet: true, previewDone: false, fitRouteSet: true }) as StudioStep[],
+    completedSteps: completedStepsFor(look.spec, {
+      occasionSet: true,
+      previewDone: false,
+      fitRouteSet: true,
+    }) as StudioStep[],
     catalogueVersion: input.catalogueVersion,
     revision: input.revision,
     status: "submitted",

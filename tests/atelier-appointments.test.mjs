@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountActor, fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
+import {
+  accountActor,
+  fakeCtx,
+  GUEST_KEY,
+  guestActor,
+  isAppError,
+  otherGuestActor,
+  strangerActor,
+} from "./atelier-fake-ctx.mjs";
 
 const appointments = await import("../convex/model/atelier/appointments.ts");
 const cases = await import("../convex/model/atelier/cases.ts");
 const drafts = await import("../convex/model/atelier/drafts.ts");
-const { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUSES, APPOINTMENT_PERIOD_LABELS } = await import("../convex/shared/atelier/enums.ts");
+const { APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUSES, APPOINTMENT_PERIOD_LABELS } =
+  await import("../convex/shared/atelier/enums.ts");
 
 const NOW = Date.UTC(2026, 9, 18, 12);
 const HOUR = 3_600_000;
@@ -44,13 +53,20 @@ function withRanges(db) {
         predicates.push((row) => op(row[field], value));
         return q;
       };
-      const q = { eq: compare((a, b) => a === b), lt: compare((a, b) => a < b), lte: compare((a, b) => a <= b), gt: compare((a, b) => a > b), gte: compare((a, b) => a >= b) };
+      const q = {
+        eq: compare((a, b) => a === b),
+        lt: compare((a, b) => a < b),
+        lte: compare((a, b) => a <= b),
+        gt: compare((a, b) => a > b),
+        gte: compare((a, b) => a >= b),
+      };
       build(q);
       for (const predicate of predicates) plainFilter(() => predicate);
       return builder;
     };
     builder.filter = (build) => {
-      const resolve = (operand, row) => (operand && typeof operand === "object" && "__field" in operand ? row[operand.__field] : operand);
+      const resolve = (operand, row) =>
+        operand && typeof operand === "object" && "__field" in operand ? row[operand.__field] : operand;
       const cmp = (op) => (a, b) => (row) => op(resolve(a, row), resolve(b, row));
       const q = {
         field: (name) => ({ __field: name }),
@@ -71,7 +87,8 @@ function withRanges(db) {
 async function setup() {
   const f = fakeCtx();
   withRanges(f.ctx.db);
-  const insertUser = async (doc) => f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
+  const insertUser = async (doc) =>
+    f.ctx.db.get(await f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
   const concierge = await insertUser({ name: "Adaeze Nwosu", staffRoles: ["concierge"] });
   return { f, concierge };
 }
@@ -112,7 +129,12 @@ test("a request creates a fitting case through the case core, is 'requested', an
   assert.equal(auditsOf(f, "appointment.request").length, 1);
 
   const inserts = f.log.inserts.length;
-  const again = await appointments.requestAppointment(f.ctx, guestActor, request({ preferredWindows: [WINDOWS[0]] }), NOW + HOUR);
+  const again = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ preferredWindows: [WINDOWS[0]] }),
+    NOW + HOUR,
+  );
   assert.deepEqual(again, { appointmentId: result.appointmentId, caseId: result.caseId, duplicate: true });
   assert.equal(f.log.inserts.length, inserts, "a retry writes nothing");
   assert.equal(f.rowsOf("atelierAppointments").length, 1);
@@ -127,7 +149,13 @@ test("the request is validated: windows, zone, location, contact, ownership and 
   const reject = (overrides, code = "INVALID_INPUT", actor = guestActor) =>
     assert.rejects(appointments.requestAppointment(f.ctx, actor, request(overrides), NOW), isAppError(code));
   await reject({ preferredWindows: [] });
-  await reject({ preferredWindows: [...WINDOWS, { date: TODAY + 5 * DAY, period: "evening" }, { date: TODAY + 6 * DAY, period: "evening" }] });
+  await reject({
+    preferredWindows: [
+      ...WINDOWS,
+      { date: TODAY + 5 * DAY, period: "evening" },
+      { date: TODAY + 6 * DAY, period: "evening" },
+    ],
+  });
   await reject({ preferredWindows: [{ date: TODAY, period: "evening" }] }, "INVALID_INPUT");
   await reject({ preferredWindows: [{ date: NOW - DAY, period: "morning" }] });
   await reject({ timeZone: "Mars/Olympus" });
@@ -142,19 +170,44 @@ test("the request is validated: windows, zone, location, contact, ownership and 
   assert.equal(f.rowsOf("atelierAppointments").length, 0);
   assert.equal(f.rowsOf("atelierCases").length, 0);
 
-  const virtual = await appointments.requestAppointment(f.ctx, guestActor, request({ showroomId: "virtual", service: "consultation", submissionKey: "v" }), NOW);
+  const virtual = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ showroomId: "virtual", service: "consultation", submissionKey: "v" }),
+    NOW,
+  );
   assert.equal((await f.ctx.db.get(virtual.appointmentId)).showroomId, "virtual");
-  const call = await appointments.requestAppointment(f.ctx, guestActor, request({ showroomId: "virtual", service: "virtual", submissionKey: "c" }), NOW);
+  const call = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ showroomId: "virtual", service: "virtual", submissionKey: "c" }),
+    NOW,
+  );
   assert.ok(call.appointmentId);
-  const dup = await appointments.requestAppointment(f.ctx, guestActor, request({ preferredWindows: [WINDOWS[0], WINDOWS[0]], submissionKey: "d" }), NOW);
+  const dup = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ preferredWindows: [WINDOWS[0], WINDOWS[0]], submissionKey: "d" }),
+    NOW,
+  );
   assert.equal((await f.ctx.db.get(dup.appointmentId)).preferredWindows.length, 1, "a repeated window counts once");
 });
 
 test("a request can join an open case the client already has; the same open request on it is the duplicate", async () => {
   const { f } = await setup();
   const draftId = await drafts.createDraft(f.ctx, guestActor, { lookKey: "armada" }, NOW);
-  const quote = await cases.submitCase(f.ctx, guestActor, { kind: "quote", draftId, contact: CONTACT, submissionKey: "q" }, NOW);
-  const linked = await appointments.requestAppointment(f.ctx, guestActor, request({ caseId: quote.caseId, draftId, submissionKey: "f" }), NOW + 1);
+  const quote = await cases.submitCase(
+    f.ctx,
+    guestActor,
+    { kind: "quote", draftId, contact: CONTACT, submissionKey: "q" },
+    NOW,
+  );
+  const linked = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ caseId: quote.caseId, draftId, submissionKey: "f" }),
+    NOW + 1,
+  );
   assert.equal(linked.caseId, quote.caseId);
   assert.equal(f.rowsOf("atelierCases").length, 1, "no second case");
   const appointment = await f.ctx.db.get(linked.appointmentId);
@@ -164,7 +217,12 @@ test("a request can join an open case the client already has; the same open requ
   assert.match(messagesOf(f, quote.caseId).at(-1).body, /First fitting at the Charlotte showroom/);
   assert.equal(f.rowsOf("atelierNotifications").filter((n) => n.caseId === quote.caseId).length, 2);
 
-  const again = await appointments.requestAppointment(f.ctx, guestActor, request({ caseId: quote.caseId, submissionKey: "f-retry" }), NOW + 2);
+  const again = await appointments.requestAppointment(
+    f.ctx,
+    guestActor,
+    request({ caseId: quote.caseId, submissionKey: "f-retry" }),
+    NOW + 2,
+  );
   assert.deepEqual(again, { appointmentId: linked.appointmentId, caseId: quote.caseId, duplicate: true });
   const different = await appointments.requestAppointment(
     f.ctx,
@@ -181,7 +239,12 @@ test("a request can join an open case the client already has; the same open requ
   );
   await f.ctx.db.patch(quote.caseId, { status: "completed" });
   await assert.rejects(
-    appointments.requestAppointment(f.ctx, guestActor, request({ caseId: quote.caseId, service: "final_fitting", submissionKey: "y" }), NOW),
+    appointments.requestAppointment(
+      f.ctx,
+      guestActor,
+      request({ caseId: quote.caseId, service: "final_fitting", submissionKey: "y" }),
+      NOW,
+    ),
     isAppError("INVALID_STATE"),
   );
 });
@@ -208,7 +271,13 @@ test("the client's view says what is true: requested until the house confirms, t
   f.row(appointmentId).status = "requested";
 
   const start = TODAY + 2 * DAY + 16 * HOUR;
-  await appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: " SQ-APT-1 " }, NOW + HOUR);
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    appointmentId,
+    { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: " SQ-APT-1 " },
+    NOW + HOUR,
+  );
   view = appointments.toAppointmentView(await f.ctx.db.get(appointmentId));
   assert.equal(view.confirmed, true);
   assert.equal(view.confirmedStart, start);
@@ -219,10 +288,18 @@ test("the client's view says what is true: requested until the house confirms, t
 
   assert.equal(await appointments.findOwnedAppointment(f.ctx, appointmentId, strangerActor), null);
   assert.equal(await appointments.findOwnedAppointment(f.ctx, appointmentId, guestActor), null);
-  assert.throws(() => appointments.requireOwnedAppointment(f.row(appointmentId), strangerActor), isAppError("NOT_FOUND"));
+  assert.throws(
+    () => appointments.requireOwnedAppointment(f.row(appointmentId), strangerActor),
+    isAppError("NOT_FOUND"),
+  );
   assert.equal((await appointments.listMine(f.ctx, accountActor)).length, 1);
   assert.deepEqual(await appointments.listMine(f.ctx, strangerActor), []);
-  const virtual = await appointments.requestAppointment(f.ctx, accountActor, request({ showroomId: "virtual", service: "virtual", submissionKey: "v" }), NOW);
+  const virtual = await appointments.requestAppointment(
+    f.ctx,
+    accountActor,
+    request({ showroomId: "virtual", service: "virtual", submissionKey: "v" }),
+    NOW,
+  );
   const virtualView = appointments.toAppointmentView(await f.ctx.db.get(virtual.appointmentId));
   assert.equal(virtualView.showroom, null);
   assert.equal(virtualView.showroomLabel, "Virtual");
@@ -232,24 +309,75 @@ test("confirm needs the start, the end and the calendar reference, queues a noti
   const { f, concierge } = await setup();
   const { appointmentId, caseId } = await appointments.requestAppointment(f.ctx, guestActor, request(), NOW);
   const start = TODAY + 2 * DAY + 16 * HOUR;
-  await assert.rejects(appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "  " }, NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start, calendarRef: "SQ-1" }, NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start - HOUR, calendarRef: "SQ-1" }, NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: Number.NaN, confirmedEnd: start, calendarRef: "SQ-1" }, NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      appointmentId,
+      { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "  " },
+      NOW,
+    ),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      appointmentId,
+      { confirmedStart: start, confirmedEnd: start, calendarRef: "SQ-1" },
+      NOW,
+    ),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      appointmentId,
+      { confirmedStart: start, confirmedEnd: start - HOUR, calendarRef: "SQ-1" },
+      NOW,
+    ),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      appointmentId,
+      { confirmedStart: Number.NaN, confirmedEnd: start, calendarRef: "SQ-1" },
+      NOW,
+    ),
+    isAppError("INVALID_INPUT"),
+  );
   assert.equal((await f.ctx.db.get(appointmentId)).status, "requested", "a refused confirmation changes nothing");
 
-  await appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1", note: "With Adaeze." }, NOW + 1);
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    appointmentId,
+    { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1", note: "With Adaeze." },
+    NOW + 1,
+  );
   const row = await f.ctx.db.get(appointmentId);
   assert.equal(row.status, "confirmed");
   assert.equal(row.calendarRef, "SQ-1");
   assert.equal(row.confirmedStart, start);
   assert.equal(row.updatedAt, NOW + 1);
-  assert.deepEqual(row.history.at(-1), { at: NOW + 1, from: "requested", to: "confirmed", by: "staff", note: "With Adaeze." });
+  assert.deepEqual(row.history.at(-1), {
+    at: NOW + 1,
+    from: "requested",
+    to: "confirmed",
+    by: "staff",
+    note: "With Adaeze.",
+  });
   const note = messagesOf(f, caseId).at(-1).body;
   assert.match(note, /^Confirmed for /);
   assert.match(note, /Booking reference SQ-1/);
   assert.match(note, /Charlotte showroom/);
-  const notification = f.rowsOf("atelierNotifications").filter((n) => n.caseId === caseId).at(-1);
+  const notification = f
+    .rowsOf("atelierNotifications")
+    .filter((n) => n.caseId === caseId)
+    .at(-1);
   assert.match(notification.subject, /confirmed/);
   assert.equal(notification.status, "queued");
   assert.equal(notification.guestKey, GUEST_KEY);
@@ -257,9 +385,24 @@ test("confirm needs the start, the end and the calendar reference, queues a noti
   assert.equal(entry.actorKind, "staff");
   assert.equal(entry.meta.calendarRef, "SQ-1");
 
-  await appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start + DAY, confirmedEnd: start + DAY + HOUR, calendarRef: "SQ-2" }, NOW + 2);
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    appointmentId,
+    { confirmedStart: start + DAY, confirmedEnd: start + DAY + HOUR, calendarRef: "SQ-2" },
+    NOW + 2,
+  );
   assert.equal((await f.ctx.db.get(appointmentId)).calendarRef, "SQ-2", "a confirmed time can be moved by the house");
-  await assert.rejects(appointments.confirm(f.ctx, concierge, "atelierAppointments|404", { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" }, NOW), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      "atelierAppointments|404",
+      { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" },
+      NOW,
+    ),
+    isAppError("NOT_FOUND"),
+  );
 });
 
 test("reschedule withdraws any confirmation and asks the house again; cancel is final and told to the case", async () => {
@@ -267,18 +410,40 @@ test("reschedule withdraws any confirmation and asks the house again; cancel is 
   const { appointmentId, caseId } = await appointments.requestAppointment(f.ctx, guestActor, request(), NOW);
   await cases.assign(f.ctx, concierge, caseId, concierge._id, NOW);
   const start = TODAY + 2 * DAY + 16 * HOUR;
-  await appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" }, NOW + 1);
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    appointmentId,
+    { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" },
+    NOW + 1,
+  );
 
   const newWindows = [{ date: TODAY + 9 * DAY, period: "evening" }];
-  await assert.rejects(appointments.reschedule(f.ctx, guestActor, await f.ctx.db.get(appointmentId), [], undefined, NOW + 2), isAppError("INVALID_INPUT"));
-  await appointments.reschedule(f.ctx, guestActor, await f.ctx.db.get(appointmentId), newWindows, " Travelling that week. ", NOW + 2);
+  await assert.rejects(
+    appointments.reschedule(f.ctx, guestActor, await f.ctx.db.get(appointmentId), [], undefined, NOW + 2),
+    isAppError("INVALID_INPUT"),
+  );
+  await appointments.reschedule(
+    f.ctx,
+    guestActor,
+    await f.ctx.db.get(appointmentId),
+    newWindows,
+    " Travelling that week. ",
+    NOW + 2,
+  );
   let row = await f.ctx.db.get(appointmentId);
   assert.equal(row.status, "rescheduled");
   assert.equal(row.confirmedStart, undefined);
   assert.equal(row.confirmedEnd, undefined);
   assert.equal(row.calendarRef, undefined);
   assert.deepEqual(row.preferredWindows, newWindows);
-  assert.deepEqual(row.history.at(-1), { at: NOW + 2, from: "confirmed", to: "rescheduled", by: "client", note: "Travelling that week." });
+  assert.deepEqual(row.history.at(-1), {
+    at: NOW + 2,
+    from: "confirmed",
+    to: "rescheduled",
+    by: "client",
+    note: "Travelling that week.",
+  });
   assert.equal(appointments.toAppointmentView(row).statusLabel, APPOINTMENT_STATUS_LABELS.rescheduled);
   assert.equal(appointments.toAppointmentView(row).confirmed, false);
   assert.match(messagesOf(f, caseId).at(-1).body, /Rescheduled · awaiting confirmation/);
@@ -286,7 +451,10 @@ test("reschedule withdraws any confirmation and asks the house again; cancel is 
   assert.equal(auditsOf(f, "appointment.reschedule").length, 1);
 
   await assert.rejects(appointments.cancel(f.ctx, otherGuestActor, row, undefined, NOW + 3), isAppError("NOT_FOUND"));
-  await assert.rejects(appointments.reschedule(f.ctx, strangerActor, row, newWindows, undefined, NOW + 3), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    appointments.reschedule(f.ctx, strangerActor, row, newWindows, undefined, NOW + 3),
+    isAppError("NOT_FOUND"),
+  );
   await appointments.cancel(f.ctx, guestActor, row, "No longer needed.", NOW + 3);
   row = await f.ctx.db.get(appointmentId);
   assert.equal(row.status, "cancelled");
@@ -297,7 +465,10 @@ test("reschedule withdraws any confirmation and asks the house again; cancel is 
   const writes = f.log.patches.length;
   await appointments.cancel(f.ctx, guestActor, row, undefined, NOW + 4);
   assert.equal(f.log.patches.length, writes, "cancelling twice changes nothing");
-  await assert.rejects(appointments.reschedule(f.ctx, guestActor, row, newWindows, undefined, NOW + 4), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    appointments.reschedule(f.ctx, guestActor, row, newWindows, undefined, NOW + 4),
+    isAppError("INVALID_STATE"),
+  );
   const view = appointments.toAppointmentView(row);
   assert.equal(view.canReschedule, false);
   assert.equal(view.canCancel, false);
@@ -308,38 +479,94 @@ test("cancelling a confirmed booking tells the house to clear it, and a complete
   const { f, concierge } = await setup();
   const { appointmentId, caseId } = await appointments.requestAppointment(f.ctx, guestActor, request(), NOW);
   const start = TODAY + 2 * DAY + 16 * HOUR;
-  await assert.rejects(appointments.complete(f.ctx, concierge, appointmentId, undefined, NOW), isAppError("INVALID_STATE"), "only a confirmed appointment can have happened");
-  await appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" }, NOW + 1);
+  await assert.rejects(
+    appointments.complete(f.ctx, concierge, appointmentId, undefined, NOW),
+    isAppError("INVALID_STATE"),
+    "only a confirmed appointment can have happened",
+  );
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    appointmentId,
+    { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" },
+    NOW + 1,
+  );
   const confirmed = await f.ctx.db.get(appointmentId);
   await appointments.cancel(f.ctx, guestActor, confirmed, undefined, NOW + 2);
   assert.match(messagesOf(f, caseId).at(-1).body, /confirmed for .* The house will clear the booking\./);
   assert.equal((await f.ctx.db.get(appointmentId)).calendarRef, "SQ-1", "the reference stays for the house to clear");
-  assert.equal(appointments.toAppointmentView(await f.ctx.db.get(appointmentId)).calendarRef, null, "the client no longer reads it as a booking");
-  await assert.rejects(appointments.confirm(f.ctx, concierge, appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" }, NOW + 3), isAppError("INVALID_STATE"));
+  assert.equal(
+    appointments.toAppointmentView(await f.ctx.db.get(appointmentId)).calendarRef,
+    null,
+    "the client no longer reads it as a booking",
+  );
+  await assert.rejects(
+    appointments.confirm(
+      f.ctx,
+      concierge,
+      appointmentId,
+      { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" },
+      NOW + 3,
+    ),
+    isAppError("INVALID_STATE"),
+  );
 
   const second = await appointments.requestAppointment(f.ctx, guestActor, request({ submissionKey: "fit-2" }), NOW);
-  await appointments.confirm(f.ctx, concierge, second.appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-9" }, NOW + 1);
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    second.appointmentId,
+    { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-9" },
+    NOW + 1,
+  );
   await appointments.complete(f.ctx, concierge, second.appointmentId, "Measurements taken.", NOW + 3 * DAY);
   const done = await f.ctx.db.get(second.appointmentId);
   assert.equal(done.status, "completed");
   assert.equal(done.history.at(-1).to, "completed");
   assert.match(messagesOf(f, second.caseId).at(-1).body, /first fitting with Adaeze is complete/);
-  await assert.rejects(appointments.cancel(f.ctx, guestActor, done, undefined, NOW + 4 * DAY), isAppError("INVALID_STATE"));
-  await assert.rejects(appointments.reschedule(f.ctx, guestActor, done, WINDOWS, undefined, NOW + 4 * DAY), isAppError("INVALID_STATE"));
-  await assert.rejects(appointments.complete(f.ctx, concierge, second.appointmentId, undefined, NOW + 4 * DAY), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    appointments.cancel(f.ctx, guestActor, done, undefined, NOW + 4 * DAY),
+    isAppError("INVALID_STATE"),
+  );
+  await assert.rejects(
+    appointments.reschedule(f.ctx, guestActor, done, WINDOWS, undefined, NOW + 4 * DAY),
+    isAppError("INVALID_STATE"),
+  );
+  await assert.rejects(
+    appointments.complete(f.ctx, concierge, second.appointmentId, undefined, NOW + 4 * DAY),
+    isAppError("INVALID_STATE"),
+  );
   assert.equal(auditsOf(f, "appointment.complete").length, 1);
 });
 
 test("listPending holds what the house has yet to confirm, longest waiting first, with the client's name", async () => {
   const { f, concierge } = await setup();
   const late = await appointments.requestAppointment(f.ctx, guestActor, request({ submissionKey: "late" }), NOW + HOUR);
-  const early = await appointments.requestAppointment(f.ctx, otherGuestActor, request({ submissionKey: "early", contact: { ...CONTACT, name: "Kwame Mensah" } }), NOW);
+  const early = await appointments.requestAppointment(
+    f.ctx,
+    otherGuestActor,
+    request({ submissionKey: "early", contact: { ...CONTACT, name: "Kwame Mensah" } }),
+    NOW,
+  );
   const confirmed = await appointments.requestAppointment(f.ctx, accountActor, request({ submissionKey: "done" }), NOW);
   const start = TODAY + 2 * DAY + 16 * HOUR;
-  await appointments.confirm(f.ctx, concierge, confirmed.appointmentId, { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" }, NOW + 2);
+  await appointments.confirm(
+    f.ctx,
+    concierge,
+    confirmed.appointmentId,
+    { confirmedStart: start, confirmedEnd: start + HOUR, calendarRef: "SQ-1" },
+    NOW + 2,
+  );
   const cancelled = await appointments.requestAppointment(f.ctx, accountActor, request({ submissionKey: "gone" }), NOW);
   await appointments.cancel(f.ctx, accountActor, await f.ctx.db.get(cancelled.appointmentId), undefined, NOW + 2);
-  await appointments.reschedule(f.ctx, guestActor, await f.ctx.db.get(late.appointmentId), [{ date: TODAY + 8 * DAY, period: "morning" }], undefined, NOW + 3);
+  await appointments.reschedule(
+    f.ctx,
+    guestActor,
+    await f.ctx.db.get(late.appointmentId),
+    [{ date: TODAY + 8 * DAY, period: "morning" }],
+    undefined,
+    NOW + 3,
+  );
 
   const pending = await appointments.listPending(f.ctx);
   assert.deepEqual(
@@ -364,7 +591,8 @@ test("the booking state machine: nothing leaves cancelled or completed, and conf
       const legal = appointments.canTransition(from, to);
       if (from === "cancelled" || from === "completed") assert.equal(legal, false, `${from} is terminal`);
       if (to === "requested") assert.equal(legal, false, "a request is made once; afterwards it is rescheduled");
-      if (to === "completed") assert.equal(legal, from === "confirmed", "only a confirmed appointment can have taken place");
+      if (to === "completed")
+        assert.equal(legal, from === "confirmed", "only a confirmed appointment can have taken place");
     }
   }
   assert.equal(appointments.isTerminal({ status: "cancelled" }), true);
@@ -373,6 +601,9 @@ test("the booking state machine: nothing leaves cancelled or completed, and conf
   assert.equal(appointments.showroomLabel("virtual"), "Virtual");
   assert.throws(() => appointments.assertLocationFits("final_fitting", "virtual"), isAppError("INVALID_INPUT"));
   assert.doesNotThrow(() => appointments.assertLocationFits("consultation", "virtual"));
-  assert.match(appointments.formatWhen(Date.UTC(2026, 10, 14, 16), "America/New_York"), /November 14, 2026 at 11:00 AM/);
+  assert.match(
+    appointments.formatWhen(Date.UTC(2026, 10, 14, 16), "America/New_York"),
+    /November 14, 2026 at 11:00 AM/,
+  );
   assert.match(appointments.formatWhen(Date.UTC(2026, 10, 14, 16), "Nowhere/Nowhere"), /November 14, 2026 at 4:00 PM/);
 });

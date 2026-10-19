@@ -33,7 +33,12 @@ import { ownerArgs } from "./views";
  * `convex/model/atelier/appointments.ts`.
  */
 
-export const vAppointmentLocation = v.union(v.literal("charlotte"), v.literal("atlanta"), v.literal("houston"), v.literal("virtual"));
+export const vAppointmentLocation = v.union(
+  v.literal("charlotte"),
+  v.literal("atlanta"),
+  v.literal("houston"),
+  v.literal("virtual"),
+);
 export type AppointmentLocation = Infer<typeof vAppointmentLocation>;
 
 export const vShowroomView = v.object({

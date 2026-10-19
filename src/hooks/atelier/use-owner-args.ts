@@ -7,7 +7,10 @@ import { useAtelierSession } from "@/components/atelier/shell/atelier-session";
  * for a signed-in client (the server resolves the account). Returns "skip" until the session has
  * read storage, so a query never fires with the wrong identity on first paint.
  */
-export function useOwnerArgs<T extends Record<string, unknown>>(extra: T, enabled = true): (T & { guestKey?: string }) | "skip" {
+export function useOwnerArgs<T extends Record<string, unknown>>(
+  extra: T,
+  enabled = true,
+): (T & { guestKey?: string }) | "skip" {
   const { guestKey, ready } = useAtelierSession();
   if (!ready || !enabled) return "skip";
   return guestKey ? { ...extra, guestKey } : extra;

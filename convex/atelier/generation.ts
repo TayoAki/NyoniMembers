@@ -109,7 +109,12 @@ export function previewFailureText(error: unknown): string {
     if (status === 429) return "The image service is busy right now. Try again in a few minutes.";
     if (status !== undefined && status >= 400 && status < 500) {
       const text = error.message.toLowerCase();
-      if (text.includes("safety") || text.includes("policy") || text.includes("moderation") || text.includes("rejected")) {
+      if (
+        text.includes("safety") ||
+        text.includes("policy") ||
+        text.includes("moderation") ||
+        text.includes("rejected")
+      ) {
         return "The image service declined this photograph. Try another full-length photograph in even light.";
       }
       return "The image service could not work from this photograph. Try another one, or continue with the studio illustration.";
@@ -122,7 +127,8 @@ export function previewFailureText(error: unknown): string {
 /** For the logs only: the provider's status and message, bounded. */
 function rawErrorText(error: unknown): string {
   if (isAppError(error)) return `${error.data.code}: ${error.data.message}`.slice(0, MAX_ERROR_CHARS);
-  if (error instanceof OpenAI.APIError) return `OpenAI ${error.status ?? "error"}: ${error.message}`.slice(0, MAX_ERROR_CHARS);
+  if (error instanceof OpenAI.APIError)
+    return `OpenAI ${error.status ?? "error"}: ${error.message}`.slice(0, MAX_ERROR_CHARS);
   if (error instanceof Error) return error.message.slice(0, MAX_ERROR_CHARS);
   return String(error).slice(0, MAX_ERROR_CHARS);
 }

@@ -104,7 +104,8 @@ function fakeCtx() {
   }
 
   function strip(doc) {
-    const { __table, ...rest } = doc;
+    const rest = { ...doc };
+    delete rest.__table;
     return rest;
   }
 
@@ -144,8 +145,22 @@ function fakeCtx() {
   return { ctx, db, put, inserts, patches, auditRows, rows };
 }
 
-const STAFF = { _id: "users:ops", role: "user", staffRoles: ["operations"], name: "Ama Mensah", clerkId: "c1", createdAt: 1 };
-const FITTER = { _id: "users:fitter", role: "user", staffRoles: ["fitter", "operations"], name: "Kofi Boateng", clerkId: "c2", createdAt: 1 };
+const STAFF = {
+  _id: "users:ops",
+  role: "user",
+  staffRoles: ["operations"],
+  name: "Ama Mensah",
+  clerkId: "c1",
+  createdAt: 1,
+};
+const FITTER = {
+  _id: "users:fitter",
+  role: "user",
+  staffRoles: ["fitter", "operations"],
+  name: "Kofi Boateng",
+  clerkId: "c2",
+  createdAt: 1,
+};
 
 async function seededFixture(now = 1_000) {
   const f = fakeCtx();
@@ -192,11 +207,17 @@ test("the status machine: draft to approved to withdrawn, with a way back, and n
 test("shades and codes are normalised, and bad ones are refused as input errors", () => {
   assert.equal(normalizeHex(" #1f2538 "), "#1F2538");
   for (const bad of ["1F2538", "#1F25", "#GGGGGG", "", "#1F2538FF"]) {
-    assert.throws(() => normalizeHex(bad), (error) => error.data?.code === "INVALID_INPUT");
+    assert.throws(
+      () => normalizeHex(bad),
+      (error) => error.data?.code === "INVALID_INPUT",
+    );
   }
   assert.equal(normalizeCode("  Loro-Piana-365 "), "loro-piana-365");
   for (const bad of ["", "-leading", "has space", "under_score", "a".repeat(81)]) {
-    assert.throws(() => normalizeCode(bad), (error) => error.data?.code === "INVALID_INPUT");
+    assert.throws(
+      () => normalizeCode(bad),
+      (error) => error.data?.code === "INVALID_INPUT",
+    );
   }
 });
 
@@ -247,7 +268,11 @@ test("upsert creates a draft entry with version 0, provenance and an audit row",
   assert.equal(entry.approvedBy, undefined);
   assert.equal(entry.createdAt, 2_000);
   assert.equal(entry.updatedAt, 2_000);
-  assert.equal((await listApproved(f.ctx, "cloth")).some((c) => c.code === "house-navy-hopsack"), false, "a draft entry is not offered to clients");
+  assert.equal(
+    (await listApproved(f.ctx, "cloth")).some((c) => c.code === "house-navy-hopsack"),
+    false,
+    "a draft entry is not offered to clients",
+  );
   const audits = f.auditRows();
   assert.equal(audits.length, 1);
   assert.equal(audits[0].action, "catalogue.create");
@@ -325,8 +350,16 @@ test("approving records who and when; withdrawing touches only the entry; invali
   assert.equal(approved.approvedBy, STAFF._id);
   assert.equal(approved.approvedAt, 3_000);
   assert.equal(approved.updatedAt, 3_000);
-  assert.ok((await listApproved(f.ctx, "cloth")).some((c) => c._id === id), "an approved entry reaches clients");
-  assert.deepEqual(f.auditRows().at(-1).meta, { kind: "cloth", code: "house-navy-hopsack", from: "draft", to: "approved" });
+  assert.ok(
+    (await listApproved(f.ctx, "cloth")).some((c) => c._id === id),
+    "an approved entry reaches clients",
+  );
+  assert.deepEqual(f.auditRows().at(-1).meta, {
+    kind: "cloth",
+    code: "house-navy-hopsack",
+    from: "draft",
+    to: "approved",
+  });
 
   await assert.rejects(
     setEntryStatus(f.ctx, STAFF, id, "approved", 3_100),
@@ -345,16 +378,25 @@ test("approving records who and when; withdrawing touches only the entry; invali
   const patchedIds = f.patches.slice(patchesBefore).map(([patchedId]) => patchedId);
   assert.deepEqual([...new Set(patchedIds)], [id], "withdrawing patches the entry and nothing else");
   assert.equal(f.inserts.slice(insertsBefore).filter(([table]) => table !== "atelierAuditLog").length, 0);
-  assert.equal((await listApproved(f.ctx, "cloth")).some((c) => c._id === id), false);
+  assert.equal(
+    (await listApproved(f.ctx, "cloth")).some((c) => c._id === id),
+    false,
+  );
   assert.ok(await getEntry(f.ctx, "cloth", "house-navy-hopsack"), "a withdrawn entry can still be named by code");
 
-  await assert.rejects(setEntryStatus(f.ctx, STAFF, "atelierCatalogueEntries:999", "approved"), (error) => error.data?.code === "NOT_FOUND");
+  await assert.rejects(
+    setEntryStatus(f.ctx, STAFF, "atelierCatalogueEntries:999", "approved"),
+    (error) => error.data?.code === "NOT_FOUND",
+  );
 });
 
 test("confirming a shade records the fitter and refuses a malformed shade before reading anything", async () => {
   const f = await seededFixture(1_000);
   const seeded = await getEntry(f.ctx, "cloth", CLOTH_SEED[1].code);
-  await assert.rejects(confirmShade(f.ctx, FITTER, seeded._id, "navy", 2_000), (error) => error.data?.code === "INVALID_INPUT");
+  await assert.rejects(
+    confirmShade(f.ctx, FITTER, seeded._id, "navy", 2_000),
+    (error) => error.data?.code === "INVALID_INPUT",
+  );
   assert.deepEqual(f.patches, []);
 
   const confirmed = await confirmShade(f.ctx, FITTER, seeded._id, "#1a2b3c", 2_000);
@@ -370,7 +412,13 @@ test("confirming a shade records the fitter and refuses a malformed shade before
 test("stock is recorded with an audit row, and recording what is already true writes nothing", async () => {
   const f = await seededFixture(1_000);
   const seeded = await getEntry(f.ctx, "cloth", CLOTH_SEED[2].code);
-  const same = await setStock(f.ctx, STAFF, seeded._id, { inStock: seeded.inStock, sampleAvailable: seeded.sampleAvailable }, 2_000);
+  const same = await setStock(
+    f.ctx,
+    STAFF,
+    seeded._id,
+    { inStock: seeded.inStock, sampleAvailable: seeded.sampleAvailable },
+    2_000,
+  );
   assert.equal(same.updatedAt, 1_000);
   assert.deepEqual(f.patches, []);
   assert.deepEqual(f.auditRows(), []);
@@ -413,7 +461,10 @@ test("publishing stamps only what changed, bumps the version once, and refuses a
   assert.equal(untouched.updatedAt, 1_000);
   const stampPatches = f.patches.filter(([, patch]) => "version" in patch);
   assert.equal(stampPatches.length, 2);
-  assert.ok(stampPatches.every(([, patch]) => !("updatedAt" in patch)), "stamping is the publish, not an edit");
+  assert.ok(
+    stampPatches.every(([, patch]) => !("updatedAt" in patch)),
+    "stamping is the publish, not an edit",
+  );
   const audit = f.auditRows().at(-1);
   assert.equal(audit.action, "catalogue.publish");
   assert.equal(audit.targetTable, "atelierCatalogueVersions");

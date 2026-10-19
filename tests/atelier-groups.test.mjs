@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountActor, accountUser, fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
+import {
+  accountActor,
+  accountUser,
+  fakeCtx,
+  GUEST_KEY,
+  guestActor,
+  isAppError,
+  otherGuestActor,
+  strangerActor,
+} from "./atelier-fake-ctx.mjs";
 
 const groups = await import("../convex/model/atelier/groups.ts");
 const { ATELIER_LIMITS, GROUP_STATUSES } = await import("../convex/shared/atelier/enums.ts");
@@ -56,24 +65,30 @@ async function groupWith(f, organizer, overrides = {}) {
 }
 
 test("the permitted-individual allow-list is fixed: unknown paths are refused, known ones are kept in order", async () => {
-  assert.deepEqual(groups.normalizePermittedIndividual(["monogram", "jacket.vents", "monogram"]), ["jacket.vents", "monogram"]);
+  assert.deepEqual(groups.normalizePermittedIndividual(["monogram", "jacket.vents", "monogram"]), [
+    "jacket.vents",
+    "monogram",
+  ]);
   assert.deepEqual(groups.normalizePermittedIndividual([]), []);
   for (const path of ["jacket.lapel", "garment", "clothCode", "jacket", "trousers.rise", ""]) {
     assert.throws(() => groups.normalizePermittedIndividual([path]), isAppError("INVALID_INPUT"), path);
   }
-  assert.deepEqual([...groups.PERMITTED_INDIVIDUAL_PATHS], [
-    "jacket.vents",
-    "jacket.pockets",
-    "jacket.ticketPocket",
-    "jacket.sleeveButtons",
-    "jacket.workingCuffs",
-    "trousers.pleats",
-    "trousers.hem",
-    "trousers.waistband",
-    "trousers.fit",
-    "monogram",
-    "liningCode",
-  ]);
+  assert.deepEqual(
+    [...groups.PERMITTED_INDIVIDUAL_PATHS],
+    [
+      "jacket.vents",
+      "jacket.pockets",
+      "jacket.ticketPocket",
+      "jacket.sleeveButtons",
+      "jacket.workingCuffs",
+      "trousers.pleats",
+      "trousers.hem",
+      "trousers.waistband",
+      "trousers.fit",
+      "monogram",
+      "liningCode",
+    ],
+  );
 
   const { f, organizer } = await setup();
   await assert.rejects(
@@ -89,13 +104,27 @@ test("the shared design may leave the cloth open but must otherwise be valid", a
   assert.ok(groups.validateSharedSpec(badStance).length > 0);
 
   const { f, organizer } = await setup();
-  await assert.rejects(groups.createGroup(f.ctx, organizer, groupInput({ sharedSpec: badStance }), NOW), isAppError("INVALID_INPUT"));
   await assert.rejects(
-    groups.createGroup(f.ctx, organizer, groupInput({ sharedSpec: { ...DEFAULT_SPEC, clothCode: "not-a-cloth" } }), NOW),
+    groups.createGroup(f.ctx, organizer, groupInput({ sharedSpec: badStance }), NOW),
     isAppError("INVALID_INPUT"),
   );
-  await assert.rejects(groups.createGroup(f.ctx, organizer, groupInput({ eventDate: NOW - 30 * DAY }), NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(groups.createGroup(f.ctx, organizer, groupInput({ name: "   " }), NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    groups.createGroup(
+      f.ctx,
+      organizer,
+      groupInput({ sharedSpec: { ...DEFAULT_SPEC, clothCode: "not-a-cloth" } }),
+      NOW,
+    ),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    groups.createGroup(f.ctx, organizer, groupInput({ eventDate: NOW - 30 * DAY }), NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    groups.createGroup(f.ctx, organizer, groupInput({ name: "   " }), NOW),
+    isAppError("INVALID_INPUT"),
+  );
 
   const group = await groupWith(f, organizer);
   assert.equal(group.status, "draft");
@@ -121,7 +150,13 @@ test("a group holds at most ATELIER_LIMITS.groupMaxParticipants live participant
   );
   await groups.removeParticipant(f.ctx, organizer, invited[0].participantId, NOW);
   assert.equal((await f.ctx.db.get(invited[0].participantId)).status, "declined");
-  const replacement = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Late addition", email: " Late@Example.COM " }, NOW);
+  const replacement = await groups.inviteParticipant(
+    f.ctx,
+    organizer,
+    group._id,
+    { name: "Late addition", email: " Late@Example.COM " },
+    NOW,
+  );
   assert.equal((await f.ctx.db.get(replacement.participantId)).email, "late@example.com");
   const queued = f.rowsOf("atelierNotifications");
   assert.equal(queued.length, 1);
@@ -129,14 +164,26 @@ test("a group holds at most ATELIER_LIMITS.groupMaxParticipants live participant
   assert.equal(queued[0].to, "late@example.com");
   assert.equal(queued[0].userId, organizer._id);
 
-  await assert.rejects(groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Bad mail", email: "nope" }, NOW), isAppError("INVALID_INPUT"));
-  await assert.rejects(groups.inviteParticipant(f.ctx, organizer, group._id, { name: "" }, NOW), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Bad mail", email: "nope" }, NOW),
+    isAppError("INVALID_INPUT"),
+  );
+  await assert.rejects(
+    groups.inviteParticipant(f.ctx, organizer, group._id, { name: "" }, NOW),
+    isAppError("INVALID_INPUT"),
+  );
 });
 
 test("joining creates a private design from the shared brief and hands it to whoever accepted", async () => {
   const { f, organizer } = await setup();
   const group = await groupWith(f, organizer, { sharedSpec: { ...DEFAULT_SPEC, clothCode: null } });
-  const { participantId, inviteToken } = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw" }, NOW);
+  const { participantId, inviteToken } = await groups.inviteParticipant(
+    f.ctx,
+    organizer,
+    group._id,
+    { name: "Yaw" },
+    NOW,
+  );
 
   const invite = await groups.inviteByToken(f.ctx, inviteToken);
   assert.equal(invite.groupName, group.name);
@@ -175,7 +222,11 @@ test("joining creates a private design from the shared brief and hands it to who
   await assert.rejects(groups.joinGroup(f.ctx, accountActor, inviteToken, NOW), isAppError("INVALID_STATE"));
 
   // A shared cloth starts the participant at style; an account participant is recorded by account.
-  const clothed = await groupWith(f, organizer, { name: "Black tie dinner", occasion: "black_tie", sharedSpec: { ...DEFAULT_SPEC, clothCode: CLOTH } });
+  const clothed = await groupWith(f, organizer, {
+    name: "Black tie dinner",
+    occasion: "black_tie",
+    sharedSpec: { ...DEFAULT_SPEC, clothCode: CLOTH },
+  });
   const second = await groups.inviteParticipant(f.ctx, organizer, clothed._id, { name: "Nia" }, NOW);
   const joined = await groups.joinGroup(f.ctx, accountActor, second.inviteToken, NOW);
   const accountDraft = await f.ctx.db.get(joined.draftId);
@@ -193,14 +244,26 @@ test("joining creates a private design from the shared brief and hands it to who
 test("the organizer sees consented status only and never reads a measurement or photo table", async () => {
   const { f, organizer } = await setup();
   const group = await groupWith(f, organizer);
-  const yaw = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw", email: "yaw@example.com" }, NOW);
+  const yaw = await groups.inviteParticipant(
+    f.ctx,
+    organizer,
+    group._id,
+    { name: "Yaw", email: "yaw@example.com" },
+    NOW,
+  );
   const nia = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Nia" }, NOW + 1);
   const kofi = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Kofi" }, NOW + 2);
 
   const { draftId: yawDraft } = await groups.joinGroup(f.ctx, guestActor, yaw.inviteToken, NOW);
   await f.ctx.db.patch(yawDraft, { spec: { ...DEFAULT_SPEC, clothCode: CLOTH } });
   const { draftId: niaDraft } = await groups.joinGroup(f.ctx, accountActor, nia.inviteToken, NOW);
-  await f.ctx.db.patch(niaDraft, { spec: { ...DEFAULT_SPEC, clothCode: CLOTH, monogram: { text: "N.O", placement: "cuff", thread: "gold", font: "script" } } });
+  await f.ctx.db.patch(niaDraft, {
+    spec: {
+      ...DEFAULT_SPEC,
+      clothCode: CLOTH,
+      monogram: { text: "N.O", placement: "cuff", thread: "gold", font: "script" },
+    },
+  });
   await f.ctx.db.insert("atelierFitProfiles", {
     userId: accountUser._id,
     version: 1,
@@ -240,17 +303,43 @@ test("the organizer sees consented status only and never reads a measurement or 
     ],
   );
   assert.ok(!touched.has("atelierFitProfiles"), "no consent to share fit: the fit table is never read");
-  assert.ok(!touched.has("atelierPersonPhotos") && !touched.has("atelierFitPhotos") && !touched.has("atelierPreviewJobs"));
+  assert.ok(
+    !touched.has("atelierPersonPhotos") && !touched.has("atelierFitPhotos") && !touched.has("atelierPreviewJobs"),
+  );
 
   // Yaw shares style; Nia shares style and fit. The organizer learns readiness, nothing else.
-  await groups.setParticipantConsent(f.ctx, guestActor, yaw.participantId, { shareStyleStatus: true, shareFitStatus: false }, NOW);
-  await groups.setParticipantConsent(f.ctx, accountActor, nia.participantId, { shareStyleStatus: true, shareFitStatus: true }, NOW);
+  await groups.setParticipantConsent(
+    f.ctx,
+    guestActor,
+    yaw.participantId,
+    { shareStyleStatus: true, shareFitStatus: false },
+    NOW,
+  );
+  await groups.setParticipantConsent(
+    f.ctx,
+    accountActor,
+    nia.participantId,
+    { shareStyleStatus: true, shareFitStatus: true },
+    NOW,
+  );
   await assert.rejects(
-    groups.setParticipantConsent(f.ctx, otherGuestActor, yaw.participantId, { shareStyleStatus: true, shareFitStatus: true }, NOW),
+    groups.setParticipantConsent(
+      f.ctx,
+      otherGuestActor,
+      yaw.participantId,
+      { shareStyleStatus: true, shareFitStatus: true },
+      NOW,
+    ),
     isAppError("NOT_FOUND"),
   );
   await assert.rejects(
-    groups.setParticipantConsent(f.ctx, strangerActor, nia.participantId, { shareStyleStatus: false, shareFitStatus: false }, NOW),
+    groups.setParticipantConsent(
+      f.ctx,
+      strangerActor,
+      nia.participantId,
+      { shareStyleStatus: false, shareFitStatus: false },
+      NOW,
+    ),
     isAppError("NOT_FOUND"),
   );
 
@@ -264,9 +353,21 @@ test("the organizer sees consented status only and never reads a measurement or 
       ["Kofi", "invited", "Invited", false, false],
     ],
   );
-  assert.ok(!touched.has("atelierPersonPhotos") && !touched.has("atelierFitPhotos"), "photo tables are never read for a group view");
+  assert.ok(
+    !touched.has("atelierPersonPhotos") && !touched.has("atelierFitPhotos"),
+    "photo tables are never read for a group view",
+  );
   const serialized = JSON.stringify(view);
-  for (const secret of [GUEST_KEY, "yaw@example.com", "98.5", "chest", "N.O", "storage|", "measurements", '"spec":{"garment"']) {
+  for (const secret of [
+    GUEST_KEY,
+    "yaw@example.com",
+    "98.5",
+    "chest",
+    "N.O",
+    "storage|",
+    "measurements",
+    '"spec":{"garment"',
+  ]) {
     assert.ok(!serialized.includes(secret), `the organizer view must not carry ${secret}`);
   }
   assert.deepEqual(Object.keys(view.participants[0]).sort(), [
@@ -285,14 +386,23 @@ test("the organizer sees consented status only and never reads a measurement or 
   assert.equal(kofi.participantId, view.participants[2].participantId);
 
   // Withdrawing consent withdraws the status; it never sticks.
-  await groups.setParticipantConsent(f.ctx, accountActor, nia.participantId, { shareStyleStatus: true, shareFitStatus: false }, NOW);
+  await groups.setParticipantConsent(
+    f.ctx,
+    accountActor,
+    nia.participantId,
+    { shareStyleStatus: true, shareFitStatus: false },
+    NOW,
+  );
   view = await groups.groupView(f.ctx, await f.ctx.db.get(group._id));
   assert.equal(view.participants[1].status, "design_ready");
   assert.equal(view.participants[1].fitReady, false);
 
   // Another account cannot read or touch the group.
   await assert.rejects(groups.requireOrganizerGroup(f.ctx, group._id, accountUser), isAppError("NOT_FOUND"));
-  await assert.rejects(groups.inviteParticipant(f.ctx, accountUser, group._id, { name: "Intruder" }, NOW), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    groups.inviteParticipant(f.ctx, accountUser, group._id, { name: "Intruder" }, NOW),
+    isAppError("NOT_FOUND"),
+  );
   await assert.rejects(groups.removeParticipant(f.ctx, accountUser, yaw.participantId, NOW), isAppError("NOT_FOUND"));
   const mine = await groups.listGroupsForOrganizer(f.ctx, organizer);
   assert.equal(mine.length, 1);
@@ -311,7 +421,13 @@ test("leaving marks the participant declined, drops consent and takes the design
   const group = await groupWith(f, organizer);
   const yaw = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw" }, NOW);
   const { draftId } = await groups.joinGroup(f.ctx, guestActor, yaw.inviteToken, NOW);
-  await groups.setParticipantConsent(f.ctx, guestActor, yaw.participantId, { shareStyleStatus: true, shareFitStatus: true }, NOW);
+  await groups.setParticipantConsent(
+    f.ctx,
+    guestActor,
+    yaw.participantId,
+    { shareStyleStatus: true, shareFitStatus: true },
+    NOW,
+  );
 
   await assert.rejects(groups.leaveGroup(f.ctx, otherGuestActor, yaw.participantId, NOW), isAppError("NOT_FOUND"));
   await groups.leaveGroup(f.ctx, guestActor, yaw.participantId, NOW + DAY);
@@ -324,13 +440,26 @@ test("leaving marks the participant declined, drops consent and takes the design
   assert.equal(await groups.participationForDraft(f.ctx, draft), null);
 
   const view = await groups.groupView(f.ctx, await f.ctx.db.get(group._id));
-  assert.deepEqual(view.participants.map((p) => [p.status, p.hasDesign, p.designReady, p.fitReady]), [["declined", false, false, false]]);
+  assert.deepEqual(
+    view.participants.map((p) => [p.status, p.hasDesign, p.designReady, p.fitReady]),
+    [["declined", false, false, false]],
+  );
   await assert.rejects(
-    groups.setParticipantConsent(f.ctx, guestActor, yaw.participantId, { shareStyleStatus: true, shareFitStatus: false }, NOW),
+    groups.setParticipantConsent(
+      f.ctx,
+      guestActor,
+      yaw.participantId,
+      { shareStyleStatus: true, shareFitStatus: false },
+      NOW,
+    ),
     isAppError("INVALID_STATE"),
   );
   await groups.leaveGroup(f.ctx, guestActor, yaw.participantId, NOW + 2 * DAY);
-  assert.equal(f.rowsOf("atelierAuditLog").filter((row) => row.action === "group.leave").length, 1, "leaving twice is a no-op");
+  assert.equal(
+    f.rowsOf("atelierAuditLog").filter((row) => row.action === "group.leave").length,
+    1,
+    "leaving twice is a no-op",
+  );
 
   // Someone who has ordered cannot be removed by either side without the house.
   const nia = await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Nia" }, NOW);
@@ -358,13 +487,25 @@ test("the group state machine: review words are the house's, and only lawful tra
   const group = await groupWith(f, organizer);
   await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Yaw" }, NOW);
 
-  await assert.rejects(groups.reviewGroup(f.ctx, concierge, group._id, { note: "", status: "approved" }, NOW), isAppError("INVALID_STATE"));
-  const reviewed = await groups.reviewGroup(f.ctx, concierge, group._id, { note: "  Compatible; waiting on two fittings. ", status: "in_review" }, NOW + DAY);
+  await assert.rejects(
+    groups.reviewGroup(f.ctx, concierge, group._id, { note: "", status: "approved" }, NOW),
+    isAppError("INVALID_STATE"),
+  );
+  const reviewed = await groups.reviewGroup(
+    f.ctx,
+    concierge,
+    group._id,
+    { note: "  Compatible; waiting on two fittings. ", status: "in_review" },
+    NOW + DAY,
+  );
   assert.equal(reviewed.status, "in_review");
   assert.equal(reviewed.statusLabel, "With the house for review");
   assert.equal(reviewed.staffReviewNote, "Compatible; waiting on two fittings.");
   assert.equal(reviewed.organizerName, "Kwame");
-  assert.deepEqual([reviewed.participantCount, reviewed.joinedCount, reviewed.designReadyCount, reviewed.fitReadyCount], [1, 0, 0, 0]);
+  assert.deepEqual(
+    [reviewed.participantCount, reviewed.joinedCount, reviewed.designReadyCount, reviewed.fitReadyCount],
+    [1, 0, 0, 0],
+  );
   assert.ok(!JSON.stringify(reviewed).includes("kwame@example.com"));
   const auditRow = f.rowsOf("atelierAuditLog").find((row) => row.action === "group.review");
   assert.equal(auditRow.actorUserId, concierge._id);
@@ -374,31 +515,67 @@ test("the group state machine: review words are the house's, and only lawful tra
   // Under review: the organizer may add to the brief but not change the design; invitations still go out.
   await groups.updateGroup(f.ctx, organizer, group._id, { brief: "Also: no ticket pockets." }, NOW);
   assert.equal((await f.ctx.db.get(group._id)).brief, "Also: no ticket pockets.");
-  await assert.rejects(groups.updateGroup(f.ctx, organizer, group._id, { name: "Renamed" }, NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    groups.updateGroup(f.ctx, organizer, group._id, { name: "Renamed" }, NOW),
+    isAppError("INVALID_STATE"),
+  );
   await assert.rejects(
     groups.updateGroup(f.ctx, organizer, group._id, { sharedSpec: { ...DEFAULT_SPEC, clothCode: CLOTH } }, NOW),
     isAppError("INVALID_STATE"),
   );
-  await assert.rejects(groups.updateGroup(f.ctx, organizer, group._id, { permittedIndividual: [] }, NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    groups.updateGroup(f.ctx, organizer, group._id, { permittedIndividual: [] }, NOW),
+    isAppError("INVALID_STATE"),
+  );
   await groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Nia" }, NOW);
 
   // A review note that is empty keeps the previous one.
-  const approved = await groups.reviewGroup(f.ctx, concierge, group._id, { note: "", status: "approved" }, NOW + 2 * DAY);
+  const approved = await groups.reviewGroup(
+    f.ctx,
+    concierge,
+    group._id,
+    { note: "", status: "approved" },
+    NOW + 2 * DAY,
+  );
   assert.equal(approved.status, "approved");
   assert.equal(approved.staffReviewNote, "Compatible; waiting on two fittings.");
-  await assert.rejects(groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Kofi" }, NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    groups.inviteParticipant(f.ctx, organizer, group._id, { name: "Kofi" }, NOW),
+    isAppError("INVALID_STATE"),
+  );
   assert.equal((await groups.listGroupsForReview(f.ctx)).length, 1);
 
-  const closed = await groups.reviewGroup(f.ctx, concierge, group._id, { note: "Event passed.", status: "closed" }, NOW + 3 * DAY);
+  const closed = await groups.reviewGroup(
+    f.ctx,
+    concierge,
+    group._id,
+    { note: "Event passed.", status: "closed" },
+    NOW + 3 * DAY,
+  );
   assert.equal(closed.status, "closed");
-  await assert.rejects(groups.updateGroup(f.ctx, organizer, group._id, { brief: "Too late" }, NOW), isAppError("INVALID_STATE"));
-  await assert.rejects(groups.reviewGroup(f.ctx, concierge, group._id, { note: "", status: "in_review" }, NOW), isAppError("INVALID_STATE"));
+  await assert.rejects(
+    groups.updateGroup(f.ctx, organizer, group._id, { brief: "Too late" }, NOW),
+    isAppError("INVALID_STATE"),
+  );
+  await assert.rejects(
+    groups.reviewGroup(f.ctx, concierge, group._id, { note: "", status: "in_review" }, NOW),
+    isAppError("INVALID_STATE"),
+  );
   assert.deepEqual(await groups.listGroupsForReview(f.ctx), []);
-  await assert.rejects(groups.reviewGroup(f.ctx, concierge, "atelierGroups|999", { note: "", status: "closed" }, NOW), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    groups.reviewGroup(f.ctx, concierge, "atelierGroups|999", { note: "", status: "closed" }, NOW),
+    isAppError("NOT_FOUND"),
+  );
 
   // Before any invitation a draft group can be edited freely, and an unknown field set is a no-op.
   const fresh = await groupWith(f, organizer, { name: "Board dinner", occasion: "business" });
-  await groups.updateGroup(f.ctx, organizer, fresh._id, { name: "Board dinner 2027", eventDate: null, permittedIndividual: ["trousers.hem"] }, NOW);
+  await groups.updateGroup(
+    f.ctx,
+    organizer,
+    fresh._id,
+    { name: "Board dinner 2027", eventDate: null, permittedIndividual: ["trousers.hem"] },
+    NOW,
+  );
   const updated = await f.ctx.db.get(fresh._id);
   assert.equal(updated.name, "Board dinner 2027");
   assert.equal(updated.eventDate, undefined);
@@ -406,7 +583,11 @@ test("the group state machine: review words are the house's, and only lawful tra
   const patchesBefore = f.log.patches.length;
   await groups.updateGroup(f.ctx, organizer, fresh._id, {}, NOW);
   assert.equal(f.log.patches.length, patchesBefore);
-  assert.equal((await groups.listGroupsForReview(f.ctx)).length, 0, "a draft nobody was invited to is not yet the house's business");
+  assert.equal(
+    (await groups.listGroupsForReview(f.ctx)).length,
+    0,
+    "a draft nobody was invited to is not yet the house's business",
+  );
 });
 
 test("effectiveStatus never claims a readiness the participant did not consent to show", () => {

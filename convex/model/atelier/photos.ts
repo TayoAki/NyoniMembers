@@ -192,7 +192,8 @@ export async function registerPhoto(
   }
 
   const previous = await ownerPhotos(ctx, owner, "active").take(OWNER_SCAN);
-  for (const photo of previous) await retirePhoto(ctx, photo, { actor, action: "photo.replace", mode: "scheduled" }, now);
+  for (const photo of previous)
+    await retirePhoto(ctx, photo, { actor, action: "photo.replace", mode: "scheduled" }, now);
 
   const photoId = await ctx.db.insert("atelierPersonPhotos", {
     ...owner,
@@ -214,13 +215,21 @@ export async function registerPhoto(
     if (draft.personPhotoId !== photoId) await ctx.db.patch(draft._id, { personPhotoId: photoId });
   }
 
-  await audit(ctx, {
-    actor,
-    action: "photo.register",
-    targetTable: "atelierPersonPhotos",
-    targetId: photoId,
-    meta: { consentVersion: input.consentVersion, providerDisclosureVersion: PROVIDER_DISCLOSURE_VERSION, replaced: previous.length },
-  }, now);
+  await audit(
+    ctx,
+    {
+      actor,
+      action: "photo.register",
+      targetTable: "atelierPersonPhotos",
+      targetId: photoId,
+      meta: {
+        consentVersion: input.consentVersion,
+        providerDisclosureVersion: PROVIDER_DISCLOSURE_VERSION,
+        replaced: previous.length,
+      },
+    },
+    now,
+  );
 
   const photo = await ctx.db.get(photoId);
   if (!photo) throw new Error("Photo insert failed");
@@ -285,13 +294,17 @@ export async function retirePhoto(ctx: MutationCtx, photo: Photo, options: Retir
     await ctx.db.patch(photo._id, { status: "pending_deletion" });
     await ctx.scheduler.runAfter(0, internal.atelier.photos.finishDeletion, { photoId: photo._id });
   }
-  await audit(ctx, {
-    actor: options.actor,
-    action: options.action,
-    targetTable: "atelierPersonPhotos",
-    targetId: photo._id,
-    meta: { ...retired, mode: options.mode },
-  }, now);
+  await audit(
+    ctx,
+    {
+      actor: options.actor,
+      action: options.action,
+      targetTable: "atelierPersonPhotos",
+      targetId: photo._id,
+      meta: { ...retired, mode: options.mode },
+    },
+    now,
+  );
 }
 
 /** C11 "Remove": the photograph and everything made from it go now; running twice is harmless. */
@@ -307,7 +320,11 @@ export async function removePhoto(
 }
 
 /** The scheduled half of a replacement: deletes the file and records the deletion. */
-export async function finishDeletion(ctx: MutationCtx, photoId: Id<"atelierPersonPhotos">, now: number = Date.now()): Promise<boolean> {
+export async function finishDeletion(
+  ctx: MutationCtx,
+  photoId: Id<"atelierPersonPhotos">,
+  now: number = Date.now(),
+): Promise<boolean> {
   const photo = await ctx.db.get(photoId);
   if (!photo || photo.status === "deleted") return false;
   await retireJobsForPhoto(ctx, photo, now);
@@ -317,7 +334,10 @@ export async function finishDeletion(ctx: MutationCtx, photoId: Id<"atelierPerso
 }
 
 /** Cron: photographs past their retention are deleted with their results; stuck deletions are finished. */
-export async function expirePhotos(ctx: MutationCtx, now: number = Date.now()): Promise<{ expired: number; finished: number }> {
+export async function expirePhotos(
+  ctx: MutationCtx,
+  now: number = Date.now(),
+): Promise<{ expired: number; finished: number }> {
   const due = await ctx.db
     .query("atelierPersonPhotos")
     .withIndex("by_status_expiresAt", (q) => q.eq("status", "active").lte("expiresAt", now))

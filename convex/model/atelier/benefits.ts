@@ -4,7 +4,13 @@ import { audit, type Actor } from "../../atelier/access";
 import type { EligibilityView, RedemptionView } from "../../atelier/benefits";
 import { appError } from "../../lib/errors";
 import { QUOTE_STATUS_LABELS, type RedemptionStatus } from "../../shared/atelier/enums";
-import { isMembershipTier, TIER_CLOTH, TIER_LABELS, type MembershipStatus, type MembershipTier } from "../../shared/membership";
+import {
+  isMembershipTier,
+  TIER_CLOTH,
+  TIER_LABELS,
+  type MembershipStatus,
+  type MembershipTier,
+} from "../../shared/membership";
 import { membershipOf } from "../users";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -184,7 +190,10 @@ export async function reserveBenefit(
     throw appError("NOT_ELIGIBLE", "This account is not a member of the Nyoni Circle, so no suit is included.");
   }
   if (membership.status !== "active") {
-    throw appError("NOT_ELIGIBLE", `This ${TIER_LABELS[membership.tier]} membership has lapsed; renew it before applying the included suit.`);
+    throw appError(
+      "NOT_ELIGIBLE",
+      `This ${TIER_LABELS[membership.tier]} membership has lapsed; renew it before applying the included suit.`,
+    );
   }
   const quote = await ctx.db.get(input.quoteId);
   if (!quote) throw appError("NOT_FOUND", "That quote doesn't exist.");
@@ -203,7 +212,9 @@ export async function reserveBenefit(
   if (existing) {
     if (existing.status === "reserved" && existing.quoteId === quote._id) {
       if (quote.benefit?.redemptionId !== existing._id) {
-        await ctx.db.patch(quote._id, { benefit: { tier: existing.tier, redemptionId: existing._id, description: benefitDescription(existing.tier) } });
+        await ctx.db.patch(quote._id, {
+          benefit: { tier: existing.tier, redemptionId: existing._id, description: benefitDescription(existing.tier) },
+        });
       }
       return existing._id;
     }
@@ -222,7 +233,9 @@ export async function reserveBenefit(
     quoteId: quote._id,
     reservedAt: now,
   });
-  await ctx.db.patch(quote._id, { benefit: { tier: membership.tier, redemptionId, description: benefitDescription(membership.tier) } });
+  await ctx.db.patch(quote._id, {
+    benefit: { tier: membership.tier, redemptionId, description: benefitDescription(membership.tier) },
+  });
   await audit(
     ctx,
     {
@@ -238,8 +251,13 @@ export async function reserveBenefit(
 }
 
 /** Moves a live reservation to the quote that now carries it (a superseding quote). */
-export async function moveReservation(ctx: MutationCtx, redemption: Redemption, quoteId: Id<"atelierQuotes">): Promise<void> {
-  if (redemption.status !== "reserved") throw appError("INVALID_STATE", "Only a live reservation can move to another quote.");
+export async function moveReservation(
+  ctx: MutationCtx,
+  redemption: Redemption,
+  quoteId: Id<"atelierQuotes">,
+): Promise<void> {
+  if (redemption.status !== "reserved")
+    throw appError("INVALID_STATE", "Only a live reservation can move to another quote.");
   if (redemption.quoteId !== quoteId) await ctx.db.patch(redemption._id, { quoteId });
 }
 
@@ -255,13 +273,22 @@ export async function redeemReservation(
   if (redemption.status !== "reserved") {
     throw appError(
       "INVALID_STATE",
-      redemption.status === "redeemed" ? "This benefit has already been used on a commission." : "This benefit reservation was released and cannot be used.",
+      redemption.status === "redeemed"
+        ? "This benefit has already been used on a commission."
+        : "This benefit reservation was released and cannot be used.",
     );
   }
   await ctx.db.patch(redemption._id, { status: "redeemed", redeemedAt: now, quoteId, orderId });
   await audit(
     ctx,
-    { actor, actorKind: "client", action: "benefit.redeem", targetTable: "atelierBenefitRedemptions", targetId: redemption._id, meta: { quoteId, orderId } },
+    {
+      actor,
+      actorKind: "client",
+      action: "benefit.redeem",
+      targetTable: "atelierBenefitRedemptions",
+      targetId: redemption._id,
+      meta: { quoteId, orderId },
+    },
     now,
   );
 }
@@ -286,17 +313,28 @@ export async function releaseReservation(
     );
   }
   const trimmed = note.trim();
-  if (trimmed.length > BENEFIT_NOTE_MAX) throw appError("INVALID_INPUT", `Keep the note under ${BENEFIT_NOTE_MAX} characters.`);
+  if (trimmed.length > BENEFIT_NOTE_MAX)
+    throw appError("INVALID_INPUT", `Keep the note under ${BENEFIT_NOTE_MAX} characters.`);
   await ctx.db.patch(redemption._id, { status: "released", releasedAt: now, ...(trimmed ? { note: trimmed } : {}) });
   if (redemption.quoteId) {
     const quote = await ctx.db.get(redemption.quoteId);
-    if (quote && quote.benefit?.redemptionId === redemption._id && (quote.status === "draft" || quote.status === "offered")) {
+    if (
+      quote &&
+      quote.benefit?.redemptionId === redemption._id &&
+      (quote.status === "draft" || quote.status === "offered")
+    ) {
       await ctx.db.patch(quote._id, { benefit: undefined });
     }
   }
   await audit(
     ctx,
-    { actor, action: "benefit.release", targetTable: "atelierBenefitRedemptions", targetId: redemption._id, meta: { quoteId: redemption.quoteId ?? null, note: trimmed } },
+    {
+      actor,
+      action: "benefit.release",
+      targetTable: "atelierBenefitRedemptions",
+      targetId: redemption._id,
+      meta: { quoteId: redemption.quoteId ?? null, note: trimmed },
+    },
     now,
   );
 }

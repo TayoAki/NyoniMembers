@@ -171,7 +171,13 @@ export const vCaseSummary = v.object({
 });
 export type CaseSummary = Infer<typeof vCaseSummary>;
 
-export const vQueueFilter = v.union(v.literal("unassigned"), v.literal("mine"), v.literal("overdue"), v.literal("awaiting_client"), v.literal("all"));
+export const vQueueFilter = v.union(
+  v.literal("unassigned"),
+  v.literal("mine"),
+  v.literal("overdue"),
+  v.literal("awaiting_client"),
+  v.literal("all"),
+);
 export type QueueFilter = Infer<typeof vQueueFilter>;
 
 export const vStaffCaseRow = v.object({
@@ -217,7 +223,12 @@ export const vStaffCaseView = vCaseView.extend({
 });
 export type StaffCaseView = Infer<typeof vStaffCaseView>;
 
-export const vSubmitKind = v.union(v.literal("design_review"), v.literal("quote"), v.literal("sample"), v.literal("support"));
+export const vSubmitKind = v.union(
+  v.literal("design_review"),
+  v.literal("quote"),
+  v.literal("sample"),
+  v.literal("support"),
+);
 
 export const vSubmitResult = v.object({
   caseId: v.id("atelierCases"),
@@ -401,7 +412,12 @@ export const reply = mutation({
  * complete and free of tailoring conflicts; nothing changes until the client accepts.
  */
 export const propose = mutation({
-  args: { caseId: v.id("atelierCases"), afterSpec: vSuitSpec, rationale: v.string(), commercialImpact: vCommercialImpact },
+  args: {
+    caseId: v.id("atelierCases"),
+    afterSpec: vSuitSpec,
+    rationale: v.string(),
+    commercialImpact: vCommercialImpact,
+  },
   returns: v.id("atelierProposals"),
   handler: async (ctx, { caseId, afterSpec, rationale, commercialImpact }) => {
     const staff = await requireStaff(ctx, "concierge");

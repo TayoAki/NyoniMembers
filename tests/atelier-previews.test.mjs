@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountActor, fakeCtx, GUEST_KEY, guestActor, isAppError, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
+import {
+  accountActor,
+  fakeCtx,
+  GUEST_KEY,
+  guestActor,
+  isAppError,
+  otherGuestActor,
+  strangerActor,
+} from "./atelier-fake-ctx.mjs";
 
 const photos = await import("../convex/model/atelier/photos.ts");
 const previews = await import("../convex/model/atelier/previews.ts");
@@ -112,7 +120,10 @@ test("validatePhoto names a specific retake reason for each thing the house can 
   const good = { mimeType: "image/jpeg", sizeBytes: 2_000_000, width: 1200, height: 1800 };
   assert.deepEqual(photos.validatePhoto(good), { ok: true, reasons: [] });
   assert.match(photos.validatePhoto({ ...good, mimeType: "image/gif" }).reasons[0], /not a JPEG, PNG or WebP/);
-  assert.match(photos.validatePhoto({ ...good, sizeBytes: ATELIER_LIMITS.maxPhotoBytes + 1 }).reasons[0], /larger than 12 MB/);
+  assert.match(
+    photos.validatePhoto({ ...good, sizeBytes: ATELIER_LIMITS.maxPhotoBytes + 1 }).reasons[0],
+    /larger than 12 MB/,
+  );
   assert.match(photos.validatePhoto({ ...good, sizeBytes: null }).reasons[0], /did not finish arriving/);
   assert.match(photos.validatePhoto({ ...good, width: 500, height: 900 }).reasons[0], /too small/);
   assert.match(photos.validatePhoto({ ...good, width: 4000, height: 7000 }).reasons[0], /too large on one side/);
@@ -163,7 +174,10 @@ test("register refuses an outdated consent version and a file that is not a phot
   assert.equal(f.files.size, before, "the rejected file does not linger in storage");
   assert.equal(f.rowsOf("atelierPersonPhotos").length, 0);
 
-  await assert.rejects(addPhoto(f, guestActor, { file: { size: ATELIER_LIMITS.maxPhotoBytes + 1 } }), isAppError("INVALID_INPUT"));
+  await assert.rejects(
+    addPhoto(f, guestActor, { file: { size: ATELIER_LIMITS.maxPhotoBytes + 1 } }),
+    isAppError("INVALID_INPUT"),
+  );
   const missing = photos.registerPhoto(f.ctx, guestActor, { storageId: "_storage|missing", ...PHOTO_INPUT }, NOW);
   await assert.rejects(missing, isAppError("INVALID_INPUT"));
 });
@@ -174,7 +188,10 @@ test("the stored content type wins over the client's claim", async () => {
     addPhoto(f, guestActor, { file: { contentType: "image/gif" }, input: { mimeType: "image/jpeg" } }),
     isAppError("INVALID_INPUT"),
   );
-  const photo = await addPhoto(f, guestActor, { file: { contentType: "image/webp" }, input: { mimeType: "image/jpeg" } });
+  const photo = await addPhoto(f, guestActor, {
+    file: { contentType: "image/webp" },
+    input: { mimeType: "image/jpeg" },
+  });
   assert.equal(photo.mimeType, "image/webp");
 });
 
@@ -224,7 +241,9 @@ test("remove deletes the photo now, cancels its jobs, expires its results and cl
   const done = await start(f, draft._id);
   assert.equal(await previews.beginJob(f.ctx, done.jobId, NOW), true);
   const resultId = f.addFile({ contentType: "image/png" });
-  assert.deepEqual(await previews.completeJob(f.ctx, { jobId: done.jobId, resultStorageId: resultId }, NOW + MINUTE), { stored: true });
+  assert.deepEqual(await previews.completeJob(f.ctx, { jobId: done.jobId, resultStorageId: resultId }, NOW + MINUTE), {
+    stored: true,
+  });
 
   const other = await makeDraft(f, guestActor, withLapel({ ...DEFAULT_SPEC, clothCode: CLOTH.code }, "peak"));
   const running = await start(f, other._id);
@@ -265,7 +284,9 @@ test("scenario 4: a result that arrives after the photo was removed is deleted u
 
   await photos.removePhoto(f.ctx, guestActor, photo._id, NOW + MINUTE);
   const late = f.addFile({ contentType: "image/png" });
-  assert.deepEqual(await previews.completeJob(f.ctx, { jobId, resultStorageId: late }, NOW + 2 * MINUTE), { stored: false });
+  assert.deepEqual(await previews.completeJob(f.ctx, { jobId, resultStorageId: late }, NOW + 2 * MINUTE), {
+    stored: false,
+  });
   assert.equal(f.files.has(late), false, "the late result is deleted");
   const job = await f.ctx.db.get(jobId);
   assert.equal(job.status, "cancelled");
@@ -395,13 +416,20 @@ test("start is idempotent on design hash + photo: a live or finished job is retu
   assert.equal(f.rowsOf("atelierRevisions").length, 1, "the same design is frozen once");
 
   await previews.beginJob(f.ctx, first.jobId, NOW);
-  await previews.completeJob(f.ctx, { jobId: first.jobId, resultStorageId: f.addFile({ contentType: "image/png" }) }, NOW + MINUTE);
+  await previews.completeJob(
+    f.ctx,
+    { jobId: first.jobId, resultStorageId: f.addFile({ contentType: "image/png" }) },
+    NOW + MINUTE,
+  );
   assert.deepEqual(await start(f, draft._id, guestActor, NOW + 2 * MINUTE), { jobId: first.jobId, reused: true });
 
   await f.ctx.db.patch(first.jobId, { status: "failed", error: "Could not finish in time." });
   const afterFailure = await start(f, draft._id, guestActor, NOW + 3 * MINUTE);
   assert.equal(afterFailure.reused, false, "a failed job is not reused");
-  assert.equal((await f.ctx.db.get(afterFailure.jobId)).idempotencyKey, (await f.ctx.db.get(first.jobId)).idempotencyKey);
+  assert.equal(
+    (await f.ctx.db.get(afterFailure.jobId)).idempotencyKey,
+    (await f.ctx.db.get(first.jobId)).idempotencyKey,
+  );
 });
 
 test("a rejected or expired result is not reused", async () => {
@@ -432,10 +460,16 @@ test("scenario 3: preview B, edit to C, B arrives — B never claims to be C", a
   assert.equal((await f.ctx.db.get(draft._id)).currentPreviewJobId, c.jobId);
 
   const resultB = f.addFile({ contentType: "image/png" });
-  assert.deepEqual(await previews.completeJob(f.ctx, { jobId: b.jobId, resultStorageId: resultB }, NOW + 2 * MINUTE), { stored: true });
+  assert.deepEqual(await previews.completeJob(f.ctx, { jobId: b.jobId, resultStorageId: resultB }, NOW + 2 * MINUTE), {
+    stored: true,
+  });
 
   const list = await previews.listForDraft(f.ctx, await f.ctx.db.get(draft._id));
-  assert.deepEqual(list.map((view) => view.jobId), [c.jobId, b.jobId], "newest first");
+  assert.deepEqual(
+    list.map((view) => view.jobId),
+    [c.jobId, b.jobId],
+    "newest first",
+  );
   const viewB = list.find((view) => view.jobId === b.jobId);
   const viewC = list.find((view) => view.jobId === c.jobId);
   assert.equal(viewB.isCurrent, false, "B shows a previous design");
@@ -462,7 +496,11 @@ test("the daily budget counts the owner's starts today, not reused jobs or yeste
     const result = await start(f, draft._id, guestActor, NOW + i);
     assert.equal(result.reused, false);
   }
-  assert.deepEqual(await start(f, ids[0], guestActor, NOW + limit), { jobId: (await f.ctx.db.get(ids[0])).currentPreviewJobId, reused: true }, "a reused job costs nothing");
+  assert.deepEqual(
+    await start(f, ids[0], guestActor, NOW + limit),
+    { jobId: (await f.ctx.db.get(ids[0])).currentPreviewJobId, reused: true },
+    "a reused job costs nothing",
+  );
 
   const oneMore = await makeDraft(f);
   await assert.rejects(start(f, oneMore._id, guestActor, NOW + limit + 1), (error) => {
@@ -495,12 +533,18 @@ test("cancel before completion: the late result is discarded and the job stays c
   assert.equal(cancelled.cancelledAt, NOW + MINUTE);
 
   const late = f.addFile({ contentType: "image/png" });
-  assert.deepEqual(await previews.completeJob(f.ctx, { jobId, resultStorageId: late }, NOW + 2 * MINUTE), { stored: false });
+  assert.deepEqual(await previews.completeJob(f.ctx, { jobId, resultStorageId: late }, NOW + 2 * MINUTE), {
+    stored: false,
+  });
   assert.equal(f.files.has(late), false);
   const after = await f.ctx.db.get(jobId);
   assert.equal(after.status, "cancelled");
   assert.equal(after.resultStorageId, undefined);
-  assert.equal(await previews.failJob(f.ctx, jobId, "provider said no", NOW + 3 * MINUTE), false, "a cancelled job does not become failed");
+  assert.equal(
+    await previews.failJob(f.ctx, jobId, "provider said no", NOW + 3 * MINUTE),
+    false,
+    "a cancelled job does not become failed",
+  );
   assert.equal((await f.ctx.db.get(jobId)).status, "cancelled");
 
   await previews.cancelPreview(f.ctx, guestActor, jobId, NOW + 4 * MINUTE);
@@ -575,7 +619,11 @@ test("failure keeps a short human reason and is retried as a new attempt on the 
   assert.equal((await f.ctx.db.get(draft._id)).currentPreviewJobId, next._id);
   assert.ok(f.scheduled.some((entry) => entry.args?.jobId === next._id));
 
-  assert.deepEqual(await previews.retryPreview(f.ctx, guestActor, jobId, NOW + 3 * MINUTE), { jobId: next._id, reused: true }, "a live attempt is returned instead of a third");
+  assert.deepEqual(
+    await previews.retryPreview(f.ctx, guestActor, jobId, NOW + 3 * MINUTE),
+    { jobId: next._id, reused: true },
+    "a live attempt is returned instead of a third",
+  );
   await assert.rejects(previews.retryPreview(f.ctx, guestActor, next._id, NOW), isAppError("INVALID_STATE"));
   await assert.rejects(previews.retryPreview(f.ctx, otherGuestActor, jobId, NOW), isAppError("NOT_FOUND"));
 });
@@ -603,8 +651,22 @@ test("expireJobs fails jobs stuck past the timeout and expires results past thei
   await addPhoto(f);
   const stuck = await start(f, draft._id);
   await previews.beginJob(f.ctx, stuck.jobId, NOW);
-  const neverStarted = await start(f, (await makeDraft(f, guestActor, withLapel({ ...DEFAULT_SPEC, clothCode: CLOTH.code }, "peak")))._id);
-  const fresh = await start(f, (await makeDraft(f, guestActor, { ...DEFAULT_SPEC, clothCode: CLOTH.code, jacket: { ...DEFAULT_SPEC.jacket, vents: "none" } }))._id, guestActor, NOW + 9 * MINUTE);
+  const neverStarted = await start(
+    f,
+    (await makeDraft(f, guestActor, withLapel({ ...DEFAULT_SPEC, clothCode: CLOTH.code }, "peak")))._id,
+  );
+  const fresh = await start(
+    f,
+    (
+      await makeDraft(f, guestActor, {
+        ...DEFAULT_SPEC,
+        clothCode: CLOTH.code,
+        jacket: { ...DEFAULT_SPEC.jacket, vents: "none" },
+      })
+    )._id,
+    guestActor,
+    NOW + 9 * MINUTE,
+  );
 
   const timeout = ATELIER_LIMITS.previewTimeoutMinutes * MINUTE;
   const first = await previews.expireJobs(f.ctx, NOW + timeout + MINUTE);
@@ -633,14 +695,21 @@ test("generationContext serves the action the frozen spec, the cloth's shade and
   const draft = await makeDraft(f);
   const photo = await addPhoto(f);
   const { jobId } = await start(f, draft._id);
-  await assert.rejects(previews.generationContext(f.ctx, jobId), isAppError("INVALID_STATE"), "only a processing job is served");
+  await assert.rejects(
+    previews.generationContext(f.ctx, jobId),
+    isAppError("INVALID_STATE"),
+    "only a processing job is served",
+  );
   await previews.beginJob(f.ctx, jobId, NOW);
   const context = await previews.generationContext(f.ctx, jobId);
   assert.equal(context.photoStorageId, photo.storageId);
   assert.deepEqual(context.spec, draft.spec);
   assert.equal(context.cloth.hex, CLOTH.hex);
   assert.equal(context.cloth.pattern, CLOTH.pattern);
-  assert.deepEqual(context.lines.map((line) => line.label), describeSpec(draft.spec).map((line) => line.label));
+  assert.deepEqual(
+    context.lines.map((line) => line.label),
+    describeSpec(draft.spec).map((line) => line.label),
+  );
 
   const prompt = previews.previewPrompt(context);
   assert.match(prompt, new RegExp(CLOTH.hex.toUpperCase()));

@@ -2,7 +2,12 @@ import { internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { audit, ownerFieldsFor, requireOwned, type Actor, type Owned } from "../../atelier/access";
-import type { GenerationContext, PreviewJobView, StaffPreviewJobView, StartPreviewResult } from "../../atelier/previews";
+import type {
+  GenerationContext,
+  PreviewJobView,
+  StaffPreviewJobView,
+  StartPreviewResult,
+} from "../../atelier/previews";
 import { optionalEnv } from "../../lib/env";
 import { appError } from "../../lib/errors";
 import {
@@ -119,7 +124,11 @@ export type StartPreviewInput = {
  * Freezes the design (`reason: "preview"`), reuses a live or finished job for the same design and
  * photograph, otherwise checks the day's budget, queues one job and schedules the generation.
  */
-export async function startPreview(ctx: MutationCtx, input: StartPreviewInput, now: number = Date.now()): Promise<StartPreviewResult> {
+export async function startPreview(
+  ctx: MutationCtx,
+  input: StartPreviewInput,
+  now: number = Date.now(),
+): Promise<StartPreviewResult> {
   const { draft, actor } = input;
   assertPreviewsAvailable();
   if (!draft.spec.clothCode) {
@@ -127,7 +136,10 @@ export async function startPreview(ctx: MutationCtx, input: StartPreviewInput, n
   }
   const cloth = await getEntry(ctx, "cloth", draft.spec.clothCode);
   if (!cloth) {
-    throw appError("INVALID_INPUT", "That cloth is no longer in the catalogue. Choose another before asking for a preview.");
+    throw appError(
+      "INVALID_INPUT",
+      "That cloth is no longer in the catalogue. Choose another before asking for a preview.",
+    );
   }
   const photo = input.photo;
   if (!photo || photo.status !== "active") throw appError("INVALID_STATE", "Add a photo first.");
@@ -160,13 +172,17 @@ export async function startPreview(ctx: MutationCtx, input: StartPreviewInput, n
     ...(draft.personPhotoId === photo._id ? {} : { personPhotoId: photo._id }),
   });
   await ctx.scheduler.runAfter(0, internal.atelier.generation.generatePersonalPreview, { jobId });
-  await audit(ctx, {
-    actor,
-    action: "preview.start",
-    targetTable: "atelierPreviewJobs",
-    targetId: jobId,
-    meta: { draftId: draft._id, revision: revision.revision, attempt: 1 },
-  }, now);
+  await audit(
+    ctx,
+    {
+      actor,
+      action: "preview.start",
+      targetTable: "atelierPreviewJobs",
+      targetId: jobId,
+      meta: { draftId: draft._id, revision: revision.revision, attempt: 1 },
+    },
+    now,
+  );
   return { jobId, reused: false };
 }
 
@@ -219,12 +235,15 @@ export async function retryPreview(
   const draft = await ctx.db.get(job.draftId);
   if (!draft) throw appError("NOT_FOUND", "That design doesn't exist.");
 
-  const live = (await jobsForKey(ctx, job.idempotencyKey)).find((other) => other.status === "queued" || other.status === "processing");
+  const live = (await jobsForKey(ctx, job.idempotencyKey)).find(
+    (other) => other.status === "queued" || other.status === "processing",
+  );
   if (live) return { jobId: live._id, reused: true };
 
   const owner = jobOwner(job, actor);
   await assertDailyBudget(ctx, owner, now);
-  const attempt = Math.max(job.attempt, ...(await jobsForKey(ctx, job.idempotencyKey)).map((other) => other.attempt)) + 1;
+  const attempt =
+    Math.max(job.attempt, ...(await jobsForKey(ctx, job.idempotencyKey)).map((other) => other.attempt)) + 1;
   const nextId = await ctx.db.insert("atelierPreviewJobs", {
     ...owner,
     draftId: job.draftId,
@@ -240,13 +259,17 @@ export async function retryPreview(
   });
   if (specHash(draft.spec) === job.specHash) await ctx.db.patch(draft._id, { currentPreviewJobId: nextId });
   await ctx.scheduler.runAfter(0, internal.atelier.generation.generatePersonalPreview, { jobId: nextId });
-  await audit(ctx, {
-    actor,
-    action: "preview.retry",
-    targetTable: "atelierPreviewJobs",
-    targetId: nextId,
-    meta: { previousJobId: job._id, attempt },
-  }, now);
+  await audit(
+    ctx,
+    {
+      actor,
+      action: "preview.retry",
+      targetTable: "atelierPreviewJobs",
+      targetId: nextId,
+      meta: { previousJobId: job._id, attempt },
+    },
+    now,
+  );
   return { jobId: nextId, reused: false };
 }
 
@@ -294,7 +317,11 @@ export async function getJobView(ctx: Ctx, actor: Actor, jobId: Id<"atelierPrevi
 /* ---------------------------------------------------------------- generation lifecycle (internal) */
 
 /** queued → processing. False when the job was cancelled or its photograph is gone, so the action stops. */
-export async function beginJob(ctx: MutationCtx, jobId: Id<"atelierPreviewJobs">, now: number = Date.now()): Promise<boolean> {
+export async function beginJob(
+  ctx: MutationCtx,
+  jobId: Id<"atelierPreviewJobs">,
+  now: number = Date.now(),
+): Promise<boolean> {
   const job = await ctx.db.get(jobId);
   if (!job || job.status !== "queued") return false;
   const photo = await ctx.db.get(job.personPhotoId);
@@ -350,7 +377,11 @@ export type CompleteJobInput = {
  * processing → done, quality accepted, with an expiry. A result for a job that was cancelled, expired
  * or whose photograph is gone is deleted unseen (scenario 4): a late callback never becomes current.
  */
-export async function completeJob(ctx: MutationCtx, input: CompleteJobInput, now: number = Date.now()): Promise<{ stored: boolean }> {
+export async function completeJob(
+  ctx: MutationCtx,
+  input: CompleteJobInput,
+  now: number = Date.now(),
+): Promise<{ stored: boolean }> {
   const job = await ctx.db.get(input.jobId);
   if (!job || job.status !== "processing" || job.cancelledAt !== undefined) {
     await deleteFile(ctx, input.resultStorageId);
@@ -378,7 +409,12 @@ export async function completeJob(ctx: MutationCtx, input: CompleteJobInput, now
 }
 
 /** queued/processing → failed with a short human reason. A cancelled job keeps its cancellation. */
-export async function failJob(ctx: MutationCtx, jobId: Id<"atelierPreviewJobs">, error: string, now: number = Date.now()): Promise<boolean> {
+export async function failJob(
+  ctx: MutationCtx,
+  jobId: Id<"atelierPreviewJobs">,
+  error: string,
+  now: number = Date.now(),
+): Promise<boolean> {
   const job = await ctx.db.get(jobId);
   if (!job || (job.status !== "queued" && job.status !== "processing")) return false;
   await ctx.db.patch(job._id, { status: "failed", error: error.slice(0, MAX_ERROR_CHARS), completedAt: now });
@@ -389,7 +425,10 @@ export const TIMED_OUT_MESSAGE = "Could not finish in time. You can try again.";
 export const NEVER_STARTED_MESSAGE = "The preview did not start. You can try again.";
 
 /** Cron: jobs stuck longer than the timeout fail retry-ably; finished results past their date expire. */
-export async function expireJobs(ctx: MutationCtx, now: number = Date.now()): Promise<{ timedOut: number; expired: number }> {
+export async function expireJobs(
+  ctx: MutationCtx,
+  now: number = Date.now(),
+): Promise<{ timedOut: number; expired: number }> {
   const cutoff = now - ATELIER_LIMITS.previewTimeoutMinutes * 60_000;
   let timedOut = 0;
   for (const status of ["processing", "queued"] as const) {
@@ -450,7 +489,11 @@ export async function toStaffJobView(ctx: Ctx, job: Job): Promise<StaffPreviewJo
   };
 }
 
-export async function listStaffJobs(ctx: Ctx, status: PreviewStatus | undefined, limit: number = STAFF_LIST_MAX): Promise<StaffPreviewJobView[]> {
+export async function listStaffJobs(
+  ctx: Ctx,
+  status: PreviewStatus | undefined,
+  limit: number = STAFF_LIST_MAX,
+): Promise<StaffPreviewJobView[]> {
   const bounded = Math.max(1, Math.min(limit, STAFF_LIST_MAX));
   const jobs = status
     ? await ctx.db
@@ -475,13 +518,17 @@ export async function flagQuality(
   if (!job) throw appError("NOT_FOUND", "That preview no longer exists.");
   if (job.status !== "done") throw appError("INVALID_STATE", "Only a finished preview can be flagged.");
   await ctx.db.patch(job._id, { quality, qualityNote: note.trim().slice(0, MAX_ERROR_CHARS) || undefined });
-  await audit(ctx, {
-    actor: staff,
-    action: "preview.quality",
-    targetTable: "atelierPreviewJobs",
-    targetId: job._id,
-    meta: { quality, note: note.trim().slice(0, MAX_ERROR_CHARS) },
-  }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      action: "preview.quality",
+      targetTable: "atelierPreviewJobs",
+      targetId: job._id,
+      meta: { quality, note: note.trim().slice(0, MAX_ERROR_CHARS) },
+    },
+    now,
+  );
 }
 
 /** A staff read of a client's result is a read of their likeness: always audited as "photo.view" (O06). */
@@ -493,15 +540,20 @@ export async function viewResult(
 ): Promise<{ url: string | null }> {
   const job = await ctx.db.get(jobId);
   if (!job) throw appError("NOT_FOUND", "That preview no longer exists.");
-  if (job.status !== "done" || !job.resultStorageId) throw appError("INVALID_STATE", "This preview has no result to view.");
+  if (job.status !== "done" || !job.resultStorageId)
+    throw appError("INVALID_STATE", "This preview has no result to view.");
   const url = await ctx.storage.getUrl(job.resultStorageId);
-  await audit(ctx, {
-    actor: staff,
-    action: "photo.view",
-    targetTable: "atelierPreviewJobs",
-    targetId: job._id,
-    meta: { kind: "preview_result" },
-  }, now);
+  await audit(
+    ctx,
+    {
+      actor: staff,
+      action: "photo.view",
+      targetTable: "atelierPreviewJobs",
+      targetId: job._id,
+      meta: { kind: "preview_result" },
+    },
+    now,
+  );
   return { url };
 }
 
@@ -511,7 +563,14 @@ const VISIBLE_SECTIONS: ReadonlySet<DescribedLine["section"]> = new Set(["Jacket
 /** Interior and construction choices the camera cannot see are left out so the model does not invent them. */
 const HIDDEN_LABELS: ReadonlySet<string> = new Set(["Working cuffs", "Construction", "Lining", "Monogram"]);
 
-export type PromptCloth = { name: string; mill: string | null; colour: string; hex: string; pattern: string; composition: string | null };
+export type PromptCloth = {
+  name: string;
+  mill: string | null;
+  colour: string;
+  hex: string;
+  pattern: string;
+  composition: string | null;
+};
 
 export type PromptInput = { spec: GenerationContext["spec"]; lines: DescribedLine[]; cloth: PromptCloth | null };
 
@@ -547,7 +606,9 @@ export function previewPrompt(input: PromptInput): string {
     "The cut, exactly as the house will make it:",
     ...details,
     tuxedo ? "- Black-tie finish: satin facings on the lapels and a satin stripe down the trouser outseam" : null,
-    threePiece ? "- The jacket is worn buttoned with the waistcoat showing in the V; the waistcoat covers the waistband" : "- The jacket is worn buttoned at the waist button",
+    threePiece
+      ? "- The jacket is worn buttoned with the waistcoat showing in the V; the waistcoat covers the waistband"
+      : "- The jacket is worn buttoned at the waist button",
     "",
     `Underneath, ${underneath}. Sleeves show a sliver of shirt cuff; trousers break once at the shoe; the drape matches the cloth's weight.`,
     "Do not add logos, text, hats, bags or props. Do not slim, lengthen or otherwise alter the body. Keep the result photographic, as if the same photograph had been taken in this suit.",

@@ -33,7 +33,10 @@ export function AtelierShell({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <AtelierTopbar />
-        <main id="atelier-main" className="@container mx-auto w-full max-w-[1520px] flex-1 px-4 pb-24 sm:px-8 lg:px-12 lg:pb-12">
+        <main
+          id="atelier-main"
+          className="@container mx-auto w-full max-w-[1520px] flex-1 px-4 pb-24 sm:px-8 lg:px-12 lg:pb-12"
+        >
           {children}
         </main>
       </div>

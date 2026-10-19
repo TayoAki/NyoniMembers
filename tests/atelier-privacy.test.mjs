@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getFunctionName } from "convex/server";
-import { fakeCtx, GUEST_KEY, guestActor, isAppError, OTHER_GUEST_KEY, otherGuestActor, strangerActor } from "./atelier-fake-ctx.mjs";
+import {
+  fakeCtx,
+  GUEST_KEY,
+  guestActor,
+  isAppError,
+  OTHER_GUEST_KEY,
+  otherGuestActor,
+  strangerActor,
+} from "./atelier-fake-ctx.mjs";
 
 const privacy = await import("../convex/model/atelier/privacy.ts");
 const { DEFAULT_SPEC, specHash } = await import("../convex/shared/atelier/spec.ts");
@@ -36,7 +44,9 @@ function harness() {
       deletedFiles.push(id);
     },
   };
-  f.ctx.scheduler = { runAfter: async (delay, ref, args) => scheduled.push({ delay, name: getFunctionName(ref), args }) };
+  f.ctx.scheduler = {
+    runAfter: async (delay, ref, args) => scheduled.push({ delay, name: getFunctionName(ref), args }),
+  };
   let fileSeq = 0;
   const addFile = (id = `_storage|f${(fileSeq += 1)}`) => {
     files.set(id, { _id: id, _creationTime: 1, size: 1000, contentType: "image/jpeg", token: id.replace(/\W/g, "") });
@@ -87,9 +97,27 @@ async function seedOwner(h, owner, actor, { label = "a" } = {}) {
     validation: { ok: true, reasons: [] },
     createdAt: NOW - 5 * DAY,
   });
-  const freeDraft = await f.ctx.db.insert("atelierDrafts", draftRow(`Free design ${label}`, { personPhotoId: photoId }));
-  const revisionId = await f.ctx.db.insert("atelierRevisions", { draftId: freeDraft, revision: 1, spec, specHash: specHash(spec), catalogueVersion: 1, reason: "preview", createdAt: NOW - 5 * DAY });
-  const shareId = await f.ctx.db.insert("atelierShares", { draftId: freeDraft, token: `tok-${label}`, ...owner, audience: "Family", expiresAt: NOW + 7 * DAY, createdAt: NOW - 4 * DAY });
+  const freeDraft = await f.ctx.db.insert(
+    "atelierDrafts",
+    draftRow(`Free design ${label}`, { personPhotoId: photoId }),
+  );
+  const revisionId = await f.ctx.db.insert("atelierRevisions", {
+    draftId: freeDraft,
+    revision: 1,
+    spec,
+    specHash: specHash(spec),
+    catalogueVersion: 1,
+    reason: "preview",
+    createdAt: NOW - 5 * DAY,
+  });
+  const shareId = await f.ctx.db.insert("atelierShares", {
+    draftId: freeDraft,
+    token: `tok-${label}`,
+    ...owner,
+    audience: "Family",
+    expiresAt: NOW + 7 * DAY,
+    createdAt: NOW - 4 * DAY,
+  });
   const resultFile = h.addFile(`_storage|result-${label}`);
   const jobRow = (extra) => ({
     ...owner,
@@ -103,10 +131,24 @@ async function seedOwner(h, owner, actor, { label = "a" } = {}) {
     createdAt: NOW - 4 * DAY,
     ...extra,
   });
-  const doneJob = await f.ctx.db.insert("atelierPreviewJobs", jobRow({ idempotencyKey: `done-${label}`, status: "done", resultStorageId: resultFile, completedAt: NOW - 4 * DAY }));
-  const queuedJob = await f.ctx.db.insert("atelierPreviewJobs", jobRow({ idempotencyKey: `queued-${label}`, status: "queued" }));
+  const doneJob = await f.ctx.db.insert(
+    "atelierPreviewJobs",
+    jobRow({
+      idempotencyKey: `done-${label}`,
+      status: "done",
+      resultStorageId: resultFile,
+      completedAt: NOW - 4 * DAY,
+    }),
+  );
+  const queuedJob = await f.ctx.db.insert(
+    "atelierPreviewJobs",
+    jobRow({ idempotencyKey: `queued-${label}`, status: "queued" }),
+  );
 
-  const orderedDraft = await f.ctx.db.insert("atelierDrafts", draftRow(`Commissioned design ${label}`, { status: "submitted" }));
+  const orderedDraft = await f.ctx.db.insert(
+    "atelierDrafts",
+    draftRow(`Commissioned design ${label}`, { status: "submitted" }),
+  );
   const orderCase = await f.ctx.db.insert("atelierCases", {
     kind: "quote",
     ...owner,
@@ -133,9 +175,19 @@ async function seedOwner(h, owner, actor, { label = "a" } = {}) {
     createdAt: NOW - 20 * DAY,
     updatedAt: NOW - 18 * DAY,
   });
-  await f.ctx.db.insert("atelierOrderMilestones", { orderId, kind: "released", label: "Released", at: NOW - 18 * DAY, source: "staff", estimated: false });
+  await f.ctx.db.insert("atelierOrderMilestones", {
+    orderId,
+    kind: "released",
+    label: "Released",
+    at: NOW - 18 * DAY,
+    source: "staff",
+    estimated: false,
+  });
 
-  const requestedDraft = await f.ctx.db.insert("atelierDrafts", draftRow(`Requested design ${label}`, { status: "submitted" }));
+  const requestedDraft = await f.ctx.db.insert(
+    "atelierDrafts",
+    draftRow(`Requested design ${label}`, { status: "submitted" }),
+  );
   const openCase = await f.ctx.db.insert("atelierCases", {
     kind: "design_review",
     ...owner,
@@ -148,12 +200,29 @@ async function seedOwner(h, owner, actor, { label = "a" } = {}) {
     createdAt: NOW - 2 * DAY,
   });
   void actor;
-  return { photoId, photoFile, freeDraft, revisionId, shareId, doneJob, queuedJob, resultFile, orderedDraft, orderCase, orderId, requestedDraft, openCase };
+  return {
+    photoId,
+    photoFile,
+    freeDraft,
+    revisionId,
+    shareId,
+    doneJob,
+    queuedJob,
+    resultFile,
+    orderedDraft,
+    orderCase,
+    orderId,
+    requestedDraft,
+    openCase,
+  };
 }
 
 async function setup() {
   const h = harness();
-  const insertUser = async (doc) => h.f.ctx.db.get(await h.f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }));
+  const insertUser = async (doc) =>
+    h.f.ctx.db.get(
+      await h.f.ctx.db.insert("users", { clerkId: `clerk_${doc.name}`, role: "user", createdAt: 1, ...doc }),
+    );
   const client = await insertUser({ name: "Nia Okafor", email: "nia@example.test" });
   const privacyStaff = await insertUser({ name: "Zuri Adeyemi", staffRoles: ["privacy"] });
   const actor = { user: client, guestKey: null };
@@ -190,7 +259,11 @@ async function drain(h, now = NOW) {
 
 const request = (s, kind, actor = s.actor, at = NOW) => privacy.requestPrivacy(s.h.f.ctx, actor, kind, at);
 const row = (s, id) => s.h.f.ctx.db.get(id);
-const caseMessages = (s, caseDoc) => s.h.f.rowsOf("atelierCaseMessages").filter((m) => m.caseId === caseDoc._id).map((m) => m.body);
+const caseMessages = (s, caseDoc) =>
+  s.h.f
+    .rowsOf("atelierCaseMessages")
+    .filter((m) => m.caseId === caseDoc._id)
+    .map((m) => m.body);
 
 // ------------------------------------------------------------------------------------------------
 // The plan
@@ -199,9 +272,19 @@ const caseMessages = (s, caseDoc) => s.h.f.rowsOf("atelierCaseMessages").filter(
 test("each kind plans the contract's steps, pending, in order; closing an account plans all of them plus revoking access", () => {
   const keys = (kind) => privacy.planSteps(kind).map((step) => step.key);
   assert.deepEqual(keys("export"), ["collect_designs", "collect_cases_orders", "write_export"]);
-  assert.deepEqual(keys("delete_photos"), ["revoke_preview_links", "cancel_preview_jobs", "delete_photos", "notify_provider"]);
+  assert.deepEqual(keys("delete_photos"), [
+    "revoke_preview_links",
+    "cancel_preview_jobs",
+    "delete_photos",
+    "notify_provider",
+  ]);
   assert.deepEqual(keys("delete_designs"), ["revoke_shares", "archive_drafts", "delete_unreferenced_drafts"]);
-  assert.deepEqual(keys("close_account"), [...keys("export"), ...keys("delete_photos"), ...keys("delete_designs"), "revoke_access"]);
+  assert.deepEqual(keys("close_account"), [
+    ...keys("export"),
+    ...keys("delete_photos"),
+    ...keys("delete_designs"),
+    "revoke_access",
+  ]);
   for (const kind of PRIVACY_KINDS) {
     for (const step of privacy.planSteps(kind)) {
       assert.equal(step.status, "pending");
@@ -211,16 +294,37 @@ test("each kind plans the contract's steps, pending, in order; closing an accoun
 });
 
 test("the status is read from the steps: nothing is called deleted, revoked or completed before its step is", () => {
-  const steps = (states) => privacy.planSteps("close_account").map((step) => ({ ...step, status: states[step.key] ?? "pending" }));
+  const steps = (states) =>
+    privacy.planSteps("close_account").map((step) => ({ ...step, status: states[step.key] ?? "pending" }));
   assert.equal(privacy.deriveStatus(steps({}), "requested"), "requested");
-  assert.equal(privacy.deriveStatus(steps({ collect_designs: "done", write_export: "done" }), "requested"), "requested");
+  assert.equal(
+    privacy.deriveStatus(steps({ collect_designs: "done", write_export: "done" }), "requested"),
+    "requested",
+  );
   assert.equal(privacy.deriveStatus(steps({ revoke_preview_links: "done" }), "requested"), "access_revoked");
-  assert.equal(privacy.deriveStatus(steps({ revoke_preview_links: "done", delete_photos: "done" }), "access_revoked"), "primary_deleted");
-  assert.equal(privacy.deriveStatus(steps({ revoke_preview_links: "done", delete_photos: "failed" }), "access_revoked"), "access_revoked", "a failed step holds the status");
+  assert.equal(
+    privacy.deriveStatus(steps({ revoke_preview_links: "done", delete_photos: "done" }), "access_revoked"),
+    "primary_deleted",
+  );
+  assert.equal(
+    privacy.deriveStatus(steps({ revoke_preview_links: "done", delete_photos: "failed" }), "access_revoked"),
+    "access_revoked",
+    "a failed step holds the status",
+  );
   const allBut = Object.fromEntries(privacy.planSteps("close_account").map((step) => [step.key, "done"]));
-  assert.equal(privacy.deriveStatus(steps({ ...allBut, notify_provider: "pending" }), "primary_deleted"), "downstream_pending");
-  assert.equal(privacy.deriveStatus(steps({ ...allBut, notify_provider: "failed" }), "primary_deleted"), "downstream_pending", "still waiting on the provider");
-  assert.equal(privacy.deriveStatus(steps({ ...allBut, notify_provider: "exception" }), "downstream_pending"), "completed");
+  assert.equal(
+    privacy.deriveStatus(steps({ ...allBut, notify_provider: "pending" }), "primary_deleted"),
+    "downstream_pending",
+  );
+  assert.equal(
+    privacy.deriveStatus(steps({ ...allBut, notify_provider: "failed" }), "primary_deleted"),
+    "downstream_pending",
+    "still waiting on the provider",
+  );
+  assert.equal(
+    privacy.deriveStatus(steps({ ...allBut, notify_provider: "exception" }), "downstream_pending"),
+    "completed",
+  );
   assert.equal(privacy.deriveStatus(steps(allBut), "rejected"), "rejected", "a rejection stands");
 });
 
@@ -235,16 +339,28 @@ test("a request records its plan, discloses what the house keeps, opens a privac
   const r = await row(s, requestId);
   assert.equal(r.status, "requested");
   assert.equal(r.userId, s.client._id);
-  assert.deepEqual(r.steps.map((step) => step.status), ["pending", "pending", "pending"]);
-  assert.ok(r.exceptions.some((line) => /keeps its specification and fit profile/.test(line)), r.exceptions.join(" | "));
-  assert.ok(r.exceptions.some((line) => /stay with that request's record/.test(line)), r.exceptions.join(" | "));
+  assert.deepEqual(
+    r.steps.map((step) => step.status),
+    ["pending", "pending", "pending"],
+  );
+  assert.ok(
+    r.exceptions.some((line) => /keeps its specification and fit profile/.test(line)),
+    r.exceptions.join(" | "),
+  );
+  assert.ok(
+    r.exceptions.some((line) => /stay with that request's record/.test(line)),
+    r.exceptions.join(" | "),
+  );
   assert.ok(!r.exceptions.includes(privacy.RECORDS_EXCEPTION), "the records line belongs to account closure");
   const caseDoc = await privacy.caseFor(s.h.f.ctx, r);
   assert.equal(caseDoc.kind, "privacy");
   assert.equal(caseDoc.contact.email, "nia@example.test");
   assert.equal(caseDoc.contact.name, "Nia");
   assert.ok(caseMessages(s, caseDoc)[0].includes("nothing is called deleted before it is"));
-  assert.deepEqual(s.h.scheduled.map((job) => [job.name, job.args.requestId]), [["atelier/privacy:advance", requestId]]);
+  assert.deepEqual(
+    s.h.scheduled.map((job) => [job.name, job.args.requestId]),
+    [["atelier/privacy:advance", requestId]],
+  );
   assert.equal(s.h.f.rowsOf("atelierAuditLog").filter((a) => a.action === "privacy.request").length, 1);
   const view = await privacy.toRequestView(s.h.f.ctx, r);
   assert.equal(view.statusLabel, PRIVACY_STATUS_LABELS.requested);
@@ -277,9 +393,15 @@ test("one open request per kind per owner; a guest has no account to close; a st
   assert.equal(s.h.f.rowsOf("atelierPrivacyRequests").length, 2);
   await assert.rejects(request(s, "close_account", guestActor), isAppError("INVALID_INPUT"));
   await assert.rejects(privacy.requireOwnedRequest(s.h.f.ctx, first.requestId, strangerActor), isAppError("NOT_FOUND"));
-  await assert.rejects(privacy.requireOwnedRequest(s.h.f.ctx, first.requestId, otherGuestActor), isAppError("NOT_FOUND"));
+  await assert.rejects(
+    privacy.requireOwnedRequest(s.h.f.ctx, first.requestId, otherGuestActor),
+    isAppError("NOT_FOUND"),
+  );
   assert.ok(await privacy.requireOwnedRequest(s.h.f.ctx, first.requestId, s.actor));
-  assert.deepEqual((await privacy.listMine(s.h.f.ctx, s.actor)).map((r) => r._id).sort(), [first.requestId, other.requestId].sort());
+  assert.deepEqual(
+    (await privacy.listMine(s.h.f.ctx, s.actor)).map((r) => r._id).sort(),
+    [first.requestId, other.requestId].sort(),
+  );
   assert.deepEqual(await privacy.listMine(s.h.f.ctx, otherGuestActor), []);
 });
 
@@ -298,7 +420,10 @@ test("removing photographs revokes result links, cancels the queue, deletes the 
     ["notify_provider", "completed"],
   ]);
   const r = await row(s, requestId);
-  assert.deepEqual(r.steps.map((step) => step.status), ["done", "done", "done", "exception"]);
+  assert.deepEqual(
+    r.steps.map((step) => step.status),
+    ["done", "done", "done", "exception"],
+  );
   assert.ok(r.exceptions.includes(privacy.PROVIDER_RETENTION_EXCEPTION));
   assert.equal(r.completedAt, NOW + 4);
   assert.equal(privacy.statusLabelFor(r), "Completed with exceptions");
@@ -310,7 +435,11 @@ test("removing photographs revokes result links, cancels the queue, deletes the 
   assert.equal((await row(s, s.mine.doneJob)).status, "expired");
   assert.equal((await row(s, s.mine.doneJob)).resultStorageId, undefined);
   assert.equal((await row(s, s.mine.queuedJob)).status, "cancelled");
-  assert.equal((await row(s, s.mine.freeDraft)).personPhotoId, undefined, "the draft no longer points at a deleted photograph");
+  assert.equal(
+    (await row(s, s.mine.freeDraft)).personPhotoId,
+    undefined,
+    "the draft no longer points at a deleted photograph",
+  );
   assert.equal((await row(s, s.mine.freeDraft)).status, "draft", "designs are not this request's business");
 
   assert.equal((await row(s, s.theirs.photoId)).status, "active", "another client's photograph is untouched");
@@ -324,7 +453,9 @@ test("removing photographs revokes result links, cancels the queue, deletes the 
   const caseDoc = await privacy.caseFor(s.h.f.ctx, r);
   assert.equal(caseDoc.status, "completed");
   assert.ok(caseMessages(s, caseDoc).some((m) => /^Completed with exceptions\./.test(m)));
-  const stepAudits = s.h.f.rowsOf("atelierAuditLog").filter((a) => a.action === "privacy.step" && a.targetId === requestId);
+  const stepAudits = s.h.f
+    .rowsOf("atelierAuditLog")
+    .filter((a) => a.action === "privacy.step" && a.targetId === requestId);
   assert.equal(stepAudits.length, 4);
   assert.ok(stepAudits.every((a) => a.actorKind === "system"));
 });
@@ -360,21 +491,38 @@ test("deleting designs revokes links, archives and deletes the free design with 
   assert.equal(await row(s, s.mine.doneJob), null, "and its previews");
   assert.ok(s.h.deletedFiles.includes(s.mine.resultFile));
   assert.equal((await row(s, s.mine.orderedDraft)).status, "submitted", "the commissioned design stays as it is");
-  assert.equal((await row(s, s.mine.requestedDraft)).status, "submitted", "the design under an open request stays as it is");
+  assert.equal(
+    (await row(s, s.mine.requestedDraft)).status,
+    "submitted",
+    "the design under an open request stays as it is",
+  );
   assert.equal((await row(s, s.theirs.freeDraft)).name, "Free design b", "another client's design is untouched");
   assert.equal((await row(s, s.theirs.shareId)).revokedAt, undefined);
   const r = await row(s, requestId);
   assert.equal(privacy.statusLabelFor(r), "Completed with exceptions");
-  assert.ok(r.exceptions.some((line) => /2 designs stay with a commission or a request/.test(line)), r.exceptions.join(" | "));
+  assert.ok(
+    r.exceptions.some((line) => /2 designs stay with a commission or a request/.test(line)),
+    r.exceptions.join(" | "),
+  );
   const touched = s.h.touchedSince(s.after);
-  assert.ok(!touched.has("atelierOrders") && !touched.has("atelierOrderMilestones") && !touched.has("atelierPersonPhotos"), [...touched].join(","));
+  assert.ok(
+    !touched.has("atelierOrders") && !touched.has("atelierOrderMilestones") && !touched.has("atelierPersonPhotos"),
+    [...touched].join(","),
+  );
   assert.equal((await row(s, s.mine.orderId)).status, "making");
 });
 
 test("the share-revocation step is idempotent and audited; a share already revoked keeps its time", async () => {
   const s = await setup();
   await s.h.f.ctx.db.patch(s.mine.shareId, { revokedAt: NOW - DAY });
-  await s.h.f.ctx.db.insert("atelierShares", { draftId: s.mine.freeDraft, token: "tok-2", ...s.owner, audience: "Best man", expiresAt: NOW + DAY, createdAt: NOW - DAY });
+  await s.h.f.ctx.db.insert("atelierShares", {
+    draftId: s.mine.freeDraft,
+    token: "tok-2",
+    ...s.owner,
+    audience: "Best man",
+    expiresAt: NOW + DAY,
+    createdAt: NOW - DAY,
+  });
   const { requestId } = await request(s, "delete_designs");
   const result = await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 1);
   assert.deepEqual(result, { ran: "revoke_shares", status: "access_revoked", scheduled: true });
@@ -392,24 +540,45 @@ test("an export counts the owner's records, hands the file to the action, and co
   await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 1);
   await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 2);
   let r = await row(s, requestId);
-  assert.deepEqual(r.steps.slice(0, 2).map((step) => [step.status, step.note]), [["done", "3 designs"], ["done", "3 requests · 1 commission"]], "the privacy request's own case counts");
+  assert.deepEqual(
+    r.steps.slice(0, 2).map((step) => [step.status, step.note]),
+    [
+      ["done", "3 designs"],
+      ["done", "3 requests · 1 commission"],
+    ],
+    "the privacy request's own case counts",
+  );
   s.h.scheduled.length = 0;
   const handoff = await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 3);
   assert.deepEqual(handoff, { ran: "write_export", status: "requested", scheduled: true });
-  assert.deepEqual(s.h.scheduled.map((job) => job.name), ["atelier/privacy:writeExport"]);
+  assert.deepEqual(
+    s.h.scheduled.map((job) => job.name),
+    ["atelier/privacy:writeExport"],
+  );
   r = await row(s, requestId);
   assert.equal(r.steps[2].status, "pending");
   assert.equal(r.steps[2].note, "Writing your export");
   assert.equal(r.status, "requested");
   const idle = await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 4);
-  assert.deepEqual(idle, { ran: null, status: "requested", scheduled: false }, "an export in flight is not started twice");
+  assert.deepEqual(
+    idle,
+    { ran: null, status: "requested", scheduled: false },
+    "an export in flight is not started twice",
+  );
 
   const payload = await privacy.exportPayload(s.h.f.ctx, requestId, NOW + 5);
   assert.equal(payload.format, "nyoni-atelier-export/1");
   assert.deepEqual(payload.account, { name: "Nia Okafor", email: "nia@example.test" });
-  assert.deepEqual(payload.designs.map((d) => d.name).sort(), ["Commissioned design a", "Free design a", "Requested design a"]);
+  assert.deepEqual(payload.designs.map((d) => d.name).sort(), [
+    "Commissioned design a",
+    "Free design a",
+    "Requested design a",
+  ]);
   assert.ok(payload.designs.every((d) => d.lines.length > 5 && d.spec.clothCode === "C-a"));
-  assert.deepEqual(payload.commissions.map((o) => [o.status, o.milestones.length, o.payment.stateLabel]), [["making", 1, "Payment confirmed"]]);
+  assert.deepEqual(
+    payload.commissions.map((o) => [o.status, o.milestones.length, o.payment.stateLabel]),
+    [["making", 1, "Payment confirmed"]],
+  );
   assert.equal(payload.requests.length, 3);
   assert.equal(JSON.stringify(payload).includes("design b"), false, "another client's design is not in the export");
   assert.equal(JSON.stringify(payload).includes(OTHER_GUEST_KEY), false);
@@ -425,11 +594,18 @@ test("an export counts the owner's records, hands the file to the action, and co
   assert.equal(view.completedWithExceptions, false);
 
   const late = s.h.addFile("_storage|export-2");
-  assert.equal(await privacy.recordExport(s.h.f.ctx, requestId, late, NOW + 7), false, "a late or repeated report is refused");
+  assert.equal(
+    await privacy.recordExport(s.h.f.ctx, requestId, late, NOW + 7),
+    false,
+    "a late or repeated report is refused",
+  );
   assert.ok(s.h.deletedFiles.includes(late), "and its file is deleted rather than kept as an orphan");
   assert.equal((await row(s, requestId)).exportStorageId, file);
   const touched = s.h.touchedSince(s.after);
-  assert.ok(!touched.has("atelierOrders") && !touched.has("atelierDrafts") && !touched.has("atelierPersonPhotos"), "an export changes nothing");
+  assert.ok(
+    !touched.has("atelierOrders") && !touched.has("atelierDrafts") && !touched.has("atelierPersonPhotos"),
+    "an export changes nothing",
+  );
 });
 
 test("closing an account runs every step, ends completed with the disclosed exceptions and never touches a commission", async () => {
@@ -467,21 +643,46 @@ test("a step that fails is recorded as failed and holds the status; automatic ru
     throw new Error("storage unavailable");
   };
   const trail = await drain(s.h);
-  assert.deepEqual(trail, [["revoke_preview_links", "requested"]], "the first file deletion fails and nothing after it runs");
+  assert.deepEqual(
+    trail,
+    [["revoke_preview_links", "requested"]],
+    "the first file deletion fails and nothing after it runs",
+  );
   let r = await row(s, requestId);
   assert.equal(r.status, "requested", "nothing was revoked, so nothing is called revoked");
-  assert.deepEqual(r.steps.map((step) => step.status), ["failed", "pending", "pending", "pending"]);
+  assert.deepEqual(
+    r.steps.map((step) => step.status),
+    ["failed", "pending", "pending", "pending"],
+  );
   assert.equal(r.steps[0].note, "storage unavailable");
-  assert.equal((await row(s, s.mine.doneJob)).status, "done", "the job is not marked expired while its file is still there");
+  assert.equal(
+    (await row(s, s.mine.doneJob)).status,
+    "done",
+    "the job is not marked expired while its file is still there",
+  );
   assert.equal((await privacy.toRequestView(s.h.f.ctx, r)).hasFailedStep, true);
-  assert.deepEqual(await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 10), { ran: null, status: "requested", scheduled: false }, "no automatic retry loop");
-  await assert.rejects(privacy.complete(s.h.f.ctx, s.privacyStaff, r, "Done.", NOW + 11), isAppError("INVALID_STATE"), "not complete while a step failed");
-  assert.deepEqual((await privacy.queue(s.h.f.ctx)).map((q) => q._id), [requestId], "it waits in the staff queue");
+  assert.deepEqual(
+    await privacy.advance(s.h.f.ctx, requestId, {}, NOW + 10),
+    { ran: null, status: "requested", scheduled: false },
+    "no automatic retry loop",
+  );
+  await assert.rejects(
+    privacy.complete(s.h.f.ctx, s.privacyStaff, r, "Done.", NOW + 11),
+    isAppError("INVALID_STATE"),
+    "not complete while a step failed",
+  );
+  assert.deepEqual(
+    (await privacy.queue(s.h.f.ctx)).map((q) => q._id),
+    [requestId],
+    "it waits in the staff queue",
+  );
 
   s.h.f.ctx.storage.delete = realDelete;
   const rerun = await privacy.advance(s.h.f.ctx, requestId, { manual: true, actor: s.privacyStaff }, NOW + 12);
   assert.deepEqual(rerun, { ran: "revoke_preview_links", status: "access_revoked", scheduled: true });
-  const staffAudit = s.h.f.rowsOf("atelierAuditLog").filter((a) => a.action === "privacy.step" && a.actorUserId === s.privacyStaff._id);
+  const staffAudit = s.h.f
+    .rowsOf("atelierAuditLog")
+    .filter((a) => a.action === "privacy.step" && a.actorUserId === s.privacyStaff._id);
   assert.equal(staffAudit.length, 1);
   assert.equal(staffAudit[0].actorKind, "staff");
   await drain(s.h, NOW + 12);
@@ -525,7 +726,11 @@ test("staff complete only a request whose steps have all run, with a note on the
   assert.equal(r.completedAt, NOW + 4, "the completion time is when the steps finished");
   const caseDoc = await privacy.caseFor(s.h.f.ctx, r);
   assert.ok(caseMessages(s, caseDoc).includes("Provider notice filed under ticket OAI-4411."));
-  await assert.rejects(privacy.reject(s.h.f.ctx, s.privacyStaff, r, "No.", NOW + 21), isAppError("INVALID_STATE"), "completed is not rejected");
+  await assert.rejects(
+    privacy.reject(s.h.f.ctx, s.privacyStaff, r, "No.", NOW + 21),
+    isAppError("INVALID_STATE"),
+    "completed is not rejected",
+  );
 
   const other = await request(s, "delete_designs", s.actor, NOW + 30);
   s.h.scheduled.length = 0;
@@ -535,7 +740,11 @@ test("staff complete only a request whose steps have all run, with a note on the
   o = await row(s, other.requestId);
   assert.equal(o.status, "rejected");
   assert.equal(o.completedAt, NOW + 31);
-  assert.deepEqual(await privacy.advance(s.h.f.ctx, other.requestId, {}, NOW + 32), { ran: null, status: "rejected", scheduled: false }, "nothing runs after a rejection");
+  assert.deepEqual(
+    await privacy.advance(s.h.f.ctx, other.requestId, {}, NOW + 32),
+    { ran: null, status: "rejected", scheduled: false },
+    "nothing runs after a rejection",
+  );
   assert.equal((await row(s, s.mine.freeDraft)).status, "draft");
   await assert.rejects(privacy.complete(s.h.f.ctx, s.privacyStaff, o, "x", NOW + 33), isAppError("INVALID_STATE"));
   const rejectedView = await privacy.toRequestView(s.h.f.ctx, o);

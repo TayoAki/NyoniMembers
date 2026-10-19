@@ -6,7 +6,11 @@ import { cn } from "@/lib/utils";
  * production code in mono after it. The review step, receipts, quotes and the staff views all read
  * from this one component so the client and the house see the same words.
  */
-export function OrderBook({ children, className, ...props }: { children: ReactNode; className?: string } & Omit<React.ComponentProps<"dl">, "children">) {
+export function OrderBook({
+  children,
+  className,
+  ...props
+}: { children: ReactNode; className?: string } & Omit<React.ComponentProps<"dl">, "children">) {
   return (
     <dl className={cn("divide-y divide-foreground/10 border-y border-foreground/15", className)} {...props}>
       {children}
@@ -29,12 +33,25 @@ type OrderBookRowProps = {
 
 export function OrderBookRow({ label, value, code, note, action, tone = "default", className }: OrderBookRowProps) {
   return (
-    <div className={cn("grid gap-x-6 gap-y-1 py-3 sm:grid-cols-[minmax(7rem,11rem)_1fr_auto] sm:items-baseline", className)}>
+    <div
+      className={cn(
+        "grid gap-x-6 gap-y-1 py-3 sm:grid-cols-[minmax(7rem,11rem)_1fr_auto] sm:items-baseline",
+        className,
+      )}
+    >
       <dt className="text-xs font-medium tracking-wide text-muted-foreground">{label}</dt>
-      <dd className={cn("min-w-0 text-sm", tone === "warning" && "text-warning", tone === "muted" && "text-muted-foreground")}>
+      <dd
+        className={cn(
+          "min-w-0 text-sm",
+          tone === "warning" && "text-warning",
+          tone === "muted" && "text-muted-foreground",
+        )}
+      >
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="min-w-0 break-words">{value}</span>
-          {code ? <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">{code}</span> : null}
+          {code ? (
+            <span className="font-mono text-[10px] tracking-[0.16em] text-muted-foreground uppercase">{code}</span>
+          ) : null}
         </div>
         {note ? <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{note}</div> : null}
       </dd>

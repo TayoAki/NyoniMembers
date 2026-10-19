@@ -83,7 +83,12 @@ async function insertCase(
   await appendMessage(
     ctx,
     caseId,
-    { author: "system", body: input.receipt ?? `${CASE_KIND_LABELS[input.kind]} received. A concierge will take it up and you will see their name here.` },
+    {
+      author: "system",
+      body:
+        input.receipt ??
+        `${CASE_KIND_LABELS[input.kind]} received. A concierge will take it up and you will see their name here.`,
+    },
     now,
   );
   await queueNotification(
@@ -98,7 +103,17 @@ async function insertCase(
     },
     now,
   );
-  await audit(ctx, { actor: input.actor, action: "case.create", targetTable: "atelierCases", targetId: caseId, meta: { kind: input.kind } }, now);
+  await audit(
+    ctx,
+    {
+      actor: input.actor,
+      action: "case.create",
+      targetTable: "atelierCases",
+      targetId: caseId,
+      meta: { kind: input.kind },
+    },
+    now,
+  );
   return { caseId, duplicate: false };
 }
 
@@ -131,7 +146,19 @@ export async function appendMessage(
 export async function touchCase(
   ctx: MutationCtx,
   caseId: Id<"atelierCases">,
-  patch: Partial<Pick<Doc<"atelierCases">, "status" | "ownerStaffId" | "assignedAt" | "nextAction" | "nextActionDueAt" | "priority" | "escalatedAt" | "closedAt">>,
+  patch: Partial<
+    Pick<
+      Doc<"atelierCases">,
+      | "status"
+      | "ownerStaffId"
+      | "assignedAt"
+      | "nextAction"
+      | "nextActionDueAt"
+      | "priority"
+      | "escalatedAt"
+      | "closedAt"
+    >
+  >,
   now: number = Date.now(),
 ): Promise<void> {
   await ctx.db.patch(caseId, { ...patch, lastActivityAt: now });

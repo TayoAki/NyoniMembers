@@ -19,12 +19,23 @@ registerHooks({
   },
 });
 
-const { DAY_MS, HOUR_MS, SCENARIO_TIME_ZONE, newYorkInstant, newYorkUtcOffsetHours, nextWeekMonday, quoteTotals, scenarioPaths, scenarioPlan, utcNoon } =
-  await import("../convex/dev/atelier_fixtures.ts");
+const {
+  DAY_MS,
+  HOUR_MS,
+  SCENARIO_TIME_ZONE,
+  newYorkInstant,
+  newYorkUtcOffsetHours,
+  nextWeekMonday,
+  quoteTotals,
+  scenarioPaths,
+  scenarioPlan,
+  utcNoon,
+} = await import("../convex/dev/atelier_fixtures.ts");
 const { LOOKS } = await import("../convex/shared/atelier/looks.ts");
 const { CLOTH_SEED } = await import("../convex/shared/atelier/cloths.ts");
 const { specHash } = await import("../convex/shared/atelier/spec.ts");
-const { FIT_REGIONS, QUOTE_LINE_KINDS, ORDER_STATUS_LABELS, STAFF_ROLES, ATELIER_LIMITS } = await import("../convex/shared/atelier/enums.ts");
+const { FIT_REGIONS, QUOTE_LINE_KINDS, ORDER_STATUS_LABELS, STAFF_ROLES, ATELIER_LIMITS } =
+  await import("../convex/shared/atelier/enums.ts");
 const { HOUSE_POLICY } = await import("../convex/shared/atelier/policy.ts");
 
 /** A Sunday evening in October 2026, UTC: the week boundary is the awkward case for "next week". */
@@ -61,11 +72,23 @@ test("every dated fact sits at its stated distance from now", () => {
   assert.equal(plan.delivered.order.deliveredAt, NOW - 7 * DAY_MS);
   assert.equal(plan.delivered.correction.remedy.deadline, NOW + 14 * DAY_MS);
   assert.equal(plan.group.eventDate, NOW + 120 * DAY_MS);
-  assert.ok(plan.submitted.quote.offeredAt < NOW && plan.submitted.quote.offeredAt > NOW - DAY_MS, "the quote was offered within the last day");
+  assert.ok(
+    plan.submitted.quote.offeredAt < NOW && plan.submitted.quote.offeredAt > NOW - DAY_MS,
+    "the quote was offered within the last day",
+  );
   assert.ok(plan.submitted.submittedAt < plan.submitted.assignedAt, "a case is assigned after it is submitted");
-  assert.ok(plan.ordered.submittedAt < plan.ordered.quote.acceptedAt && plan.ordered.quote.acceptedAt <= plan.ordered.order.createdAt);
-  assert.ok(plan.ordered.order.createdAt < plan.ordered.order.paymentConfirmedAt && plan.ordered.order.paymentConfirmedAt < plan.ordered.order.releasedAt);
-  assert.ok(plan.delivered.order.deliveredAt < plan.delivered.correction.requestedAt && plan.delivered.correction.requestedAt < plan.delivered.correction.updatedAt);
+  assert.ok(
+    plan.ordered.submittedAt < plan.ordered.quote.acceptedAt &&
+      plan.ordered.quote.acceptedAt <= plan.ordered.order.createdAt,
+  );
+  assert.ok(
+    plan.ordered.order.createdAt < plan.ordered.order.paymentConfirmedAt &&
+      plan.ordered.order.paymentConfirmedAt < plan.ordered.order.releasedAt,
+  );
+  assert.ok(
+    plan.delivered.order.deliveredAt < plan.delivered.correction.requestedAt &&
+      plan.delivered.correction.requestedAt < plan.delivered.correction.updatedAt,
+  );
 });
 
 test("the stand-in staff member holds every role and the drafts use the named looks in real cloths", () => {
@@ -78,7 +101,11 @@ test("the stand-in staff member holds every role and the drafts use the named lo
   assert.equal(plan.delivered.look, LOOKS[5]);
   assert.equal(plan.submitted.look.spec.garment, "three_piece");
   assert.equal(plan.inProgress.shortlist.length, ATELIER_LIMITS.shortlistMax);
-  assert.equal(new Set(plan.inProgress.shortlist).size, plan.inProgress.shortlist.length, "no duplicate cloth in the shortlist");
+  assert.equal(
+    new Set(plan.inProgress.shortlist).size,
+    plan.inProgress.shortlist.length,
+    "no duplicate cloth in the shortlist",
+  );
   for (const code of plan.inProgress.shortlist) assert.ok(CLOTH_CODES.has(code), `${code} is a real cloth`);
   assert.ok(plan.inProgress.shortlist.includes(LOOKS[0].spec.clothCode), "the shortlist includes the look's own cloth");
   assert.equal(plan.inProgress.stage, "style");
@@ -98,13 +125,20 @@ test("the proposal closes the vents and changes nothing else", () => {
   assert.equal(after.jacket.vents, "none");
   assert.deepEqual({ ...after, jacket: { ...after.jacket, vents: before.jacket.vents } }, before);
   assert.notEqual(specHash(after), specHash(before));
-  assert.equal(submitted.messages.filter((message) => message.carriesProposal).length, 1, "exactly one staff message carries the proposal");
+  assert.equal(
+    submitted.messages.filter((message) => message.carriesProposal).length,
+    1,
+    "exactly one staff message carries the proposal",
+  );
   assert.equal(submitted.messages.find((message) => message.carriesProposal)?.author, "staff");
   assert.deepEqual(
     submitted.messages.map((message) => message.author),
     ["system", "staff", "client"],
   );
-  assert.ok(submitted.messages.every((message, index, all) => index === 0 || all[index - 1].at < message.at), "messages are in time order");
+  assert.ok(
+    submitted.messages.every((message, index, all) => index === 0 || all[index - 1].at < message.at),
+    "messages are in time order",
+  );
 });
 
 test("the offered quote adds up and uses known line kinds and the house's final-sale terms", () => {
@@ -145,7 +179,13 @@ test("the order in the making has sourced milestones in time order with one esti
   assert.equal(ordered.order.status, "making");
   assert.equal(ordered.order.makerRef, "CLT-2026-0417");
   const labels = ordered.milestones.map((milestone) => milestone.label);
-  assert.deepEqual(labels, ["Quote accepted", "Payment confirmed", ORDER_STATUS_LABELS.released, "Cloth cut", "Estimated ready"]);
+  assert.deepEqual(labels, [
+    "Quote accepted",
+    "Payment confirmed",
+    ORDER_STATUS_LABELS.released,
+    "Cloth cut",
+    "Estimated ready",
+  ]);
   assert.deepEqual(
     ordered.milestones.map((milestone) => milestone.source),
     ["client", "staff", "staff", "maker", "system"],
@@ -155,7 +195,10 @@ test("the order in the making has sourced milestones in time order with one esti
   assert.equal(estimated[0], ordered.milestones.at(-1));
   assert.equal(estimated[0].at, ordered.order.estimatedReadyAt);
   for (let index = 1; index < ordered.milestones.length; index += 1) {
-    assert.ok(ordered.milestones[index - 1].at < ordered.milestones[index].at, `milestone ${index} follows ${index - 1}`);
+    assert.ok(
+      ordered.milestones[index - 1].at < ordered.milestones[index].at,
+      `milestone ${index} follows ${index - 1}`,
+    );
   }
 });
 
@@ -174,8 +217,14 @@ test("the delivered order flags only the jacket sleeves and proposes an included
   assert.equal(delivered.correction.description, "Left sleeve sits about 1.5 cm long.");
   assert.equal(delivered.correction.status, "remedy_proposed");
   assert.equal(delivered.correction.remedy.coverage, "included");
-  assert.equal(delivered.correction.remedy.logistics, "Bring the jacket to the Charlotte showroom or we send a prepaid label.");
-  assert.ok(delivered.milestones.every((milestone) => !milestone.estimated), "a delivered order has no estimates left");
+  assert.equal(
+    delivered.correction.remedy.logistics,
+    "Bring the jacket to the Charlotte showroom or we send a prepaid label.",
+  );
+  assert.ok(
+    delivered.milestones.every((milestone) => !milestone.estimated),
+    "a delivered order has no estimates left",
+  );
   assert.ok(delivered.milestones.every((milestone, index, all) => index === 0 || all[index - 1].at < milestone.at));
 });
 
@@ -203,7 +252,10 @@ test("the fitting asks for two windows next week and the consultation is confirm
     [0, 2],
     "Monday and Wednesday of next week",
   );
-  assert.deepEqual(appointments.fitting.windows.map((window) => inNewYork(window.date).weekday), ["Mon", "Wed"]);
+  assert.deepEqual(
+    appointments.fitting.windows.map((window) => inNewYork(window.date).weekday),
+    ["Mon", "Wed"],
+  );
   for (const window of appointments.fitting.windows) assert.ok(window.date > NOW, "a window in the future");
 
   assert.equal(appointments.consultation.service, "consultation");
