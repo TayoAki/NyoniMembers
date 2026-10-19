@@ -30,6 +30,7 @@ export const DESK_LINKS = [
   { href: routes.staffAtelier.previews, label: "Previews" },
   { href: routes.staffAtelier.aftercare, label: "Aftercare" },
   { href: routes.staffAtelier.privacy, label: "Privacy" },
+  { href: routes.staffAtelier.groups, label: "Groups" },
 ] as const;
 
 function isActive(pathname: string, link: (typeof DESK_LINKS)[number]): boolean {

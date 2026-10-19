@@ -56,5 +56,6 @@ export const routes = {
     aftercare: "/admin/atelier/aftercare",
     correction: (correctionId: Id<"atelierCorrections"> | string) => `/admin/atelier/aftercare/${correctionId}`,
     privacy: "/admin/atelier/privacy",
+    groups: "/admin/atelier/groups",
   },
 } as const;
