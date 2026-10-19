@@ -7,7 +7,7 @@ import { AtelierSection } from "@/components/atelier/common/atelier-section";
 import { Mono } from "@/components/atelier/common/mono";
 import { StatusLine } from "@/components/atelier/common/status-line";
 import { OrderBook, OrderBookRow } from "@/components/atelier/common/order-book";
-import { CASE_STATUS_TONES, PRIORITY_WORDS } from "@/components/atelier/staff/queue/queue-words";
+import { CASE_STATUS_TONES } from "@/components/atelier/staff/queue/queue-words";
 import { ErrorAlert } from "@/components/common/error-alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -21,9 +21,14 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { StaffCaseView } from "@convex/atelier/cases";
 import type { StaffStatus } from "@convex/atelier/staff";
-import { CASE_STATUS_LABELS, type CaseStatus } from "@convex/shared/atelier/enums";
+import {
+  CONTACT_CHANNEL_LABELS,
+  CASE_PRIORITY_LABELS,
+  CASE_STATUS_LABELS,
+  type CaseStatus,
+} from "@convex/shared/atelier/enums";
 import { SHOWROOMS } from "@convex/shared/house";
-import { CASE_TRANSITIONS, CONTACT_CHANNEL_WORDS } from "./case-words";
+import { CASE_TRANSITIONS } from "./case-words";
 import { WordSelect } from "./word-select";
 
 /**
@@ -70,7 +75,7 @@ export function RequestSection({ caseView, me }: { caseView: StaffCaseView; me: 
         />
         <OrderBookRow
           label="Priority"
-          value={PRIORITY_WORDS[caseView.priority]}
+          value={CASE_PRIORITY_LABELS[caseView.priority]}
           tone={caseView.priority === "high" ? "warning" : "default"}
           note={
             caseView.escalatedAt !== null
@@ -91,7 +96,7 @@ export function RequestSection({ caseView, me }: { caseView: StaffCaseView; me: 
               </a>
               {caseView.contact.phone ? <span>{caseView.contact.phone}</span> : null}
               <span>
-                Prefers {CONTACT_CHANNEL_WORDS[caseView.contact.channel].toLowerCase()}
+                Prefers {CONTACT_CHANNEL_LABELS[caseView.contact.channel].toLowerCase()}
                 {showroom ? ` · ${showroom.city} showroom` : ""}
               </span>
             </span>

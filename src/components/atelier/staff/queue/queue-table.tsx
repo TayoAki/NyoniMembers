@@ -1,5 +1,6 @@
 "use client";
 
+import { CASE_PRIORITY_LABELS } from "@convex/shared/atelier/enums";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mono } from "@/components/atelier/common/mono";
@@ -9,7 +10,7 @@ import { formatDate, formatRelative } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import type { StaffCaseRow } from "@convex/atelier/cases";
-import { CASE_STATUS_TONES, PRIORITY_WORDS } from "./queue-words";
+import { CASE_STATUS_TONES } from "./queue-words";
 
 /**
  * A01: the dense table of requests. Pure: give it rows and it renders the same every time. The whole
@@ -63,7 +64,7 @@ export function QueueTable({ rows, now, className }: { rows: StaffCaseRow[]; now
               <TableCell>
                 <div className="flex flex-col gap-0.5">
                   <span className={cn(row.priority === "high" && "font-medium text-warning")}>
-                    {PRIORITY_WORDS[row.priority]}
+                    {CASE_PRIORITY_LABELS[row.priority]}
                   </span>
                   {row.overdue ? <span className="text-xs text-warning">Overdue</span> : null}
                   {row.escalatedAt !== null ? (

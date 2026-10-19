@@ -4,7 +4,6 @@ import { APPOINTMENT_TRANSITIONS, CASE_TRANSITIONS, SAMPLE_TRANSITIONS } from "@
 import { computeTotals, validateLines } from "@convex/shared/atelier/quote_lines";
 import type {
   CommercialImpact,
-  ContactChannel,
   MessageAuthor,
   NotificationStatus,
   ProposalStatus,
@@ -64,12 +63,6 @@ export const COMMERCIAL_IMPACT_WORDS: Record<CommercialImpact, { label: string; 
     label: "A new quote will follow",
     description: "Accepting supersedes the offered quote; finance prepares a fresh version for approval.",
   },
-};
-
-export const CONTACT_CHANNEL_WORDS: Record<ContactChannel, string> = {
-  email: "Email",
-  sms: "Text message",
-  either: "Email or text",
 };
 
 /** Who wrote a message, from the desk's side of the table. */

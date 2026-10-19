@@ -164,7 +164,7 @@ export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
 export const CONTACT_CHANNEL_LABELS: Record<ContactChannel, string> = {
   email: "Email",
   sms: "Text message",
-  either: "Either",
+  either: "Email or text",
 };
 export const SAMPLE_STATES = ["requested", "accepted", "shipped", "declined"] as const;
 export type SampleState = (typeof SAMPLE_STATES)[number];

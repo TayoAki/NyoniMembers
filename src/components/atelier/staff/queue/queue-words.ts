@@ -1,6 +1,6 @@
 import type { StatusTone } from "@/components/atelier/common/status-line";
 import type { QueueFilter } from "@convex/atelier/cases";
-import { ATELIER_LIMITS, type CasePriority, type CaseStatus } from "@convex/shared/atelier/enums";
+import { ATELIER_LIMITS, type CaseStatus } from "@convex/shared/atelier/enums";
 
 export const QUEUE_TITLE = "Atelier desk";
 export const QUEUE_DESCRIPTION =
@@ -44,12 +44,6 @@ export const QUEUE_EMPTY_WORDS: Record<QueueFilter, { title: string; description
     title: "No requests yet",
     description: "A request appears here the moment a client sends one from the Atelier.",
   },
-};
-
-/** Priority as words, never colour alone (S&S contract). */
-export const PRIORITY_WORDS: Record<CasePriority, string> = {
-  normal: "Normal",
-  high: "High priority",
 };
 
 export const CASE_STATUS_TONES: Record<CaseStatus, StatusTone> = {
